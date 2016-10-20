@@ -1,0 +1,43 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: iocell
+# REQUIRE: LOGIN cleanvar sshd ZFS
+# BEFORE:  securelevel
+# KEYWORD: shutdown
+
+# Add the following lines to /etc/rc.conf to enable iocell:
+#
+# iocell_enable="YES"
+#
+#
+
+. /etc/rc.subr
+
+name="iocell"
+rcvar=iocell_enable
+
+# read configuration and set defaults
+load_rc_config "$name"
+: ${iocell_enable="NO"}
+
+start_cmd="iocell_start"
+stop_cmd="iocell_stop"
+
+iocell_start()
+{
+    if checkyesno ${rcvar}; then
+        /usr/local/sbin/iocell rcboot
+    fi
+}
+
+iocell_stop()
+{
+    if checkyesno ${rcvar}; then
+        /usr/local/sbin/iocell rcshutdown
+    fi
+}
+
+run_rc_command "$1"
