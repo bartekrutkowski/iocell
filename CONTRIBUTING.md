@@ -29,8 +29,8 @@ if [ "$(command | test)" ] ; then
     fi
 fi
 ```
-- Update ioc-help (**_not iocage.8/iocage.8.txt_**) if new/changed docs are needed for your change. Requires `txt2man`.
-<p>(`iocage help | txt2man -t iocage -s 8 -v "FreeBSD System Manager's Manual" > iocage.8`, followed by `iocage help > iocage.8.txt`)</p>
+- Update ioc-help (**_not iocell.8/iocell.8.txt_**) if new/changed docs are needed for your change. Requires `txt2man`.
+<p>(`iocell help | txt2man -t iocell -s 8 -v "FreeBSD System Manager's Manual" > iocell.8`, followed by `iocell help > iocell.8.txt`)</p>
 - Pull request description should clearly show what the change is including output if relevant.
 - Squash commits before opening a pull request.
 - Test and then test again! Make sure it works with the latest changes in `develop`.
@@ -103,4 +103,4 @@ _var2="bar"
 
 ####Documentation for Read The Docs
 -----
-If you wish to update some of our [documentation] (http://iocage.readthedocs.org), you only need to submit a PR for the files you change in iocage/doc/source. They will automatically be updated when the changes are merged into our `Master` branch.
+If you wish to update some of our [documentation] (http://iocell.readthedocs.org), you only need to submit a PR for the files you change in iocell/doc/source. They will automatically be updated when the changes are merged into our `Master` branch.

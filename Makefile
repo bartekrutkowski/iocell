@@ -6,17 +6,17 @@ PREFIX?= /usr/local
 
 MAN=
 BINDIR=$(PREFIX)/sbin
-FILESDIR=$(PREFIX)/lib/iocage
+FILESDIR=$(PREFIX)/lib/iocell
 RCDIR=$(PREFIX)/etc/rc.d
 MANDIR=$(PREFIX)/man/man8
 MKDIR=mkdir
 
-SCRIPTS=iocage
+SCRIPTS=iocell
 SCRIPTSDIR=${PREFIX}/BINDIR
 MAN=	$(SCRIPTS).8
 
 ${SCRIPTS}:
-	@echo Nothing needs to be done for iocage.
+	@echo Nothing needs to be done for iocell.
 
 install:: all
 	$(MKDIR) -p $(BINDIR)
