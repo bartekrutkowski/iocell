@@ -52,10 +52,10 @@ __start_jail () {
         # Check for thick or clone jails and migrate their type
         if [ "${_clone_check}" = "-" ] ; then
             __set_jail_prop type=thickjail "${_fulluuid}" \
-                "${pool}/iocage/jails/${_fulluuid}"
+                "${pool}/iocell/jails/${_fulluuid}"
         else
             __set_jail_prop type=clonejail "${_fulluuid}" \
-                "${pool}/iocage/jails/${_fulluuid}"
+                "${pool}/iocell/jails/${_fulluuid}"
         fi
     fi
 
@@ -65,7 +65,7 @@ __start_jail () {
 
         if [ -z "${_nic}" -o -z "${_bridge}" ] ; then
             echo "  ERROR  : incorrect interfaces property format" >&2
-            echo "  HINT   : check with \"iocage get interfaces ${_fulluuid}\"" >&2
+            echo "  HINT   : check with \"iocell get interfaces ${_fulluuid}\"" >&2
             echo "  Example: vnet0:bridge0" >&2
             exit 1
         fi
@@ -74,7 +74,7 @@ __start_jail () {
     if [ "${_istemplate}" = "yes" ] ; then
         if [ "${_force}" != "1" ] ; then
             echo "  INFO: ${_tag} is a template jail, ignoring start request."
-            echo "        (disable template flag with: iocage set template=no ${_tag})"
+            echo "        (disable template flag with: iocell set template=no ${_tag})"
             return
         else
             __mount_istemplate "${_tag}" "${_jail_release}"
@@ -780,7 +780,7 @@ __rc_jails () {
     _action=$1
     _jails=$(__find_jail ALL | \
             awk 'BEGIN { FS = "/" } ; { if (length($NF)==36) { print }}')
-    _boot_list="/tmp/iocage.$$"
+    _boot_list="/tmp/iocell.$$"
 
     for _jail in ${_jails} ; do
         # _jail is actually a dataset, so fulluuid needs to be faked.
@@ -811,7 +811,7 @@ __rc_jails () {
         for _i in ${_boot_order} ; do
             _jail="$(echo ${_i} | cut -f2 -d,)"
             _priority="$(echo ${_i} | cut -f1 -d,)"
-            _dataset="${pool}/iocage/jails/${_jail}"
+            _dataset="${pool}/iocell/jails/${_jail}"
             _jail_path="$(__get_jail_prop mountpoint ${_jail} ${_dataset})"
             _state="$(jls | grep ${_jail_path} | wc -l)"
 
@@ -830,7 +830,7 @@ __rc_jails () {
 
         for _i in ${_shutdown_order} ; do
             _jail="$(echo ${_i} | cut -f2 -d,)"
-            _dataset="${pool}/iocage/jails/${_jail}"
+            _dataset="${pool}/iocell/jails/${_jail}"
             _jail_path="$(__get_jail_prop mountpoint ${_jail} ${_dataset})"
             _state="$(jls | grep ${_jail_path} | wc -l)"
 

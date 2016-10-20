@@ -36,9 +36,9 @@ __set_jail_prop () {
     fi
 
     # Avoid having a stale list when called.
-    export jail_datasets="$(zfs list -d3 -rH -o name ${pool}/iocage \
+    export jail_datasets="$(zfs list -d3 -rH -o name ${pool}/iocell \
         | egrep -v \
-        "jails$|releases$|templates$|download|${pool}/iocage$|*./root")"
+        "jails$|releases$|templates$|download|${pool}/iocell$|*./root")"
 
     if [ "$3" ] ; then
         _dataset="$3"
@@ -219,10 +219,10 @@ __set_jail_prop () {
                         trap "kill $!" 2 3
                         # Creating jail's /root in it's new home
                         zfs rename -f \
-                            "${pool}/iocage/jails/${_fulluuid}" \
-                            "${pool}/iocage/templates/${_tag}"
-                        _dataset="${pool}/iocage/templates/${_tag}"
-                        _jailed_dataset="${pool}/iocage/templates/${_tag}/data"
+                            "${pool}/iocell/jails/${_fulluuid}" \
+                            "${pool}/iocell/templates/${_tag}"
+                        _dataset="${pool}/iocell/templates/${_tag}"
+                        _jailed_dataset="${pool}/iocell/templates/${_tag}/data"
                         # Check to see if the user has the old style of jailed datasets
                         if [ "${_jailed_dataset_check}" = "0" ] ; then
                             zfs set jailed=on "${_jailed_dataset}"
@@ -234,14 +234,14 @@ __set_jail_prop () {
             elif [ "${_pval}" = "no" ] ; then
                 _template_tag="$(__get_jail_prop tag ${_fulluuid} ${_dataset})"
                 _release="$(__get_jail_prop release ${_fulluuid} ${_dataset})"
-                _jailed_dataset="${pool}/iocage/templates/${_template_tag}/data"
+                _jailed_dataset="${pool}/iocell/templates/${_template_tag}/data"
                 _jailed_dataset_check="$(zfs get -H creation ${_jailed_dataset} > \
                                        /dev/null 2>&1 ; echo $?)"
 
                 # We need to ignore a few more datasets here.
                 _jail_datasets="$(zfs list -d3 -rH -o name \
-                    ${pool}/iocage | egrep -v \
-                    "jails$|base|releases|templates$|download|${pool}/iocage$|*./root")"
+                    ${pool}/iocell | egrep -v \
+                    "jails$|base|releases|templates$|download|${pool}/iocell$|*./root")"
 
                 for _fs in ${_jail_datasets} ; do
                     # _jail_fs is actually a dataset, so fulluuid needs to
@@ -285,13 +285,13 @@ __set_jail_prop () {
                         trap "kill $!" 2 3
 
                         # Have to manually specify this for later, as it will
-                        # still be the old /iocage/templates location
-                        _dataset="${pool}/iocage/jails/${_fulluuid}"
+                        # still be the old /iocell/templates location
+                        _dataset="${pool}/iocell/jails/${_fulluuid}"
 
                         # Move jail back to the jails dataset
                         zfs rename -f \
-                            "${pool}/iocage/templates/${_template_tag}" \
-                            "${pool}/iocage/jails/${_fulluuid}"
+                            "${pool}/iocell/templates/${_template_tag}" \
+                            "${pool}/iocell/jails/${_fulluuid}"
                         # Updating the jail tag
                         __link_tag "${_dataset}" "${_template_tag}"
                         # Throw jail through the checking process and unmount
@@ -312,7 +312,7 @@ __set_jail_prop () {
             fi
             ;;
         allow*)
-            # get jid for iocage jails
+            # get jid for iocell jails
             _jid=$(jls -j ioc-${_fulluuid} jid 2> /dev/null)
 
             if [ ! -z "${_jid}" ] ; then
@@ -499,14 +499,14 @@ __cleanup_release_dir () {
         __die "Failed cleanup of RELEASE directories. No RELEASE name defined" >&2
     fi
 
-    _rel_exist=$(zfs get -H -o value name ${pool}/iocage/releases/${_rel_name})
+    _rel_exist=$(zfs get -H -o value name ${pool}/iocell/releases/${_rel_name})
     _dwn_rel_exist=$(zfs get -H -o value name \
-        ${pool}/iocage/download/${_rel_name})
+        ${pool}/iocell/download/${_rel_name})
 
     if [ -n "${_rel_exist}" ] ; then
         _rel_dir_exist=$(zfs get -H -o value mountpoint \
-            ${pool}/iocage/releases/${_rel_name})
-        zfs destroy -fr -- ${pool}/iocage/releases/${_rel_name}
+            ${pool}/iocell/releases/${_rel_name})
+        zfs destroy -fr -- ${pool}/iocell/releases/${_rel_name}
         if [ -d "${_rel_dir_exist}" ]; then
             rm -rf -- ${_rel_dir_exist}
         fi
@@ -514,7 +514,7 @@ __cleanup_release_dir () {
 
     if [ -n "${_dwn_rel_exist}" ] ; then
         _dwn_dir_exist=$(zfs get -H -o value mountpoint \
-            ${pool}/iocage/download/${_rel_name})
+            ${pool}/iocell/download/${_rel_name})
         zfs destroy -fr -- ${pool}${iocroot}/download/${_rel_name}
         if [ -d "${_dwn_dir_exist}" ]; then
             rm -rf -- ${_dwn_dir_exist}
@@ -567,11 +567,11 @@ __fetch_release () {
 
 
 
-    _rel_exist=$(zfs list -H | grep -w ^${pool}/iocage/releases/${_release})
+    _rel_exist=$(zfs list -H | grep -w ^${pool}/iocell/releases/${_release})
 
     if [ -z "${_rel_exist}" ] ; then
-        zfs create -o compression=${compression} -p ${pool}/iocage/releases/${_release}/root
-        zfs create -o compression=${compression} -p ${pool}/iocage/download/${_release}
+        zfs create -o compression=${compression} -p ${pool}/iocell/releases/${_release}/root
+        zfs create -o compression=${compression} -p ${pool}/iocell/download/${_release}
     fi
 
     if [ -z "${ftpdir}" ] ; then
@@ -583,8 +583,8 @@ __fetch_release () {
         fi
     fi
 
-    if [ -e "/usr/local/tmp/iocage-dist" -a "${_release}" = "${_host_release}" ] ; then
-        cd "/usr/local/tmp/iocage-dist"
+    if [ -e "/usr/local/tmp/iocell-dist" -a "${_release}" = "${_host_release}" ] ; then
+        cd "/usr/local/tmp/iocell-dist"
         _dist=1
     else
         cd ${iocroot}/download/${_release}
@@ -671,7 +671,7 @@ __fetch_release () {
     fi
 
     if [ "${_dist}" = "1" ] ; then
-        rm -rf "/usr/local/tmp/iocage-dist"
+        rm -rf "/usr/local/tmp/iocell-dist"
     fi
 
     if [ "${_ports}" = "1" ] ; then

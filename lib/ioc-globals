@@ -99,7 +99,7 @@ wallclock="off"
 
 # Custom properties
 pool="none"
-iocroot=/iocage
+iocroot=/iocell
 tag=$(date "+%F@%T")
 istemplate="no"
 bpf="off"
@@ -114,7 +114,7 @@ release=$(uname -r|cut -f 1,2 -d'-')
 template="none"
 hostid=$(cat /etc/hostid)
 jail_zfs="off"
-jail_zfs_dataset="iocage/jails/${uuid}/data"
+jail_zfs_dataset="iocell/jails/${uuid}/data"
 jail_zfs_mountpoint="none"
 mount_procfs="0"
 mount_linprocfs="0"

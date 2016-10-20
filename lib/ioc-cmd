@@ -99,8 +99,8 @@ __parse_cmd () {
                                 unset jail_datasets uuid jail_zfs_dataset _fs \
                                       _jail_type
                                 export jail_datasets="$(zfs list -d3 -rH -o \
-                                       name ${pool}/iocage | egrep -v \
-                                       "jails$|releases$|templates$|download|${pool}/iocage$|*./root")"
+                                       name ${pool}/iocell | egrep -v \
+                                       "jails$|releases$|templates$|download|${pool}/iocell$|*./root")"
                             done
                         else
                             export _force=0
@@ -110,8 +110,8 @@ __parse_cmd () {
                                 unset jail_datasets uuid jail_zfs_dataset _fs \
                                       _jail_type
                                 export jail_datasets="$(zfs list -d3 -rH -o \
-                                       name ${pool}/iocage | egrep -v \
-                                       "jails$|releases$|templates$|download|${pool}/iocage$|*./root")"
+                                       name ${pool}/iocell | egrep -v \
+                                       "jails$|releases$|templates$|download|${pool}/iocell$|*./root")"
                             done
                         fi
 

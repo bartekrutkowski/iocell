@@ -1,8 +1,8 @@
 #!/bin/sh
 
 # This is for remote host initialization
-# example: iocage init-host IP-ADDRESS
-# will set up the host for iocage
+# example: iocell init-host IP-ADDRESS
+# will set up the host for iocell
 
 __init_host () {
     local _fs _fs_list _host _remote_pool
@@ -26,15 +26,15 @@ __init_host () {
         exit 1
     fi
 
-    ssh root@$_host "zpool set comment=iocage $_remote_pool"
-    ssh root@$_host "zfs create ${_remote_pool}/iocage
-                     && zfs set mountpoint=/iocage ${_remote_pool}/iocage
+    ssh root@$_host "zpool set comment=iocell $_remote_pool"
+    ssh root@$_host "zfs create ${_remote_pool}/iocell
+                     && zfs set mountpoint=/iocell ${_remote_pool}/iocell
                      && mkdir ${iocroot}/log"
 
     for _fs in $(echo $_fs_list) ; do
-        zfs snapshot -r ${pool}/iocage/${_fs}@init
-        zfs send -vR ${pool}/iocage/${_fs}@init | \
-            ssh root@$_host "zfs recv ${_remote_pool}/iocage/${_fs}"
-        zfs destroy -r ${pool}/iocage/${_fs}@init
+        zfs snapshot -r ${pool}/iocell/${_fs}@init
+        zfs send -vR ${pool}/iocell/${_fs}@init | \
+            ssh root@$_host "zfs recv ${_remote_pool}/iocell/${_fs}"
+        zfs destroy -r ${pool}/iocell/${_fs}@init
     done
 }

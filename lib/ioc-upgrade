@@ -228,7 +228,7 @@ __upgrade () {
 
     if [ ! -d "${iocroot}/releases/${_release}" ] ; then
         __error "${_release} not found!"
-        echo "  Please run iocage fetch first." >&2
+        echo "  Please run iocell fetch first." >&2
         exit 1
     fi
 

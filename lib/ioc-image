@@ -37,7 +37,7 @@ __import_old_thickjails () {
             _uuid="$(__create_jail "" -e)"
             tar -xvJf "${_image}" -C "${iocroot}/jails/${_uuid}/root"
             __set_jail_prop release="${_irelease}" "${_uuid}" \
-                "${pool}/iocage/jails/${_uuid}"
+                "${pool}/iocell/jails/${_uuid}"
         fi
 
     else
@@ -186,9 +186,9 @@ __export () {
     done &
 
     trap "kill $!" 2 3
-    zfs snapshot -r "${pool}/iocage/jails/${_fulluuid}@ioc-export-${_date}"
-    zfs send -R "${pool}/iocage/jails/${_fulluuid}@ioc-export-${_date}" > \
+    zfs snapshot -r "${pool}/iocell/jails/${_fulluuid}@ioc-export-${_date}"
+    zfs send -R "${pool}/iocell/jails/${_fulluuid}@ioc-export-${_date}" > \
                 "${_export_name}"
-    zfs destroy -r "${pool}/iocage/jails/${_fulluuid}@ioc-export-${_date}"
+    zfs destroy -r "${pool}/iocell/jails/${_fulluuid}@ioc-export-${_date}"
     printf "\b%1s\n" "done!" ; kill $! && trap " " 2 3
 }

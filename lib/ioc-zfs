@@ -1,21 +1,21 @@
 #!/bin/sh
 
-# activate pool for iocage
+# activate pool for iocell
 __activate () {
     local _npool _opool _filesystems
 
     _npool="$1"
     _opool=$(__get_default_prop pool)
-    _filesystems="iocage
-                  iocage/download
-                  iocage/jails
-                  iocage/releases
-                  iocage/templates"
+    _filesystems="iocell
+                  iocell/download
+                  iocell/jails
+                  iocell/releases
+                  iocell/templates"
 
     # Older releases did not have inherited mountpoints, we rely on that to move
     # active pools.
     for _fs in ${_filesystems} ; do
-        if [ "${_fs}" = "iocage" ] ; then
+        if [ "${_fs}" = "iocell" ] ; then
             zfs set mountpoint="/${_fs}" "${pool}/${_fs}" > /dev/null 2>&1
         else
             zfs inherit -r mountpoint "${pool}/${_fs}" > /dev/null 2>&1
@@ -23,7 +23,7 @@ __activate () {
     done
 
     if [ ! -z "${_npool}" ] ; then
-        if jls | grep -q iocage ; then
+        if jls | grep -q iocell ; then
             __die "make sure all jails are stopped before changing pools!"
         elif [ "${_opool}" = "${_npool}" ] ; then
             __die "${_npool} already active!"
@@ -34,7 +34,7 @@ __activate () {
 
         if [ "$(zfs get -H creation "${_npool}")" ] ; then
             if [ "$(zfs get -H creation "${_opool}" 2> /dev/null)" ] ; then
-                  zfs set mountpoint="/${_opool}/iocage" "${_opool}/iocage"
+                  zfs set mountpoint="/${_opool}/iocell" "${_opool}/iocell"
             fi
 
             export pool="${_npool}"
@@ -100,7 +100,7 @@ __clean_all () {
 
     if [ "${_force}" != "1" ] ; then
         echo " "
-        echo "  WARNING: this will destroy ${pool}/iocage"
+        echo "  WARNING: this will destroy ${pool}/iocell"
         echo " "
         echo -n "  Are you sure ? y[N]: "
         read -r _answer
@@ -113,8 +113,8 @@ __clean_all () {
     __stop_jail_all > /dev/null 2>&1
 
     if [ $? -eq 0 ] ; then
-        __spinner "  INFO: destroying ${pool}/iocage:  " \
-                  "zfs destroy -rRf ${pool}/iocage"
+        __spinner "  INFO: destroying ${pool}/iocell:  " \
+                  "zfs destroy -rRf ${pool}/iocell"
         rm -rf "${iocroot}"
         return 0
     else
@@ -139,10 +139,10 @@ __clean_releases () {
     fi
 
     if [ $? -eq 0 ] ; then
-        __spinner "  INFO: destroying ${pool}/iocage/download:  " \
-                  "zfs destroy -rRf ${pool}/iocage/download"
-        __spinner "  INFO: destroying ${pool}/iocage/releases:  " \
-                  "zfs destroy -rRf ${pool}/iocage/releases"
+        __spinner "  INFO: destroying ${pool}/iocell/download:  " \
+                  "zfs destroy -rRf ${pool}/iocell/download"
+        __spinner "  INFO: destroying ${pool}/iocell/releases:  " \
+                  "zfs destroy -rRf ${pool}/iocell/releases"
         return 0
     fi
 }
@@ -166,9 +166,9 @@ __clean_jails () {
     __stop_jail_all > /dev/null 2>&1
 
     if [ $? -eq 0 ] ; then
-        __spinner "  INFO: destroying ${pool}/iocage/jails:  " \
-                  "zfs destroy -rRf ${pool}/iocage/jails"
-        __spinner "  INFO: cleaning TAGs at ${pool}/iocage/tags:  " \
+        __spinner "  INFO: destroying ${pool}/iocell/jails:  " \
+                  "zfs destroy -rRf ${pool}/iocell/jails"
+        __spinner "  INFO: cleaning TAGs at ${pool}/iocell/tags:  " \
                   "rm -rf ${iocroot}/tags"
         return 0
     else
@@ -180,7 +180,7 @@ __clean_templates () {
     local _answer _jail_datasets _jail_fs _origin _tag _uuid _count
 
     _count=0
-    _jail_datasets=$(zfs list -d3 -rH -o name "${pool}/iocage/jails" | \
+    _jail_datasets=$(zfs list -d3 -rH -o name "${pool}/iocell/jails" | \
         awk '!/jails$/ && !/\/root/')
 
     if [ "${_force}" != "1" ] ; then
@@ -215,15 +215,15 @@ __clean_templates () {
         fi
     fi
 
-    __spinner "  INFO: cleaning templatess at ${pool}/iocage/templates:  " \
-              "zfs destroy -rRf ${pool}/iocage/templates"
+    __spinner "  INFO: cleaning templatess at ${pool}/iocell/templates:  " \
+              "zfs destroy -rRf ${pool}/iocell/templates"
     return 0
 }
 
 __clean_snapshots () {
     local _snapshots
 
-    _snapshots=$(zfs list -Hrt snapshot -o name "${pool}/iocage" | grep ioc-)
+    _snapshots=$(zfs list -Hrt snapshot -o name "${pool}/iocell" | grep ioc-)
     for _snap in echo ${_snapshots} ; do
         zfs destroy -rR "${_snap}" > /dev/null 2>&1
     done
@@ -239,7 +239,7 @@ __migrate_basejail () {
     _ofulluuid="${_fulluuid}"
     _release="$2"
     _orelease="${_release}"
-    _grepstring="jails$|base|releases|templates$|download|${pool}/iocage$"
+    _grepstring="jails$|base|releases|templates$|download|${pool}/iocell$"
     _grepstring="${_grepstring}|*./data|*./root"
     _bfs_list="bin
                boot
@@ -272,7 +272,7 @@ __migrate_basejail () {
 
     # Destroy all the old datasets
     for _fs in ${_bfs_list} ; do
-        zfs destroy -nrf "${pool}/iocage/jails/${_fulluuid}/root/${_fs}" \
+        zfs destroy -nrf "${pool}/iocell/jails/${_fulluuid}/root/${_fs}" \
         > /dev/null 2>&1
 
         if [ "$?" -ne 0 ] ; then
@@ -310,7 +310,7 @@ __migrate_basejail () {
 
     # Destroy all the old datasets
     for _fs in ${_bfs_list} ; do
-        zfs destroy -rf ${pool}/iocage/jails/${_fulluuid}/root/${_fs} \
+        zfs destroy -rf ${pool}/iocell/jails/${_fulluuid}/root/${_fs} \
         > /dev/null 2>&1
     done
 
@@ -340,12 +340,12 @@ __migrate_basejail () {
         umount ${iocroot}/releases/${_release}/root/dev
     fi
 
-    zfs destroy -fr ${pool}/iocage/base@${_fulluuid} > /dev/null 2>&1
+    zfs destroy -fr ${pool}/iocell/base@${_fulluuid} > /dev/null 2>&1
 
     _oldtemplate="$(__get_jail_prop template ${_fulluuid} \
-        ${pool}/iocage/jails/${_fulluuid})"
+        ${pool}/iocell/jails/${_fulluuid})"
 
-    _jail_datasets="$(zfs list -d3 -rH -o name "${pool}/iocage" \
+    _jail_datasets="$(zfs list -d3 -rH -o name "${pool}/iocell" \
         | egrep -v "${_grepstring}")"
 
     for _jail in ${_jail_datasets} ; do
@@ -369,7 +369,7 @@ __migrate_basejail () {
     _fulluuid="${_ofulluuid}"
     _release="${_orelease}"
     _mountpoint=$(__get_jail_prop mountpoint "${_fulluuid}" \
-        "${pool}/iocage/jails/${_fulluuid}")
+        "${pool}/iocell/jails/${_fulluuid}")
     # Normally we'd use __set_jail_prop but these are special properties that
     # have a ton happen with them. We don't need that, just need to shift the
     # values.
@@ -389,9 +389,9 @@ __migrate_basejail () {
         # and exit.
         __ucl_set "${_mountpoint}" "template" "none"
         __set_jail_prop release="${_release}" "${_fulluuid}" \
-            "${pool}/iocage/jails/${_fulluuid}"
+            "${pool}/iocell/jails/${_fulluuid}"
         __set_jail_prop istemplate="yes" "${_fulluuid}" \
-            "${pool}/iocage/jails/${_fulluuid}"
+            "${pool}/iocell/jails/${_fulluuid}"
 
         if [ "$?" -eq 1 ] ; then
             printf "\b%1s\n" "error!" ; kill $! && trap " " 2 3 \
@@ -401,7 +401,7 @@ __migrate_basejail () {
     else
         __ucl_set "${_mountpoint}" "template" "none"
         __set_jail_prop release="${_release}" "${_fulluuid}" \
-            "${pool}/iocage/jails/${_fulluuid}"
+            "${pool}/iocell/jails/${_fulluuid}"
     fi
 
     printf "\b%1s\n" "done!" ; kill $! && trap " " 2 3
@@ -415,9 +415,9 @@ __check_basejail () {
     _dataset="$2"
     _template=$(__get_jail_prop template "${_fulluuid}" "${_dataset}")
     _jail_release=$(__get_jail_prop release "${_fulluuid}" "${_dataset}")
-    _old_base_check=$(zfs list -Hr "${pool}/iocage/jails/${_fulluuid}" | \
+    _old_base_check=$(zfs list -Hr "${pool}/iocell/jails/${_fulluuid}" | \
                      grep -cv data)
-    _jailed_dataset="${pool}/iocage/jails/${_fulluuid}/root/data"
+    _jailed_dataset="${pool}/iocell/jails/${_fulluuid}/root/data"
     _hack88=$(__get_jail_prop hack88 "${_fulluuid}" "${_dataset}")
     _shortuuid=$(echo "${_fulluuid}"|cut -f1 -d "-")
     _jailed_dataset_check=$(zfs get -H creation "${_jailed_dataset}" > \
@@ -427,8 +427,8 @@ __check_basejail () {
     if [ "${_jailed_dataset_check}" = "0" ] ; then
         zfs set jailed=off "${_jailed_dataset}"
         zfs rename -f "${_jailed_dataset}" \
-                      "${pool}/iocage/jails/${_fulluuid}/data" 2> /dev/null
-        zfs set jailed=on "${pool}/iocage/jails/${_fulluuid}/data" 2> /dev/null
+                      "${pool}/iocell/jails/${_fulluuid}/data" 2> /dev/null
+        zfs set jailed=on "${pool}/iocell/jails/${_fulluuid}/data" 2> /dev/null
     fi
 
     # If the length is over this, it's an old-style basejail
@@ -475,13 +475,13 @@ __create_jail () {
           _pname _prop _isprop _jail_zfs_mountpoint _basedir_list _uuid \
           _template _zfs_dataset
 
-    _installed=$(zfs list -rH ${pool}/iocage/releases | grep ${release})
+    _installed=$(zfs list -rH ${pool}/iocell/releases | grep ${release})
     _releases=$(__list_jails -r | grep -v "Downloaded releases:")
     _supported_release=$(echo "${release}" | grep "RELEASE")
     _devfs_string="$(fgrep -xq \
                   "## IOCAGE -- Add DHCP to ruleset 4" /etc/devfs.rules \
                   ; echo $?)"
-    _release_dataset="${pool}/iocage/releases"
+    _release_dataset="${pool}/iocell/releases"
     _release_dataset_check="$(zfs get -H creation ${_release_dataset} > \
                            /dev/null 2>&1 ; echo $?)"
     _configured="0"
@@ -502,7 +502,7 @@ __create_jail () {
     fi
 
     if [ -z "${_installed}" -a -z "${_releases}" -a "${2}" != "-e" ] ; then
-        __die "no RELEASEs found locally, run iocage fetch first."
+        __die "no RELEASEs found locally, run iocell fetch first."
     elif [ -z "${_installed}" -a "${2}" != "-e" -a "${1}" != "-g" ] ; then
         echo "  RELEASE ${release} not found locally." >&2
         echo "  Please fetch ${release}" >&2
@@ -547,10 +547,10 @@ __create_jail () {
         fi
     fi
 
-    zfs create -p ${pool}/iocage/jails/${uuid}/root
+    zfs create -p ${pool}/iocell/jails/${uuid}/root
     touch "${iocroot}/jails/${uuid}/config"
     # Work around the different UUID for jail datasets at creation.
-    export jail_zfs_dataset="iocage/jails/${uuid}/data"
+    export jail_zfs_dataset="iocell/jails/${uuid}/data"
     _zfsconfig="$(__configure_jail generate ${uuid})"
     _configured="1"
 
@@ -589,7 +589,7 @@ __create_jail () {
 
     # configure the jail mountpoint
     # Supplying _uuid again so since we need to use that for mounting/unmounting
-    __hack88_mount ${uuid} ${pool}/iocage/jails/${uuid} _uuid
+    __hack88_mount ${uuid} ${pool}/iocell/jails/${uuid} _uuid
 
     if [ "${_template}" != "1" ] ; then
         # We need the base's /etc and /root
@@ -603,10 +603,10 @@ __create_jail () {
         fi
 
         # remove any residual clone snapshots carried over from the RELEASE datasets
-        __snapremove ${uuid}@ALL ${pool}/iocage/jails/${uuid}
+        __snapremove ${uuid}@ALL ${pool}/iocell/jails/${uuid}
 
         if [ ! -e "${iocroot}/jails/${uuid}/root/etc/resolv.conf" ] ; then
-            __resolv_conf ${uuid} ${pool}/iocage/jails/${uuid} > \
+            __resolv_conf ${uuid} ${pool}/iocell/jails/${uuid} > \
                 ${iocroot}/jails/${uuid}/root/etc/resolv.conf
         fi
 
@@ -627,7 +627,7 @@ __create_jail () {
             extract -t /etcupdate/etcupdate-${release}.tbz
         umount ${iocroot}/jails/${_uuid}/root/dev
         umount ${iocroot}/jails/${_uuid}/root/tmp
-        __umount_basejail "${_uuid}" "${pool}/iocage/jails/${_uuid}" \
+        __umount_basejail "${_uuid}" "${pool}/iocell/jails/${_uuid}" \
             > /dev/null 2>&1
     fi
 
@@ -646,15 +646,15 @@ __create_jail () {
                 export jail_zfs_dataset="${iocset_jail_zfs_dataset}"
             else
                 # Hack to get around different UUID during creation
-                export jail_zfs_dataset="iocage/jails/${uuid}/data"
+                export jail_zfs_dataset="iocell/jails/${uuid}/data"
             fi
 
             __setup_jail_zfs_datasets \
-                "${uuid}" "${pool}/iocage/jails/${uuid}" \
+                "${uuid}" "${pool}/iocell/jails/${uuid}" \
                 "${jail_zfs_dataset}" "${jail_zfs_mountpoint}" \
                 -u
             __set_jail_prop jail_zfs_dataset="${jail_zfs_dataset}" \
-                "${uuid}" "${pool}/iocage/jails/${uuid}" # Another hack for this
+                "${uuid}" "${pool}/iocell/jails/${uuid}" # Another hack for this
         # Do they want bpf exposed?
         elif [ "${_pname}" = "bpf" ] ; then
             if [ "${_devfs_string}" != "0" ] ; then
@@ -664,7 +664,7 @@ __create_jail () {
 
             # Set the right devfs ruleset for DHCP/BPF.
             __set_jail_prop "devfs_ruleset=5" "${uuid}" \
-                "${pool}/iocage/jails/${uuid}"
+                "${pool}/iocell/jails/${uuid}"
         fi
     done
 
@@ -681,7 +681,7 @@ __create_jail () {
 
     # create tag link, this does not send the tag to __link_tag so the tag can
     # be a date if the user left tag empty.
-    __link_tag ${pool}/iocage/jails/${uuid}
+    __link_tag ${pool}/iocell/jails/${uuid}
 
     # Install extra packages
     # this requires working resolv.conf in jail
@@ -739,12 +739,12 @@ __clone_jail () {
 
     for _fs in ${_fs_list} ; do
         _cfs="$(echo ${_fs} | \
-             sed s#${_dataset}#${pool}/iocage/jails/${uuid}#g)"
+             sed s#${_dataset}#${pool}/iocell/jails/${uuid}#g)"
 
-        if [ "${_cfs}" = "${pool}/iocage/jails/${uuid}/root" ] ; then
+        if [ "${_cfs}" = "${pool}/iocell/jails/${uuid}/root" ] ; then
             zfs clone ${_fs}@${uuid} ${_cfs}
-        elif [ "${_cfs}" = "${pool}/iocage/jails/${uuid}" ] ; then
-            zfs create ${pool}/iocage/jails/${uuid}
+        elif [ "${_cfs}" = "${pool}/iocell/jails/${uuid}" ] ; then
+            zfs create ${pool}/iocell/jails/${uuid}
             touch ${iocroot}/jails/${uuid}/config
             __configure_jail generate ${uuid}
         fi
@@ -758,7 +758,7 @@ __clone_jail () {
 
     # create tag link, this does not send the tag to __link_tag so the tag can
     # be a date if the user left tag empty.
-    __link_tag ${pool}/iocage/jails/${uuid}
+    __link_tag ${pool}/iocell/jails/${uuid}
 
     # Check if fstab already exists otherwise create it
     if [ -e ${iocroot}/jails/${uuid}/fstab ] ; then
@@ -797,13 +797,13 @@ __clone_jail () {
 
     # Check if resolv.conf already exists otherwise create it
     if [ ! -e ${iocroot}/jails/${uuid}/root/etc/resolv.conf ] ; then
-        __resolv_conf ${uuid} ${pool}/iocage/jails/${uuid} > \
+        __resolv_conf ${uuid} ${pool}/iocell/jails/${uuid} > \
             ${iocroot}/jails/${uuid}/root/etc/resolv.conf
     fi
 
     # configure the jail mountpoint
-    __hack88_mount ${uuid} ${pool}/iocage/jails/${uuid}
-    __set_jail_prop type=clonejail "${uuid}" "${pool}/iocage/jails/${uuid}"
+    __hack88_mount ${uuid} ${pool}/iocell/jails/${uuid}
+    __set_jail_prop type=clonejail "${uuid}" "${pool}/iocell/jails/${uuid}"
 
     echo "  Successfully created: ${uuid} (${tag})"
 
@@ -824,7 +824,7 @@ __destroy_jail () {
     _name="$1"
 
     if [ "${_name}" = "ALL" ] ; then
-        __die "please use iocage clean -j instead."
+        __die "please use iocell clean -j instead."
     fi
 
     _dataset="$(__find_jail ${_name})" || exit $?
@@ -880,7 +880,7 @@ __destroy_func () {
     _jail_type="$4"
     _jail_path="$5"
     _base_inuse="$(zfs get -r -H -o value origin ${pool} | \
-                 grep ${pool}/iocage/base > \
+                 grep ${pool}/iocell/base > \
                  /dev/null 2>&1 ; echo $?)"
 
     echo "  Destroying: ${_fulluuid}"
@@ -905,24 +905,24 @@ __destroy_func () {
     fi
 
     if [ "${_base_inuse}" = "1" ] ; then
-        zfs destroy -fr ${pool}/iocage/base > /dev/null 2>&1
+        zfs destroy -fr ${pool}/iocell/base > /dev/null 2>&1
     fi
 }
 
 # check if our datasets exist, if not create them
-# fixes https://github.com/iocage/iocage/issues/80
+# fixes https://github.com/iocell/iocell/issues/80
 __check_filesystems () {
     local _altroot _filesystems _missing
 
     _missing=0
     _altroot="$(zpool get -H altroot "${pool}" | awk '{print $3}')"
-    # Prepend iocage/ so we can properly set a mount on the root 'iocage'
+    # Prepend iocell/ so we can properly set a mount on the root 'iocell'
     # dataset.
-    _filesystems="iocage
-                  iocage/download
-                  iocage/jails
-                  iocage/releases
-                  iocage/templates"
+    _filesystems="iocell
+                  iocell/download
+                  iocell/jails
+                  iocell/releases
+                  iocell/templates"
 
     # Check for /etc/devfs.rules, this avoids an annoying error from grep later
     if [ ! -e "/etc/devfs.rules" ] ; then
@@ -941,24 +941,24 @@ __check_filesystems () {
                 __info "creating ${pool}/${_fs}"
                 zfs create -p "${pool}/${_fs}"
 
-                if [ "${_fs}" = "iocage" ] ; then
+                if [ "${_fs}" = "iocell" ] ; then
                     zfs set mountpoint="/${_fs}" "${pool}/${_fs}" \
                         > /dev/null 2>&1
                 fi
 
-                if [ "${_altroot}" != "-" -a ! -d "/iocage" ] ; then
-                    sed -i '' s#.*iocroot.*#iocroot="${_altroot}/iocage"# \
+                if [ "${_altroot}" != "-" -a ! -d "/iocell" ] ; then
+                    sed -i '' s#.*iocroot.*#iocroot="${_altroot}/iocell"# \
                         "${LIB}/ioc-globals"
-                    export iocroot="${_altroot}/iocage"
-                elif [ "${_altroot}" = "/mnt" -a -d "/iocage" ] ; then
+                    export iocroot="${_altroot}/iocell"
+                elif [ "${_altroot}" = "/mnt" -a -d "/iocell" ] ; then
                     # we're in a chroot.
-                    sed -i '' s#.*iocroot.*#iocroot="/iocage"# \
+                    sed -i '' s#.*iocroot.*#iocroot="/iocell"# \
                         "${LIB}/ioc-globals"
-                    export iocroot="${_altroot}/iocage"
+                    export iocroot="${_altroot}/iocell"
                 elif [ "${_altroot}" = "-" ] ; then
-                    sed -i '' s#.*iocroot.*#iocroot="/iocage"# \
+                    sed -i '' s#.*iocroot.*#iocroot="/iocell"# \
                         "${LIB}/ioc-globals"
-                    export iocroot="/iocage"
+                    export iocroot="/iocell"
                 fi
             fi
         fi
@@ -969,28 +969,28 @@ __check_filesystems () {
     fi
 
     # shellcheck disable=SC2155
-    export jail_datasets=$(zfs list -d3 -rH -o name "${pool}/iocage" \
+    export jail_datasets=$(zfs list -d3 -rH -o name "${pool}/iocell" \
         | egrep -v \
-        "jails$|releases$|templates$|download|${pool}/iocage$|*./root")
+        "jails$|releases$|templates$|download|${pool}/iocell$|*./root")
 
     # Checks to see if the user changed the altroot and modify ioc-globals
     # If the user decided to unset their altroot, they need to run again as
     # root to set it back to the default location
-    if [ "${_altroot}" != "-" ] && [ "$(id -un)" = "root" ] && [ ! -d "/iocage" ] ; then
-        sed -i '' s#.*iocroot.*#iocroot="${_altroot}/iocage"# \
+    if [ "${_altroot}" != "-" ] && [ "$(id -un)" = "root" ] && [ ! -d "/iocell" ] ; then
+        sed -i '' s#.*iocroot.*#iocroot="${_altroot}/iocell"# \
             "${LIB}/ioc-globals"
-        export iocroot="${_altroot}/iocage"
+        export iocroot="${_altroot}/iocell"
     elif [ "${_altroot}" != "-" ] && [ "$(id -un)" != "root" ] && \
-        [ "${iocroot}" != "${_altroot}/iocage" ] ; then
+        [ "${iocroot}" != "${_altroot}/iocell" ] ; then
         __error "You changed the altroot of ${pool}"
         echo "  Please run as root to fix." >&2
         exit 1
     elif [ "${_altroot}" = "-" ] && [ "$(id -un)" = "root" ] ; then
-        sed -i '' s#.*iocroot.*#iocroot="/iocage"# \
+        sed -i '' s#.*iocroot.*#iocroot="/iocell"# \
             "${LIB}/ioc-globals"
-        export iocroot="/iocage"
+        export iocroot="/iocell"
     elif [ "${_altroot}" = "-" ] && [ "$(id -un)" != "root" ] && \
-        [ "${iocroot}" != "/iocage" ] ; then
+        [ "${iocroot}" != "/iocell" ] ; then
         __error "You changed the altroot of ${pool}"
         echo "  Please run as root to fix." >&2
         exit 1
@@ -1016,9 +1016,9 @@ __check_filesystems () {
         done
 
         # We no longer need this dataset or mountpoint
-        zfs get -H creation "${pool}/iocage/.defaults" > /dev/null 2>&1
+        zfs get -H creation "${pool}/iocell/.defaults" > /dev/null 2>&1
         if [ $? -eq 0 ] ; then
-            zfs destroy "${pool}/iocage/.defaults"
+            zfs destroy "${pool}/iocell/.defaults"
             rmdir ${iocroot}/.defaults
             rm -rf -- ${iocroot}/tags/-
         fi
@@ -1031,9 +1031,9 @@ __check_children () {
 
     _fulluuid="$1"
     _dataset="$2"
-    _grepstring="jails$|base|releases|templates$|download|${pool}/iocage$"
+    _grepstring="jails$|base|releases|templates$|download|${pool}/iocell$"
     _grepstring="${_grepstring}|*./data"
-    _jail_datasets=$(zfs list -d3 -rH -o name "${pool}/iocage" \
+    _jail_datasets=$(zfs list -d3 -rH -o name "${pool}/iocell" \
         | egrep -v "${_grepstring}")
 
     for _fs in ${_jail_datasets} ; do
@@ -1149,7 +1149,7 @@ __mount_template () {
 
     _fulluuid="$1"
     _template="$2"
-    _dataset="${pool}/iocage/templates/${_template}"
+    _dataset="${pool}/iocell/templates/${_template}"
     _template_release="$(__get_jail_prop release ${_fulluuid} ${_dataset})"
     _basedir_list="var
                    etc
@@ -1362,7 +1362,7 @@ __send () {
     # __spinner needs to be recreated here as we want one dialog
     _spinner='/-\|'
 
-    printf "  INFO: sending ${pool}/iocage to ${_dest}/iocage:  "
+    printf "  INFO: sending ${pool}/iocell to ${_dest}/iocell:  "
 
     while true; do
         printf '\b%.1s' "${_spinner}"
@@ -1422,27 +1422,27 @@ __send () {
                 zfs send -R${_snapshot} | \
                     mbuffer -s 128k -m 1G 2> /dev/null | \
                     ssh ${_remoteuser}@${_remotehost} "mbuffer -s 128k -m 1G | \
-                    zfs receive -F ${_dest}/iocage"
+                    zfs receive -F ${_dest}/iocell"
                 _exit="$?"
             else
-                zfs snapshot -r ${pool}/iocage@ioc-send-${_date} > /dev/null 2>&1
-                zfs send -R ${pool}/iocage@ioc-send-${_date} | \
+                zfs snapshot -r ${pool}/iocell@ioc-send-${_date} > /dev/null 2>&1
+                zfs send -R ${pool}/iocell@ioc-send-${_date} | \
                     mbuffer -s 128k -m 1G 2> /dev/null | \
                     ssh ${_remoteuser}@${_remotehost} "mbuffer -s 128k -m 1G | \
-                    zfs receive -F ${_dest}/iocage"
+                    zfs receive -F ${_dest}/iocell"
                 _exit="$?"
             fi
         else
             if [ "${_incremental}" -eq 1 -o "${_Incremental}" -eq 1 ] ; then
                 zfs send -R${_snapshot} | \
                     ssh ${_remoteuser}@${_remotehost} \
-                    "zfs receive -F ${_dest}/iocage"
+                    "zfs receive -F ${_dest}/iocell"
                 _exit="$?"
             else
-                zfs snapshot -r ${pool}/iocage@ioc-send-${_date} > /dev/null 2>&1
-                zfs send -R ${pool}/iocage@ioc-send-${_date} | \
+                zfs snapshot -r ${pool}/iocell@ioc-send-${_date} > /dev/null 2>&1
+                zfs send -R ${pool}/iocell@ioc-send-${_date} | \
                     ssh ${_remoteuser}@${_remotehost} \
-                    "zfs receive -F ${_dest}/iocage"
+                    "zfs receive -F ${_dest}/iocell"
                 _exit="$?"
             fi
         fi
@@ -1455,12 +1455,12 @@ __send () {
             fi
 
             zfs send -R${_snapshot} | \
-                zfs receive -Fu ${_dest}/iocage
+                zfs receive -Fu ${_dest}/iocell
             _exit="$?"
         else
-            zfs snapshot -r ${pool}/iocage@ioc-send-${_date} > /dev/null 2>&1
-            zfs send -R ${pool}/iocage@ioc-send-${_date} | \
-                zfs receive -Fu ${_dest}/iocage
+            zfs snapshot -r ${pool}/iocell@ioc-send-${_date} > /dev/null 2>&1
+            zfs send -R ${pool}/iocell@ioc-send-${_date} | \
+                zfs receive -Fu ${_dest}/iocell
             _exit="$?"
         fi
     fi
@@ -1478,7 +1478,7 @@ __send () {
     if [ "${_move}" -eq 1 ] ; then
         if [ "${_exit}" -eq 0 ] ; then
             __activate "${_dest}"
-            zfs destroy -rf "${pool}/iocage"
+            zfs destroy -rf "${pool}/iocell"
             export pool="${_dest}"
             zfs mount -a
         fi
@@ -1492,12 +1492,12 @@ __dump_config () {
     local _fulluuid _dataset _config _mountpoint
 
     _fulluuid="$1"
-    _dataset="${pool}/iocage/jails/${_fulluuid}"
+    _dataset="${pool}/iocell/jails/${_fulluuid}"
     # shellcheck disable=SC1004
     _config=$(zfs get -H -o property,value all \
-        "${_dataset}" | awk -v dq='"' '/org.freebsd.iocage/ \
+        "${_dataset}" | awk -v dq='"' '/org.freebsd.iocell/ \
         { $2=dq$2; sub(" "," VALUE ",$0); \
-        sub("org.freebsd.iocage:","PROP ",$1); print $0dq }')
+        sub("org.freebsd.iocell:","PROP ",$1); print $0dq }')
     _mountpoint=$(zfs get -H -o value mountpoint "${_dataset}")
     _v="no"
     _p="no"
@@ -1543,16 +1543,16 @@ __dump_config () {
     done
 }
 
-# Add the poolname to ZFS datasets that live under iocage/jails --------------
+# Add the poolname to ZFS datasets that live under iocell/jails --------------
 __zfs_dataset_add_poolname () {
     local _dataset _dataset_olen _dataset_nlen
 
     _dataset="$1"
     _dataset_olen="${#_dataset}"
-    _dataset="${_dataset#iocage/jails}"
+    _dataset="${_dataset#iocell/jails}"
     _dataset_nlen="${#_dataset}"
     if [ "${_dataset_olen}" -ne "${_dataset_nlen}" ] ; then
-        echo "${pool}/iocage/jails${_dataset}"
+        echo "${pool}/iocell/jails${_dataset}"
     else
         echo "${_dataset}"
     fi
