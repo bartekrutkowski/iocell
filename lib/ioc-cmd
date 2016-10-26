@@ -186,7 +186,7 @@ __parse_cmd () {
                         exit
                 ;;
             reboot|restart)    shift
-                               if [ $1 = "-s" ] ; then
+                               if [ "$1" = "-s" ] ; then
                                     shift
                                     for _j in $@ ; do
                                         __restart_jail "${_j}"
