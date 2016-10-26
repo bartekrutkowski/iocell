@@ -102,7 +102,7 @@ __find_jail () {
     else
         # This means we were given a UUID, skip the transformations below
         # and hardcode it.
-        if [ "$(echo ${_name} | wc -c)" -ge 37 ] ; then
+        if [ "$(echo ${_name} | wc -c)" -eq 37 ] ; then
             _jlist="${pool}/iocell/jails/${_name}"
             if [ "$(zfs get -H creation ${_jlist})" ] ; then
                 _found="1"
