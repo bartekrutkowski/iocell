@@ -307,7 +307,7 @@ __fetch_plugin_thick () {
 __pull () {
     local _name _fulluuid _mountpoint _dataset
 
-    if [ -z $1 ] ; then
+    if [ -z "$1" ] ; then
         __die "please provide a jail name"
     fi
 

@@ -135,7 +135,7 @@ __parse_cmd () {
                         # check to see if they want a thick plugin
                         if [ "${_gitcheck}" = "0" ] ; then
                             shift
-                            if [ $1 = "-t" ] ; then
+                            if [ "$1" = "-t" ] ; then
                                 shift
                                 __fetch_plugin_thick "$@"
                                 exit 0

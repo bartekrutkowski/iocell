@@ -525,7 +525,7 @@ __findscript () {
     _fulluuid="$1"
     # type should be one of prestart|poststart|prestop|poststop
     _type="$2"
-    _dataset=$3
+    _dataset="$3"
     _jail_path="$(__get_jail_prop mountpoint $_fulluuid $_dataset)"
 
     if [ -x "${_jail_path}/${_type}" ]; then
@@ -547,7 +547,7 @@ __check_name () {
         return 1
     fi
 
-    if [ $2 ] ; then
+    if [ "$2" ] ; then
         _dataset="$2"
         _uuid="$(echo ${_dataset} | cut -d / -f 4)"
     else
