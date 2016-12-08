@@ -1,13 +1,13 @@
-.. iocage documentation master file, created by
+.. iocell documentation master file, created by
    sphinx-quickstart on Wed Jul  9 10:19:09 2014.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
 ===============================
-iocage - A FreeBSD jail manager
+iocell - A FreeBSD jail manager
 ===============================
 
-iocage is a zero dependency drop in jail/container manager amalgamating some
+iocell is a zero dependency drop in jail/container manager amalgamating some
 of the best features and technologies FreeBSD operating system has to offer.
 It is geared for ease of use with a simple and easy to understand command
 syntax.

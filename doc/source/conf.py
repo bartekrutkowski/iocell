@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# iocage documentation build configuration file, created by
+# iocell documentation build configuration file, created by
 # sphinx-quickstart on Wed Jul  9 10:19:09 2014.
 #
 # This file is execfile()d with the current directory set to its
@@ -44,8 +44,8 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'iocage'
-copyright = u'2014-2015, iocage'
+project = u'iocell'
+copyright = u'2014-2015, iocell'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -179,7 +179,7 @@ html_static_path = ['_static']
 #html_file_suffix = None
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'iocagedoc'
+htmlhelp_basename = 'iocelldoc'
 
 
 # -- Options for LaTeX output ---------------------------------------------
@@ -199,8 +199,8 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-  ('index', 'iocage.tex', u'iocage Documentation',
-   u'iocage', 'manual'),
+  ('index', 'iocell.tex', u'iocell Documentation',
+   u'iocell', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -229,7 +229,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('index', 'iocage', u'iocage Documentation',
+    ('index', 'iocell', u'iocell Documentation',
      [u'Peter Toth'], 1)
 ]
 
@@ -243,8 +243,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-  ('index', 'iocage', u'iocage Documentation',
-   u'iocage', 'iocage', 'ZFS Jail Manager',
+  ('index', 'iocell', u'iocell Documentation',
+   u'iocell', 'iocell', 'ZFS Jail Manager',
    'Miscellaneous'),
 ]
 

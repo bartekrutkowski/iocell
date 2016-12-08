@@ -13,7 +13,7 @@ Anoter option emerged in recent years, called VNET or sometimes referred to as V
 VNET is a fully virtualized, isolated per jail networking stack.
 VNET abstracts virtual network interfaces to jails, which behave the same way as physical interfaces.
 
-iocage will try to guess whether VNET support is available in the system and if it is will enable it by
+iocell will try to guess whether VNET support is available in the system and if it is will enable it by
 default for newly created jails.
 
 Shared IP
@@ -31,41 +31,41 @@ Usage
 
 **Make sure VNET is disabled**
 
-``iocage get vnet UUID | TAG``
+``iocell get vnet UUID | TAG``
 
 **If set to "on" disable it**
 
-``iocage set vnet=off UUID | TAG``
+``iocell set vnet=off UUID | TAG``
 
 A system wide default can be configured if required. This will take effect for newly created jails only.
 
-``iocage set vnet=off default``
+``iocell set vnet=off default``
 
 **Configure an IP address**
 
-``iocage set ip4_addr="em0|10.1.1.10/24" UUID| TAG``
+``iocell set ip4_addr="em0|10.1.1.10/24" UUID| TAG``
 
 If multiple addresses are desired just separate the configuration directives with a comma.
 
 Example:
 
-``iocage set ip4_addr="em0|10.1.1.10/24,em0|10.1.1.11/24" UUID| TAG``
+``iocell set ip4_addr="em0|10.1.1.10/24,em0|10.1.1.11/24" UUID| TAG``
 
 **Allow raw sockets**
 
-``iocage set allow_raw_sockets=1 UUID | TAG``
+``iocell set allow_raw_sockets=1 UUID | TAG``
 
 This allows the prison root to create raw sockets, which allows utilites like ping and tracroute to operate.
 
 **Start jail:**
 
-``iocage start UUID | TAG``
+``iocell start UUID | TAG``
 
 **Verify visible IP configuration in the jail**
 
 *(jail must be running for this to work)*
 
-``iocage exec UUID | TAG ifconfig``
+``iocell exec UUID | TAG ifconfig``
 
 
 VIMAGE/VNET
@@ -97,7 +97,7 @@ Add bridge configuration to /etc/rc.conf:
 
 ::
 
-  # set up two bridge interfaces for iocage
+  # set up two bridge interfaces for iocell
   cloned_interfaces="bridge0 bridge1"
 
   # plumb interface em0 into bridge0
@@ -117,21 +117,21 @@ Add these tunables to /etc/sysctl.conf:
 
 **Configure default GW for jail**
 
-Example: ``iocage set defaultrouter=10.1.1.254 UUID | TAG``
+Example: ``iocell set defaultrouter=10.1.1.254 UUID | TAG``
 
 **Configure an IP address**
 
-``iocage set ip4_addr="vnet0|10.1.1.10/24" UUID | TAG``
+``iocell set ip4_addr="vnet0|10.1.1.10/24" UUID | TAG``
 
 **Start jail and ping default gateway**
 
 Start the jail:
 
-``iocage start UUID | TAG``
+``iocell start UUID | TAG``
 
 Drop into jail:
 
-``iocage console UUID | TAG``
+``iocell console UUID | TAG``
 
 Ping default gateway, example:
 
@@ -153,18 +153,18 @@ of the VLAN as bridge member as well.
 Configuring Network Interfaces
 ------------------------------
 
-iocage handles network configuration for both, shared IP and VNET jails transparently.
+iocell handles network configuration for both, shared IP and VNET jails transparently.
 
 Configuring a shared IP jail
 ++++++++++++++++++++++++++++
 
 **IPv4**
 
-``iocage set ip4_addr="em0|192.168.0.10/24" UUID|TAG``
+``iocell set ip4_addr="em0|192.168.0.10/24" UUID|TAG``
 
 **IPv6**
 
-``iocage set ip6_addr="em0|2001:123:456:242::5/64" UUID|TAG``
+``iocell set ip6_addr="em0|2001:123:456:242::5/64" UUID|TAG``
 
 This will add an IP alias 192.168.0.10/24 to interface em0 for the shared IP jail at start time, as well as 2001:123:456::5/64.
 
@@ -173,11 +173,11 @@ Configuring a VNET jail
 
 To configure both IPv4 and IPv6:
 
-``iocage set ip4_addr="vnet0|192.168.0.10/24" UUID|TAG``
+``iocell set ip4_addr="vnet0|192.168.0.10/24" UUID|TAG``
 
-``iocage set ip6_addr="vnet0|2001:123:456:242::5/64" UUID|TAG``
+``iocell set ip6_addr="vnet0|2001:123:456:242::5/64" UUID|TAG``
 
-``iocage set defaultrouter6="2001:123:456:242::1" UUID|TAG``
+``iocell set defaultrouter6="2001:123:456:242::1" UUID|TAG``
 
 *NOTE: For VNET jails a default route has to be specified too.*
 
@@ -186,6 +186,6 @@ Hints
 
 To start a jail with no IPv4/6 address whatsoever set these properties:
 
-``iocage set ip4_addr=none ip6_addr=none UUID|TAG``
+``iocell set ip4_addr=none ip6_addr=none UUID|TAG``
 
-``iocage set defaultrouter=none defaultrouter6=none UUID|TAG``
+``iocell set defaultrouter=none defaultrouter6=none UUID|TAG``

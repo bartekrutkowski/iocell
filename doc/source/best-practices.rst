@@ -1,7 +1,7 @@
 Best practices
 --------------
 
-These are some generic guidelines for working with iocage managed jails.
+These are some generic guidelines for working with iocell managed jails.
 
 **Use PF as a module**
 
@@ -52,5 +52,5 @@ These are some generic guidelines for working with iocage managed jails.
 **Use the chroot sub-command**
  
   In case you need to access or modify files in a template or a jail which is in a
-  stopped state, use ``iocage chroot UUID | TAG``. This way you don't need to spin up the
+  stopped state, use ``iocell chroot UUID | TAG``. This way you don't need to spin up the
   jail or convert the template.
