@@ -6,15 +6,15 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>iocage - A FreeBSD jail manager &mdash; iocage 1.6.0 documentation</title>
+    <title>iocell - A FreeBSD jail manager &#8212; iocell 1.7.3 documentation</title>
     
-    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/classic.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
-        VERSION:     '1.6.0',
+        VERSION:     '1.7.3',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -23,11 +23,13 @@
     <script type="text/javascript" src="_static/jquery.js"></script>
     <script type="text/javascript" src="_static/underscore.js"></script>
     <script type="text/javascript" src="_static/doctools.js"></script>
-    <link rel="top" title="iocage 1.6.0 documentation" href="#" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="top" title="iocell 1.7.3 documentation" href="#" />
     <link rel="next" title="Basic usage" href="basic-use.html" /> 
   </head>
-  <body>
-    <div class="related">
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
       <h3>Navigation</h3>
       <ul>
         <li class="right" style="margin-right: 10px">
@@ -36,18 +38,18 @@
         <li class="right" >
           <a href="basic-use.html" title="Basic usage"
              accesskey="N">next</a> |</li>
-        <li><a href="#">iocage 1.6.0 documentation</a> &raquo;</li> 
+        <li class="nav-item nav-item-0"><a href="#">iocell 1.7.3 documentation</a> &#187;</li> 
       </ul>
     </div>  
 
     <div class="document">
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
-  <div class="section" id="iocage-a-freebsd-jail-manager">
-<h1>iocage - A FreeBSD jail manager<a class="headerlink" href="#iocage-a-freebsd-jail-manager" title="Permalink to this headline">¶</a></h1>
-<p>iocage is a zero dependency drop in jail/container manager amalgamating some
+  <div class="section" id="iocell-a-freebsd-jail-manager">
+<h1>iocell - A FreeBSD jail manager<a class="headerlink" href="#iocell-a-freebsd-jail-manager" title="Permalink to this headline">¶</a></h1>
+<p>iocell is a zero dependency drop in jail/container manager amalgamating some
 of the best features and technologies FreeBSD operating system has to offer.
 It is geared for ease of use with a simple and easy to understand command
 syntax.</p>
@@ -80,7 +82,7 @@ syntax.</p>
 <li class="toctree-l2"><a class="reference internal" href="basic-use.html#start-stop-or-restart-a-jail">Start, stop or restart a jail</a></li>
 <li class="toctree-l2"><a class="reference internal" href="basic-use.html#configure-a-jail">Configure a jail</a></li>
 <li class="toctree-l2"><a class="reference internal" href="basic-use.html#system-wide-defaults">System wide defaults</a></li>
-<li class="toctree-l2"><a class="reference internal" href="basic-use.html#destroy-a-jails">Destroy a jails</a></li>
+<li class="toctree-l2"><a class="reference internal" href="basic-use.html#destroy-a-jail">Destroy a jail</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="networking.html">Networking</a><ul>
@@ -106,16 +108,18 @@ syntax.</p>
 <li class="toctree-l2"><a class="reference internal" href="advanced-use.html#auto-boot">Auto boot</a></li>
 <li class="toctree-l2"><a class="reference internal" href="advanced-use.html#snapshot-management">Snapshot management</a></li>
 <li class="toctree-l2"><a class="reference internal" href="advanced-use.html#resource-limits">Resource limits</a></li>
+<li class="toctree-l2"><a class="reference internal" href="advanced-use.html#automatic-package-installation">Automatic package installation</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="templates.html">How to create and use templates</a></li>
-<li class="toctree-l1"><a class="reference internal" href="automatic-package-installation.html">Automatic package installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="jail-package.html">Create a jail package!</a></li>
 <li class="toctree-l1"><a class="reference internal" href="debian.html">Create a Debian Squeeze jail (GNU/kFreeBSD)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="known-issues.html">Known Issues</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="known-issues.html#character-mount-path-limitation">88 character mount path limitation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="known-issues.html#property-validation">Property validation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="known-issues.html#vnet-vimage-issues">VNET/VIMAGE issues</a></li>
+<li class="toctree-l2"><a class="reference internal" href="known-issues.html#vnet-vimage-issues-w-altq">VNET/VIMAGE issues w/ ALTQ</a></li>
+<li class="toctree-l2"><a class="reference internal" href="known-issues.html#ipv6-host-bind-failures">IPv6 host bind failures</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="faq.html">FAQ</a></li>
@@ -125,9 +129,9 @@ syntax.</p>
 <h3>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this headline">¶</a></h3>
 <blockquote>
 <div><ul class="simple">
-<li><a class="reference internal" href="genindex.html"><em>Index</em></a></li>
-<li><a class="reference internal" href="py-modindex.html"><em>Module Index</em></a></li>
-<li><a class="reference internal" href="search.html"><em>Search Page</em></a></li>
+<li><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></li>
+<li><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></li>
+<li><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></li>
 </ul>
 </div></blockquote>
 </div>
@@ -138,11 +142,11 @@ syntax.</p>
           </div>
         </div>
       </div>
-      <div class="sphinxsidebar">
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
         <div class="sphinxsidebarwrapper">
   <h3><a href="#">Table Of Contents</a></h3>
   <ul>
-<li><a class="reference internal" href="#">iocage - A FreeBSD jail manager</a><ul>
+<li><a class="reference internal" href="#">iocell - A FreeBSD jail manager</a><ul>
 <li><a class="reference internal" href="#documentation">Documentation:</a><ul>
 <li><a class="reference internal" href="#indices-and-tables">Indices and tables</a></li>
 </ul>
@@ -154,29 +158,28 @@ syntax.</p>
   <h4>Next topic</h4>
   <p class="topless"><a href="basic-use.html"
                         title="next chapter">Basic usage</a></p>
-  <h3>This Page</h3>
-  <ul class="this-page-menu">
-    <li><a href="_sources/index.txt"
-           rel="nofollow">Show Source</a></li>
-  </ul>
-<div id="searchbox" style="display: none">
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/index.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
   <h3>Quick search</h3>
     <form class="search" action="search.html" method="get">
-      <input type="text" name="q" />
-      <input type="submit" value="Go" />
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
       <input type="hidden" name="check_keywords" value="yes" />
       <input type="hidden" name="area" value="default" />
     </form>
-    <p class="searchtip" style="font-size: 90%">
-    Enter search terms or a module, class or function name.
-    </p>
 </div>
 <script type="text/javascript">$('#searchbox').show(0);</script>
         </div>
       </div>
       <div class="clearer"></div>
     </div>
-    <div class="related">
+    <div class="related" role="navigation" aria-label="related navigation">
       <h3>Navigation</h3>
       <ul>
         <li class="right" style="margin-right: 10px">
@@ -185,12 +188,12 @@ syntax.</p>
         <li class="right" >
           <a href="basic-use.html" title="Basic usage"
              >next</a> |</li>
-        <li><a href="#">iocage 1.6.0 documentation</a> &raquo;</li> 
+        <li class="nav-item nav-item-0"><a href="#">iocell 1.7.3 documentation</a> &#187;</li> 
       </ul>
     </div>
-    <div class="footer">
-        &copy; Copyright 2014, Peter Toth.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2014-2015, iocell.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.9.
     </div>
   </body>
 </html>

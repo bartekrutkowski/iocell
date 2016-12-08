@@ -1,7 +1,7 @@
 Best practices
 --------------
 
-These are some generic guidelines for working with iocage managed jails.
+These are some generic guidelines for working with iocell managed jails.
 
 **Use PF as a module**
 
@@ -22,11 +22,6 @@ These are some generic guidelines for working with iocage managed jails.
   ``VNET`` will give you more control and isolation. Also allows to run per jail firewalls.
   See known issues about VNET.
 
-**Don't mix RELEASEs!**
-
-  As best practice only run jails with the same ``RELEASE`` as the host
-  system.
-
 **Don't overuse resource limiting!**
 
   Unless really needed, let the OS decide how to do it best. Set limits with
@@ -37,7 +32,7 @@ These are some generic guidelines for working with iocage managed jails.
 
   Templates will make your life easy, try them!
 
-**Use the `restart` command instead of `start` `stop`**
+**Use the restart command instead of start/stop**
 
   If you wish to restart a jail use the ``restart`` command which performs a
   soft restart and it leaves the ``VNET`` stack alone, less stressful for the
@@ -54,9 +49,8 @@ These are some generic guidelines for working with iocage managed jails.
 
   Remove snapshots you don't need, especially from jails where data is changing a lot!
 
-**Use the `chroot` sub-command**
+**Use the chroot sub-command**
  
   In case you need to access or modify files in a template or a jail which is in a
-  stopped state, use ``iocage chroot UUID | TAG``. This way you don't need to spin up the
+  stopped state, use ``iocell chroot UUID | TAG``. This way you don't need to spin up the
   jail or convert the template.
-

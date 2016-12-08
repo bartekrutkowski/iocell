@@ -6,15 +6,15 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>How to create and use templates &mdash; iocage 1.6.0 documentation</title>
+    <title>How to create and use templates &#8212; iocell 1.7.3 documentation</title>
     
-    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/classic.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
-        VERSION:     '1.6.0',
+        VERSION:     '1.7.3',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -23,59 +23,61 @@
     <script type="text/javascript" src="_static/jquery.js"></script>
     <script type="text/javascript" src="_static/underscore.js"></script>
     <script type="text/javascript" src="_static/doctools.js"></script>
-    <link rel="top" title="iocage 1.6.0 documentation" href="index.html" />
-    <link rel="next" title="Automatic package installation" href="automatic-package-installation.html" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="top" title="iocell 1.7.3 documentation" href="index.html" />
+    <link rel="next" title="Create a jail package!" href="jail-package.html" />
     <link rel="prev" title="Advanced usage" href="advanced-use.html" /> 
   </head>
-  <body>
-    <div class="related">
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
       <h3>Navigation</h3>
       <ul>
         <li class="right" style="margin-right: 10px">
           <a href="genindex.html" title="General Index"
              accesskey="I">index</a></li>
         <li class="right" >
-          <a href="automatic-package-installation.html" title="Automatic package installation"
+          <a href="jail-package.html" title="Create a jail package!"
              accesskey="N">next</a> |</li>
         <li class="right" >
           <a href="advanced-use.html" title="Advanced usage"
              accesskey="P">previous</a> |</li>
-        <li><a href="index.html">iocage 1.6.0 documentation</a> &raquo;</li> 
+        <li class="nav-item nav-item-0"><a href="index.html">iocell 1.7.3 documentation</a> &#187;</li> 
       </ul>
     </div>  
 
     <div class="document">
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
   <div class="section" id="how-to-create-and-use-templates">
 <h1>How to create and use templates<a class="headerlink" href="#how-to-create-and-use-templates" title="Permalink to this headline">¶</a></h1>
 <p><strong>Templates can save you precious time!</strong></p>
 <p>Set up a jail any way you like, and create a template from it. All packages and pre-configured settings will be available for deployment next time within seconds.</p>
-<p>Any jail can be converted to a template and back to a jail again as required. In fact a template is just another jail which has the property <tt class="docutils literal"><span class="pre">template</span></tt> set to &#8220;yes&#8221;. The difference is that templates are not started by iocage, they ar$</p>
-<p><strong>Here is how to create a template with iocage:</strong></p>
+<p>Any jail can be converted to a template and back to a jail again as required. In fact a template is just another jail which has the property <code class="docutils literal"><span class="pre">template</span></code> set to &#8220;yes&#8221;. The difference is that templates are not started by iocell.</p>
+<p><strong>Here is how to create a template with iocell:</strong></p>
 <ol class="arabic simple">
-<li>Create a new jail <tt class="docutils literal"><span class="pre">iocage</span> <span class="pre">create</span> <span class="pre">tag=mytemplate</span></tt></li>
+<li>Create a new jail <code class="docutils literal"><span class="pre">iocell</span> <span class="pre">create</span> <span class="pre">tag=mytemplate</span></code></li>
 <li>Configure the jail&#8217;s networking</li>
 <li>Install any package you like and customize jail</li>
-<li>Once finished with customization stop the jail <tt class="docutils literal"><span class="pre">iocage</span> <span class="pre">stop</span> <span class="pre">UUID</span> <span class="pre">|</span> <span class="pre">TAG</span></tt></li>
-<li>A good idea is set some notes <tt class="docutils literal"><span class="pre">iocage</span> <span class="pre">set</span> <span class="pre">notes=&quot;customized</span> <span class="pre">PHP,nginx</span> <span class="pre">jail&quot;</span> <span class="pre">UUID</span> <span class="pre">|</span> <span class="pre">TAG</span></tt></li>
-<li>Turn the template property on <tt class="docutils literal"><span class="pre">iocage</span> <span class="pre">set</span> <span class="pre">template=yes</span> <span class="pre">UUID</span> <span class="pre">|</span> <span class="pre">TAG</span></tt></li>
-<li>List your template with <tt class="docutils literal"><span class="pre">iocage</span> <span class="pre">list</span> <span class="pre">-t</span></tt></li>
+<li>Once finished with customization stop the jail <code class="docutils literal"><span class="pre">iocell</span> <span class="pre">stop</span> <span class="pre">UUID</span> <span class="pre">|</span> <span class="pre">TAG</span></code></li>
+<li>A good idea is set some notes <code class="docutils literal"><span class="pre">iocell</span> <span class="pre">set</span> <span class="pre">notes=&quot;customized</span> <span class="pre">PHP,nginx</span> <span class="pre">jail&quot;</span> <span class="pre">UUID</span> <span class="pre">|</span> <span class="pre">TAG</span></code></li>
+<li>Turn the template property on <code class="docutils literal"><span class="pre">iocell</span> <span class="pre">set</span> <span class="pre">template=yes</span> <span class="pre">UUID</span> <span class="pre">|</span> <span class="pre">TAG</span></code></li>
+<li>List your template with <code class="docutils literal"><span class="pre">iocell</span> <span class="pre">list</span> <span class="pre">-t</span></code></li>
 </ol>
 <p><strong>Here is how to use the created template:</strong></p>
 <p>To create a new jail from this template simply clone it!</p>
 <ol class="arabic simple">
-<li><tt class="docutils literal"><span class="pre">iocage</span> <span class="pre">clone</span> <span class="pre">UUID-of-mytemplate</span> <span class="pre">tag=mynewjail</span></tt></li>
-<li>List new jail <tt class="docutils literal"><span class="pre">iocage</span> <span class="pre">list</span></tt></li>
-<li>Start jail <tt class="docutils literal"><span class="pre">iocage</span> <span class="pre">start</span> <span class="pre">UUID</span> <span class="pre">|</span> <span class="pre">TAG</span></tt></li>
+<li><code class="docutils literal"><span class="pre">iocell</span> <span class="pre">clone</span> <span class="pre">UUID-of-mytemplate</span> <span class="pre">tag=mynewjail</span></code></li>
+<li>List new jail <code class="docutils literal"><span class="pre">iocell</span> <span class="pre">list</span></code></li>
+<li>Start jail <code class="docutils literal"><span class="pre">iocell</span> <span class="pre">start</span> <span class="pre">UUID</span> <span class="pre">|</span> <span class="pre">TAG</span></code></li>
 </ol>
 <p>Done!</p>
 <p><strong>If you need to make further customization in the template or want to patch it, you have two options.</strong></p>
 <ul class="simple">
-<li>convert template back to jail with <tt class="docutils literal"><span class="pre">iocage</span> <span class="pre">set</span> <span class="pre">template=no</span> <span class="pre">UUID-of-template</span></tt>, and start the jail</li>
-<li>if you don&#8217;t need network access to make the changes simply run <tt class="docutils literal"><span class="pre">iocage</span> <span class="pre">chroot</span> <span class="pre">UUID-of-template</span></tt>, make the changes and exit</li>
+<li>convert template back to jail with <code class="docutils literal"><span class="pre">iocell</span> <span class="pre">set</span> <span class="pre">template=no</span> <span class="pre">UUID-of-template</span></code>, and start the jail</li>
+<li>if you don&#8217;t need network access to make the changes simply run <code class="docutils literal"><span class="pre">iocell</span> <span class="pre">chroot</span> <span class="pre">UUID-of-template</span></code>, make the changes and exit</li>
 </ul>
 </div>
 
@@ -83,54 +85,53 @@
           </div>
         </div>
       </div>
-      <div class="sphinxsidebar">
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
         <div class="sphinxsidebarwrapper">
   <h4>Previous topic</h4>
   <p class="topless"><a href="advanced-use.html"
                         title="previous chapter">Advanced usage</a></p>
   <h4>Next topic</h4>
-  <p class="topless"><a href="automatic-package-installation.html"
-                        title="next chapter">Automatic package installation</a></p>
-  <h3>This Page</h3>
-  <ul class="this-page-menu">
-    <li><a href="_sources/templates.txt"
-           rel="nofollow">Show Source</a></li>
-  </ul>
-<div id="searchbox" style="display: none">
+  <p class="topless"><a href="jail-package.html"
+                        title="next chapter">Create a jail package!</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/templates.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
   <h3>Quick search</h3>
     <form class="search" action="search.html" method="get">
-      <input type="text" name="q" />
-      <input type="submit" value="Go" />
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
       <input type="hidden" name="check_keywords" value="yes" />
       <input type="hidden" name="area" value="default" />
     </form>
-    <p class="searchtip" style="font-size: 90%">
-    Enter search terms or a module, class or function name.
-    </p>
 </div>
 <script type="text/javascript">$('#searchbox').show(0);</script>
         </div>
       </div>
       <div class="clearer"></div>
     </div>
-    <div class="related">
+    <div class="related" role="navigation" aria-label="related navigation">
       <h3>Navigation</h3>
       <ul>
         <li class="right" style="margin-right: 10px">
           <a href="genindex.html" title="General Index"
              >index</a></li>
         <li class="right" >
-          <a href="automatic-package-installation.html" title="Automatic package installation"
+          <a href="jail-package.html" title="Create a jail package!"
              >next</a> |</li>
         <li class="right" >
           <a href="advanced-use.html" title="Advanced usage"
              >previous</a> |</li>
-        <li><a href="index.html">iocage 1.6.0 documentation</a> &raquo;</li> 
+        <li class="nav-item nav-item-0"><a href="index.html">iocell 1.7.3 documentation</a> &#187;</li> 
       </ul>
     </div>
-    <div class="footer">
-        &copy; Copyright 2014, Peter Toth.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2014-2015, iocell.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.9.
     </div>
   </body>
 </html>

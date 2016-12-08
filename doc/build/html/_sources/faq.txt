@@ -1,8 +1,8 @@
 FAQ
 ===
 
-**What is iocage?**
-    iocage is jail management script aiming to simplify jail administration
+**What is iocell?**
+    iocell is jail management script aiming to simplify jail administration
     tasks as much as possible.
 
 **What is a jail?**
@@ -14,7 +14,7 @@ FAQ
     VNET is an independent per jail virtual networking stack.
 
 **How do I configure network interfaces in a VNET or shared IPjail?**
-    You configure both the same way: ``iocage set
+    You configure both the same way: ``iocell set
     ip4_add="interface|IP/netmask" UUID | TAG``. For more info please refer to the
     documentation.
 
@@ -43,13 +43,13 @@ FAQ
     Yes. (refer to manual page)
 
 **Is there a way to display resource consumption?**
-    Yes, ``iocage inuse UUID | TAG``
+    Yes, ``iocell inuse UUID | TAG``
 
 **Is NAT supported for the jails?**
     Yes. This is built into FreeBSD. Treat your server as a core
     router/firewall. Check documentation section on NAT.
 
-**Will iocage work on a generic system with no ZFS pools?**
+**Will iocell work on a generic system with no ZFS pools?**
     No. ZFS is a must, if you run a FreeBSD server you should be using ZFS!
 
 **Is ZFS jailing supported?**

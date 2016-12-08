@@ -6,15 +6,15 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Create a Debian Squeeze jail (GNU/kFreeBSD) &mdash; iocage 1.6.0 documentation</title>
+    <title>Create a Debian Squeeze jail (GNU/kFreeBSD) &#8212; iocell 1.7.3 documentation</title>
     
-    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/classic.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
-        VERSION:     '1.6.0',
+        VERSION:     '1.7.3',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -23,12 +23,14 @@
     <script type="text/javascript" src="_static/jquery.js"></script>
     <script type="text/javascript" src="_static/underscore.js"></script>
     <script type="text/javascript" src="_static/doctools.js"></script>
-    <link rel="top" title="iocage 1.6.0 documentation" href="index.html" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="top" title="iocell 1.7.3 documentation" href="index.html" />
     <link rel="next" title="Known Issues" href="known-issues.html" />
     <link rel="prev" title="Create a jail package!" href="jail-package.html" /> 
   </head>
-  <body>
-    <div class="related">
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
       <h3>Navigation</h3>
       <ul>
         <li class="right" style="margin-right: 10px">
@@ -40,14 +42,14 @@
         <li class="right" >
           <a href="jail-package.html" title="Create a jail package!"
              accesskey="P">previous</a> |</li>
-        <li><a href="index.html">iocage 1.6.0 documentation</a> &raquo;</li> 
+        <li class="nav-item nav-item-0"><a href="index.html">iocell 1.7.3 documentation</a> &#187;</li> 
       </ul>
     </div>  
 
     <div class="document">
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
   <div class="section" id="create-a-debian-squeeze-jail-gnu-kfreebsd">
 <h1>Create a Debian Squeeze jail (GNU/kFreeBSD)<a class="headerlink" href="#create-a-debian-squeeze-jail-gnu-kfreebsd" title="Permalink to this headline">¶</a></h1>
@@ -55,38 +57,38 @@
 Debian userland tailored for the FreeBSD kernel.</strong></p>
 <p>Don&#8217;t forget to replace UUID with your jail&#8217;s full UUID!</p>
 <p><strong>Create an empty jail with linux specifics:</strong></p>
-<p><tt class="docutils literal"><span class="pre">iocage</span> <span class="pre">create</span> <span class="pre">-e</span> <span class="pre">tag=debian</span> <span class="pre">exec_start=&quot;/etc/init.d/rc</span> <span class="pre">3&quot;</span>
-<span class="pre">exec_stop=&quot;/etc/init.d/rc</span> <span class="pre">0&quot;</span></tt></p>
+<p><code class="docutils literal"><span class="pre">iocell</span> <span class="pre">create</span> <span class="pre">-e</span> <span class="pre">tag=debian</span> <span class="pre">exec_start=&quot;/etc/init.d/rc</span> <span class="pre">3&quot;</span>
+<span class="pre">exec_stop=&quot;/etc/init.d/rc</span> <span class="pre">0&quot;</span></code></p>
 <p><strong>Install debootstrap on the host:</strong></p>
-<p><tt class="docutils literal"><span class="pre">pkg</span> <span class="pre">install</span> <span class="pre">debootstrap</span></tt></p>
+<p><code class="docutils literal"><span class="pre">pkg</span> <span class="pre">install</span> <span class="pre">debootstrap</span></code></p>
 <p><strong>Grab the mountpoint for our empty jail, append /root/ to it and run
 debootstrap:</strong></p>
-<p><tt class="docutils literal"><span class="pre">iocage</span> <span class="pre">get</span> <span class="pre">mountpoint</span> <span class="pre">UUID</span> <span class="pre">|</span> <span class="pre">TAG</span></tt></p>
-<p><tt class="docutils literal"><span class="pre">debootstrap</span> <span class="pre">squeeze</span> <span class="pre">/iocage/jails/UUID/root/</span></tt> (you can replace squeeze with wheezy if that is what you need)</p>
+<p><code class="docutils literal"><span class="pre">iocell</span> <span class="pre">get</span> <span class="pre">mountpoint</span> <span class="pre">UUID</span> <span class="pre">|</span> <span class="pre">TAG</span></code></p>
+<p><code class="docutils literal"><span class="pre">debootstrap</span> <span class="pre">squeeze</span> <span class="pre">/iocell/jails/UUID/root/</span></code> (you can replace squeeze with wheezy if that is what you need)</p>
 <p><strong>Edit the jail&#8217;s fstab and add these lines:</strong></p>
-<p><tt class="docutils literal"><span class="pre">/iocage/jails/UUID/root/fstab</span></tt></p>
+<p><code class="docutils literal"><span class="pre">/iocell/jails/UUID/fstab</span></code></p>
 <blockquote>
-<div><div class="highlight-python"><div class="highlight"><pre>linsys   /iocage/jails/UUID/root/sys         linsysfs  rw          0 0
-linproc  /iocage/jails/UUID/root/proc        linprocfs rw          0 0
-tmpfs    /iocage/jails/UUID/root/lib/init/rw tmpfs     rw,mode=777 0 0
+<div><div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">linsys</span>   <span class="o">/</span><span class="n">iocell</span><span class="o">/</span><span class="n">jails</span><span class="o">/</span><span class="n">UUID</span><span class="o">/</span><span class="n">root</span><span class="o">/</span><span class="n">sys</span>         <span class="n">linsysfs</span>  <span class="n">rw</span>          <span class="mi">0</span> <span class="mi">0</span>
+<span class="n">linproc</span>  <span class="o">/</span><span class="n">iocell</span><span class="o">/</span><span class="n">jails</span><span class="o">/</span><span class="n">UUID</span><span class="o">/</span><span class="n">root</span><span class="o">/</span><span class="n">proc</span>        <span class="n">linprocfs</span> <span class="n">rw</span>          <span class="mi">0</span> <span class="mi">0</span>
+<span class="n">tmpfs</span>    <span class="o">/</span><span class="n">iocell</span><span class="o">/</span><span class="n">jails</span><span class="o">/</span><span class="n">UUID</span><span class="o">/</span><span class="n">root</span><span class="o">/</span><span class="n">lib</span><span class="o">/</span><span class="n">init</span><span class="o">/</span><span class="n">rw</span> <span class="n">tmpfs</span>     <span class="n">rw</span><span class="p">,</span><span class="n">mode</span><span class="o">=</span><span class="mi">777</span> <span class="mi">0</span> <span class="mi">0</span>
 </pre></div>
 </div>
 </div></blockquote>
 <p><strong>Start the jail and attach to it:</strong></p>
-<p><tt class="docutils literal"><span class="pre">iocage</span> <span class="pre">start</span> <span class="pre">UUID</span> <span class="pre">|</span> <span class="pre">TAG</span></tt></p>
-<p><tt class="docutils literal"><span class="pre">iocage</span> <span class="pre">console</span> <span class="pre">UUID</span> <span class="pre">|</span> <span class="pre">TAG</span></tt></p>
+<p><code class="docutils literal"><span class="pre">iocell</span> <span class="pre">start</span> <span class="pre">UUID</span> <span class="pre">|</span> <span class="pre">TAG</span></code></p>
+<p><code class="docutils literal"><span class="pre">iocell</span> <span class="pre">console</span> <span class="pre">UUID</span> <span class="pre">|</span> <span class="pre">TAG</span></code></p>
 <p>What you gain is a 64bit Debian Linux userland. Please note this is not
-recommended for production use. The intention was to show that iocage will let
+recommended for production use. The intention was to show that iocell will let
 you do almost anything you want with your jails.</p>
 <p>If you wish to install a Linux only Debian jail you can follow this tutorial:
-<a class="reference external" href="http://devil-detail.blogspot.co.nz/2013/08/debian-linux-freebsd-jail-zfs.html/">debian-linux-freebsd-jail-zfs</a></p>
+<a class="reference external" href="http://devil-detail.blogspot.co.nz/2013/08/debian-linux-freebsd-jail-zfs.html">debian-linux-freebsd-jail-zfs</a></p>
 </div>
 
 
           </div>
         </div>
       </div>
-      <div class="sphinxsidebar">
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
         <div class="sphinxsidebarwrapper">
   <h4>Previous topic</h4>
   <p class="topless"><a href="jail-package.html"
@@ -94,29 +96,28 @@ you do almost anything you want with your jails.</p>
   <h4>Next topic</h4>
   <p class="topless"><a href="known-issues.html"
                         title="next chapter">Known Issues</a></p>
-  <h3>This Page</h3>
-  <ul class="this-page-menu">
-    <li><a href="_sources/debian.txt"
-           rel="nofollow">Show Source</a></li>
-  </ul>
-<div id="searchbox" style="display: none">
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/debian.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
   <h3>Quick search</h3>
     <form class="search" action="search.html" method="get">
-      <input type="text" name="q" />
-      <input type="submit" value="Go" />
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
       <input type="hidden" name="check_keywords" value="yes" />
       <input type="hidden" name="area" value="default" />
     </form>
-    <p class="searchtip" style="font-size: 90%">
-    Enter search terms or a module, class or function name.
-    </p>
 </div>
 <script type="text/javascript">$('#searchbox').show(0);</script>
         </div>
       </div>
       <div class="clearer"></div>
     </div>
-    <div class="related">
+    <div class="related" role="navigation" aria-label="related navigation">
       <h3>Navigation</h3>
       <ul>
         <li class="right" style="margin-right: 10px">
@@ -128,12 +129,12 @@ you do almost anything you want with your jails.</p>
         <li class="right" >
           <a href="jail-package.html" title="Create a jail package!"
              >previous</a> |</li>
-        <li><a href="index.html">iocage 1.6.0 documentation</a> &raquo;</li> 
+        <li class="nav-item nav-item-0"><a href="index.html">iocell 1.7.3 documentation</a> &#187;</li> 
       </ul>
     </div>
-    <div class="footer">
-        &copy; Copyright 2014, Peter Toth.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2014-2015, iocell.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.9.
     </div>
   </body>
 </html>

@@ -6,15 +6,15 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Known Issues &mdash; iocage 1.6.0 documentation</title>
+    <title>Known Issues &#8212; iocell 1.7.3 documentation</title>
     
-    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/classic.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
-        VERSION:     '1.6.0',
+        VERSION:     '1.7.3',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -23,12 +23,14 @@
     <script type="text/javascript" src="_static/jquery.js"></script>
     <script type="text/javascript" src="_static/underscore.js"></script>
     <script type="text/javascript" src="_static/doctools.js"></script>
-    <link rel="top" title="iocage 1.6.0 documentation" href="index.html" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="top" title="iocell 1.7.3 documentation" href="index.html" />
     <link rel="next" title="FAQ" href="faq.html" />
     <link rel="prev" title="Create a Debian Squeeze jail (GNU/kFreeBSD)" href="debian.html" /> 
   </head>
-  <body>
-    <div class="related">
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
       <h3>Navigation</h3>
       <ul>
         <li class="right" style="margin-right: 10px">
@@ -40,14 +42,14 @@
         <li class="right" >
           <a href="debian.html" title="Create a Debian Squeeze jail (GNU/kFreeBSD)"
              accesskey="P">previous</a> |</li>
-        <li><a href="index.html">iocage 1.6.0 documentation</a> &raquo;</li> 
+        <li class="nav-item nav-item-0"><a href="index.html">iocell 1.7.3 documentation</a> &#187;</li> 
       </ul>
     </div>  
 
     <div class="document">
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
   <div class="section" id="known-issues">
 <h1>Known Issues<a class="headerlink" href="#known-issues" title="Permalink to this headline">¶</a></h1>
@@ -55,37 +57,68 @@
 <div class="section" id="character-mount-path-limitation">
 <h2>88 character mount path limitation<a class="headerlink" href="#character-mount-path-limitation" title="Permalink to this headline">¶</a></h2>
 <p>There is a know mountpoint path length limitation issue on FreeBSD which is set to a historical 88 character limit.</p>
-<p>This issue does not affect iocage jails from functioning properly, but can present challenges
+<p>This issue does not affect iocell jails from functioning properly, but can present challenges
 when diving into ZFS snapshots (cd into .zfs/snapshots, tar, etc.).</p>
 <p>ZFS snapshot creation and rollback is not affected.</p>
-<p>To workaround this issue iocage 1.6.0 introduced a <tt class="docutils literal"><span class="pre">hack88</span></tt> property.</p>
+<p>To workaround this issue iocell 1.6.0 introduced a <code class="docutils literal"><span class="pre">hack88</span></code> property.</p>
 <p>Example:</p>
 <p>Shut down jail:</p>
-<p><tt class="docutils literal"><span class="pre">iocage</span> <span class="pre">stop</span> <span class="pre">myjail</span></tt></p>
-<p>Set the <tt class="docutils literal"><span class="pre">hack88</span></tt> property to &#8220;1&#8221;:</p>
-<p><tt class="docutils literal"><span class="pre">iocage</span> <span class="pre">set</span> <span class="pre">hack88=1</span></tt></p>
+<p><code class="docutils literal"><span class="pre">iocell</span> <span class="pre">stop</span> <span class="pre">myjail</span></code></p>
+<p>Set the <code class="docutils literal"><span class="pre">hack88</span></code> property to &#8220;1&#8221;:</p>
+<p><code class="docutils literal"><span class="pre">iocell</span> <span class="pre">set</span> <span class="pre">hack88=1</span></code></p>
 <p>Start jail:</p>
-<p><tt class="docutils literal"><span class="pre">iocage</span> <span class="pre">start</span> <span class="pre">myjail</span></tt></p>
-<p>To revert back to full paths repeat the procedure but set <tt class="docutils literal"><span class="pre">hack88=0</span></tt>.</p>
+<p><code class="docutils literal"><span class="pre">iocell</span> <span class="pre">start</span> <span class="pre">myjail</span></code></p>
+<p>To revert back to full paths repeat the procedure but set <code class="docutils literal"><span class="pre">hack88=0</span></code>.</p>
 <p>To create a system wide default (introduced in 1.6.0) for all newly created jails use:</p>
-<p><tt class="docutils literal"><span class="pre">iocage</span> <span class="pre">set</span> <span class="pre">hack88=1</span> <span class="pre">default</span></tt></p>
+<p><code class="docutils literal"><span class="pre">iocell</span> <span class="pre">set</span> <span class="pre">hack88=1</span> <span class="pre">default</span></code></p>
 </div>
 <div class="section" id="property-validation">
 <h2>Property validation<a class="headerlink" href="#property-validation" title="Permalink to this headline">¶</a></h2>
-<p>iocage does not validate properties right now. Please refer to man page to see what is supported
-for each property. By default iocage pre-configures each property with a safe default.</p>
+<p>iocell does not validate properties right now. Please refer to man page to see what is supported
+for each property. By default iocell pre-configures each property with a safe default.</p>
 </div>
 <div class="section" id="vnet-vimage-issues">
 <h2>VNET/VIMAGE issues<a class="headerlink" href="#vnet-vimage-issues" title="Permalink to this headline">¶</a></h2>
 <p>VNET/VIMAGE can cause unexpected system crashes when VNET enabled jails are destroyed - that is when the
 jail process is killed, removed, stopped.</p>
-<p>As a workaround iocage allows a warm restart without destroying the jail.
+<p>As a workaround iocell allows a warm restart without destroying the jail.
 By default the restart sub-command will execute a warm restart.</p>
 <p>Example:</p>
-<p><tt class="docutils literal"><span class="pre">iocage</span> <span class="pre">restart</span> <span class="pre">UUID</span></tt></p>
+<p><code class="docutils literal"><span class="pre">iocell</span> <span class="pre">restart</span> <span class="pre">UUID</span></code></p>
 <p>FreeBSD 10.1-RELEASE is stable enough to run with VNET and warm restarts.
-There are production machines with iocage and VNET jails running well beyond 100 days of uptime
+There are production machines with iocell and VNET jails running well beyond 100 days of uptime
 running both PF and IPFW.</p>
+</div>
+<div class="section" id="vnet-vimage-issues-w-altq">
+<h2>VNET/VIMAGE issues w/ ALTQ<a class="headerlink" href="#vnet-vimage-issues-w-altq" title="Permalink to this headline">¶</a></h2>
+<p>As recent as FreeBSD 10.1-RELEASE-p10, there is some <em>interesting</em> interaction between VNET/VIMAGE and ALTQ,
+which is an ALTernate Queueing system used by PF and other routing software.  Should you compile a kernel, make
+sure that you do not have any of the following lines in your kernconf (unless you want to disable VNET):</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">options</span>     <span class="n">ALTQ</span>
+<span class="n">options</span>     <span class="n">ALTQ_CBQ</span>
+<span class="n">options</span>     <span class="n">ALTQ_RED</span>
+<span class="n">options</span>     <span class="n">ALTQ_RIO</span>
+<span class="n">options</span>     <span class="n">ALTQ_HFSC</span>
+<span class="n">options</span>     <span class="n">ALTQ_CDNR</span>
+<span class="n">options</span>     <span class="n">ALTQ_PRIQ</span>
+</pre></div>
+</div>
+<p>Otherwise, should you try to start a jail with VNET support enabled, your host system will more than likely crash.
+You can read a little more at the mailing list post <a class="reference external" href="http://lists.freebsd.org/pipermail/freebsd-jail/2014-July/002635.html">here</a>.</p>
+</div>
+<div class="section" id="ipv6-host-bind-failures">
+<h2>IPv6 host bind failures<a class="headerlink" href="#ipv6-host-bind-failures" title="Permalink to this headline">¶</a></h2>
+<p>In some cases a jail with an ip6 address may take too long adding the address
+to the interface, and services defined to bind specifically to that address
+may fail. In such cases, adding the following sysctl do disable DAD (duplicate
+address detection) probe packets.</p>
+<p>To set, <code class="docutils literal"><span class="pre">sysctl</span> <span class="pre">net.inet6.ip6.dad_count=0</span></code>. To make it permanent, add the
+setting to sysctl.conf.</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="c1"># disable duplicated address detection probe packets for jails</span>
+<span class="n">net</span><span class="o">.</span><span class="n">inet6</span><span class="o">.</span><span class="n">ip6</span><span class="o">.</span><span class="n">dad_count</span><span class="o">=</span><span class="mi">0</span>
+</pre></div>
+</div>
+<p>You can read a little more about this <a class="reference external" href="https://github.com/iocell/iocell/issues/119">here</a> and at the mailing list post <a class="reference external" href="https://lists.freebsd.org/pipermail/freebsd-jail/2013-July/002347.html">here</a>.</p>
 </div>
 </div>
 
@@ -93,7 +126,7 @@ running both PF and IPFW.</p>
           </div>
         </div>
       </div>
-      <div class="sphinxsidebar">
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
         <div class="sphinxsidebarwrapper">
   <h3><a href="index.html">Table Of Contents</a></h3>
   <ul>
@@ -101,6 +134,8 @@ running both PF and IPFW.</p>
 <li><a class="reference internal" href="#character-mount-path-limitation">88 character mount path limitation</a></li>
 <li><a class="reference internal" href="#property-validation">Property validation</a></li>
 <li><a class="reference internal" href="#vnet-vimage-issues">VNET/VIMAGE issues</a></li>
+<li><a class="reference internal" href="#vnet-vimage-issues-w-altq">VNET/VIMAGE issues w/ ALTQ</a></li>
+<li><a class="reference internal" href="#ipv6-host-bind-failures">IPv6 host bind failures</a></li>
 </ul>
 </li>
 </ul>
@@ -111,29 +146,28 @@ running both PF and IPFW.</p>
   <h4>Next topic</h4>
   <p class="topless"><a href="faq.html"
                         title="next chapter">FAQ</a></p>
-  <h3>This Page</h3>
-  <ul class="this-page-menu">
-    <li><a href="_sources/known-issues.txt"
-           rel="nofollow">Show Source</a></li>
-  </ul>
-<div id="searchbox" style="display: none">
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/known-issues.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
   <h3>Quick search</h3>
     <form class="search" action="search.html" method="get">
-      <input type="text" name="q" />
-      <input type="submit" value="Go" />
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
       <input type="hidden" name="check_keywords" value="yes" />
       <input type="hidden" name="area" value="default" />
     </form>
-    <p class="searchtip" style="font-size: 90%">
-    Enter search terms or a module, class or function name.
-    </p>
 </div>
 <script type="text/javascript">$('#searchbox').show(0);</script>
         </div>
       </div>
       <div class="clearer"></div>
     </div>
-    <div class="related">
+    <div class="related" role="navigation" aria-label="related navigation">
       <h3>Navigation</h3>
       <ul>
         <li class="right" style="margin-right: 10px">
@@ -145,12 +179,12 @@ running both PF and IPFW.</p>
         <li class="right" >
           <a href="debian.html" title="Create a Debian Squeeze jail (GNU/kFreeBSD)"
              >previous</a> |</li>
-        <li><a href="index.html">iocage 1.6.0 documentation</a> &raquo;</li> 
+        <li class="nav-item nav-item-0"><a href="index.html">iocell 1.7.3 documentation</a> &#187;</li> 
       </ul>
     </div>
-    <div class="footer">
-        &copy; Copyright 2014, Peter Toth.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2014-2015, iocell.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.9.
     </div>
   </body>
 </html>

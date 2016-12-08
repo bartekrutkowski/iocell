@@ -6,15 +6,15 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>FAQ &mdash; iocage 1.6.0 documentation</title>
+    <title>FAQ &#8212; iocell 1.7.3 documentation</title>
     
-    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/classic.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
-        VERSION:     '1.6.0',
+        VERSION:     '1.7.3',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -23,11 +23,13 @@
     <script type="text/javascript" src="_static/jquery.js"></script>
     <script type="text/javascript" src="_static/underscore.js"></script>
     <script type="text/javascript" src="_static/doctools.js"></script>
-    <link rel="top" title="iocage 1.6.0 documentation" href="index.html" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="top" title="iocell 1.7.3 documentation" href="index.html" />
     <link rel="prev" title="Known Issues" href="known-issues.html" /> 
   </head>
-  <body>
-    <div class="related">
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
       <h3>Navigation</h3>
       <ul>
         <li class="right" style="margin-right: 10px">
@@ -36,20 +38,20 @@
         <li class="right" >
           <a href="known-issues.html" title="Known Issues"
              accesskey="P">previous</a> |</li>
-        <li><a href="index.html">iocage 1.6.0 documentation</a> &raquo;</li> 
+        <li class="nav-item nav-item-0"><a href="index.html">iocell 1.7.3 documentation</a> &#187;</li> 
       </ul>
     </div>  
 
     <div class="document">
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
   <div class="section" id="faq">
 <h1>FAQ<a class="headerlink" href="#faq" title="Permalink to this headline">¶</a></h1>
 <dl class="docutils">
-<dt><strong>What is iocage?</strong></dt>
-<dd>iocage is jail management script aiming to simplify jail administration
+<dt><strong>What is iocell?</strong></dt>
+<dd>iocell is jail management script aiming to simplify jail administration
 tasks as much as possible.</dd>
 <dt><strong>What is a jail?</strong></dt>
 <dd>Jail is a FreeBSD <strong>OS virtualization</strong> technology allowing to run multiple
@@ -58,8 +60,8 @@ copies of the operating system. Some operating systems use the term
 <dt><strong>What is VNET?</strong></dt>
 <dd>VNET is an independent per jail virtual networking stack.</dd>
 <dt><strong>How do I configure network interfaces in a VNET or shared IPjail?</strong></dt>
-<dd>You configure both the same way: <tt class="docutils literal"><span class="pre">iocage</span> <span class="pre">set</span>
-<span class="pre">ip4_add=&quot;interface|IP/netmask&quot;</span> <span class="pre">UUID</span> <span class="pre">|</span> <span class="pre">TAG</span></tt>. For more info please refer to the
+<dd>You configure both the same way: <code class="docutils literal"><span class="pre">iocell</span> <span class="pre">set</span>
+<span class="pre">ip4_add=&quot;interface|IP/netmask&quot;</span> <span class="pre">UUID</span> <span class="pre">|</span> <span class="pre">TAG</span></code>. For more info please refer to the
 documentation.</dd>
 <dt><strong>Do I need to set my default gateway?</strong></dt>
 <dd>Only if VNET is enabled. You need to assign an IP address to the <strong>bridge</strong>
@@ -80,11 +82,11 @@ source jail.</dd>
 <dt><strong>Can I limit the CPU and Memory use?</strong></dt>
 <dd>Yes. (refer to manual page)</dd>
 <dt><strong>Is there a way to display resource consumption?</strong></dt>
-<dd>Yes, <tt class="docutils literal"><span class="pre">iocage</span> <span class="pre">inuse</span> <span class="pre">UUID</span> <span class="pre">|</span> <span class="pre">TAG</span></tt></dd>
+<dd>Yes, <code class="docutils literal"><span class="pre">iocell</span> <span class="pre">inuse</span> <span class="pre">UUID</span> <span class="pre">|</span> <span class="pre">TAG</span></code></dd>
 <dt><strong>Is NAT supported for the jails?</strong></dt>
 <dd>Yes. This is built into FreeBSD. Treat your server as a core
 router/firewall. Check documentation section on NAT.</dd>
-<dt><strong>Will iocage work on a generic system with no ZFS pools?</strong></dt>
+<dt><strong>Will iocell work on a generic system with no ZFS pools?</strong></dt>
 <dd>No. ZFS is a must, if you run a FreeBSD server you should be using ZFS!</dd>
 <dt><strong>Is ZFS jailing supported?</strong></dt>
 <dd>Yes, please refer to man page.</dd>
@@ -95,34 +97,33 @@ router/firewall. Check documentation section on NAT.</dd>
           </div>
         </div>
       </div>
-      <div class="sphinxsidebar">
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
         <div class="sphinxsidebarwrapper">
   <h4>Previous topic</h4>
   <p class="topless"><a href="known-issues.html"
                         title="previous chapter">Known Issues</a></p>
-  <h3>This Page</h3>
-  <ul class="this-page-menu">
-    <li><a href="_sources/faq.txt"
-           rel="nofollow">Show Source</a></li>
-  </ul>
-<div id="searchbox" style="display: none">
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/faq.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
   <h3>Quick search</h3>
     <form class="search" action="search.html" method="get">
-      <input type="text" name="q" />
-      <input type="submit" value="Go" />
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
       <input type="hidden" name="check_keywords" value="yes" />
       <input type="hidden" name="area" value="default" />
     </form>
-    <p class="searchtip" style="font-size: 90%">
-    Enter search terms or a module, class or function name.
-    </p>
 </div>
 <script type="text/javascript">$('#searchbox').show(0);</script>
         </div>
       </div>
       <div class="clearer"></div>
     </div>
-    <div class="related">
+    <div class="related" role="navigation" aria-label="related navigation">
       <h3>Navigation</h3>
       <ul>
         <li class="right" style="margin-right: 10px">
@@ -131,12 +132,12 @@ router/firewall. Check documentation section on NAT.</dd>
         <li class="right" >
           <a href="known-issues.html" title="Known Issues"
              >previous</a> |</li>
-        <li><a href="index.html">iocage 1.6.0 documentation</a> &raquo;</li> 
+        <li class="nav-item nav-item-0"><a href="index.html">iocell 1.7.3 documentation</a> &#187;</li> 
       </ul>
     </div>
-    <div class="footer">
-        &copy; Copyright 2014, Peter Toth.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2014-2015, iocell.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.9.
     </div>
   </body>
 </html>
