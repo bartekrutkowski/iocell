@@ -112,24 +112,29 @@ __snaplist () {
 
     _name="$1"
 
-    if [ -z ${_name} ] ; then
+    if [ -z "${_name}" ] ; then
         __die "missing UUID!"
     fi
 
     _dataset="$(__find_jail ${_name})" || exit $?
 
-    if [ -z ${_dataset} ] ; then
+    if [ -z "${_dataset}" ] ; then
         __die "${_name} not found!"
     fi
 
     _fulluuid="$(__check_name ${_name} ${_dataset})"
-    _snapshots="$(zfs list -Hrt snapshot -d1 ${_dataset} | awk '{print $1}')"
+    _snapshots="$(zfs list -Hrt snapshot -d3 ${_dataset} | awk '{print $1}')"
+
+    if [ -z "${_snapshots}" ] ; then
+        __info "${_name} has no snapshots."
+        exit 0
+    fi
 
     printf "%-36s  %-21s  %s   %s\n" "NAME" "CREATED"\
             "RSIZE" "USED"
 
-    for _snap in ${_snapshots} ; do
-        _snapname=$(echo ${_snap} | cut -f 2 -d \@)
+    for _snap in "${_snapshots}" ; do
+        _snapname="$(echo ${_snap} | cut -f 2 -d \@)"
         _creation="$(zfs get -H -o value creation ${_snap})"
         _used="$(zfs get -H -o value used ${_snap})"
         _referenced="$(zfs get -H -o value referenced ${_snap})"
@@ -137,7 +142,6 @@ __snaplist () {
         printf "%-36s  %-21s  %s    %s\n" "${_snapname}" "${_creation}"\
                    "${_referenced}" "${_used}"
     done
-
 }
 
 __rollback () {
