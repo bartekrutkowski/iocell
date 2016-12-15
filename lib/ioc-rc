@@ -240,6 +240,10 @@ __start_jail () {
     fi
 
     __resolv_conf ${_fulluuid} ${_dataset} > ${_jail_path}/root/etc/resolv.conf
+
+    # mount optional volumes
+    __mount_volumes ${_fulluuid}
+
     echo -n "  + Starting services"
     setfib ${_exec_fib} jexec ioc-${_fulluuid} ${_exec_start} \
      >> "${iocroot}/log/${_fulluuid}-console.log" 2>&1
@@ -534,7 +538,7 @@ __stop_jail () {
     local _fulluuid _dataset _name _jail_path _tag _exec_prestop _exec_stop \
           _exec_poststop _vnet _state _ip4 _jail_type _jail_zfs \
           _jail_zfs_datasets _zfs_dataset _zfs_dataset_subsets \
-          _zfs_dataset_subset _nfulluuid
+          _zfs_dataset_subset _nfulluuid _no_unmount
 
     if [ "$1" = "ALL" ] ; then
         __stop_jail_all
@@ -542,6 +546,7 @@ __stop_jail () {
     fi
 
     _name=$1
+    _no_unmount=$2
     _dataset="$(__find_jail ${_name})" || exit $?
     _fulluuid="$(__check_name ${_name} ${_dataset})"
 
@@ -640,6 +645,11 @@ __stop_jail () {
     umount "${_jail_path}/root/dev"                 > /dev/null 2>&1
     umount "${_jail_path}/root/proc"                > /dev/null 2>&1
     umount "${_jail_path}/root/compat/linux/proc"   > /dev/null 2>&1
+
+    # unmount optional volumes
+    if [ -z "${_no_unmount}" ] ; then
+        __unmount_volumes ${_fulluuid}
+    fi
 
     if [ "${_jail_type}" = "basejail" -o "${_jail_type}" = "clonejail" ] ; then
         __umount_basejail "${_fulluuid}" "${_dataset}" >&2

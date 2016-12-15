@@ -356,6 +356,14 @@ __set_jail_prop () {
             mv ${iocroot}/jails/${_fulluuid}/rc.conf \
                ${iocroot}/jails/${_fulluuid}/root/etc/rc.conf
             ;;
+        volumes)
+            _state="$(__is_running ${_fulluuid})"
+
+            # don't allow changing volumes while jail is running
+            if [ ! -z "${_state}" ] ; then
+                __die " volumes cannot be changed while jail is running!"
+            fi
+            ;;
     esac
 
     if [ "${_type}" = "custom" ] ; then

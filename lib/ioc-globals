@@ -120,6 +120,7 @@ mount_procfs="0"
 mount_linprocfs="0"
 hack88="0"
 count="1"
+volumes="none"
 
 # Native ZFS properties
 compression="lz4"
@@ -266,7 +267,8 @@ CONF_CUSTOM="tag
              hack88
              start
              count
-             pool"
+             pool
+             volumes"
 
 # Native ZFS properties
 CONF_ZFS="compression

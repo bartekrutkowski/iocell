@@ -94,6 +94,7 @@ fi
 . "${LIB}/ioc-hacks"
 # shellcheck source=lib/ioc-git
 . "${LIB}/ioc-git"
+. "${LIB}/ioc-volumes"
 
 if [ -z "$1" ] ; then
     __usage
