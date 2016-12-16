@@ -31,7 +31,7 @@ unset LANG
 PATH=${PATH}:/bin:/usr/bin:/usr/local/bin:/sbin:/usr/sbin:/usr/local/sbin
 
 if [ "${1}" = "--version" ] || [ "${1}" = "version" ] ; then
-    echo "iocell DEVELOP (2016-12-06)"
+    echo "iocell (2016-12-16)"
     exit 0
 fi
 
