@@ -133,7 +133,7 @@ __snaplist () {
     printf "%-36s  %-21s  %s   %s\n" "NAME" "CREATED"\
             "RSIZE" "USED"
 
-    for _snap in "${_snapshots}" ; do
+    for _snap in ${_snapshots} ; do
         _snapname="$(echo ${_snap} | cut -f 2 -d \@)"
         _creation="$(zfs get -H -o value creation ${_snap})"
         _used="$(zfs get -H -o value used ${_snap})"
