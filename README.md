@@ -17,6 +17,7 @@ To install using binary packages, simply run: `pkg install iocell`
 ## WARNING:
 The `develop` branch may not be functional at any given point. This is where a lot of experimental work gets done. No guarantees for stability or migrations within the branch are given. Things can and do change rapidly. **_Please don't use it if you require stability._**
 
+- **Discussions**: Mailing list is available on [Google Groups](https://groups.google.com/forum/#!forum/iocell)
 - **Contributing**: If you would like to submit a pull request, we kindly ask you to open it against the `develop` branch.
 
 ####Raising an issue:
