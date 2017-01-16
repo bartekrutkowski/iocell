@@ -39,7 +39,7 @@ cannot open 'zroot/iocell/jails/XXXXXXXX-XXXX-XXXX-a5be-3417ebb13845': dataset d
 [: -ne: unexpected operator
   ERROR: jail: pepperd is not running!
 ````
-- Use the [Markdown Basics](https://help.github.com/articles/markdown-basics/#code-formatting) GitHub page for more information on how to paste lines of code and terminal output. 
+- Use the [Markdown Basics](https://help.github.com/articles/markdown-basics/#code-formatting) GitHub page for more information on how to paste lines of code and terminal output.
 
 **FEATURES:**
 - Templates, clones, basejails, fully independent jails
@@ -60,17 +60,35 @@ cannot open 'zroot/iocell/jails/XXXXXXXX-XXXX-XXXX-a5be-3417ebb13845': dataset d
 
 **QUICK HOWTO:**
 
-Fetch a release:
+`iocell(8)` requires a zfs pool to store its jails, templates and configuration.
+FreeBSD's installer uses `zroot` as the default name for the system zpool, so
+these examples below do too. If you wish, you may use an alternate zpool,
+whether due to differing install-time choices, or if you have a dedicated zpool
+for iocell to use instead.
+
+`iocell activate zroot`
+
+Fetch the latest *release* of FreeBSD from the public FTP site:
 
 `iocell fetch`
 
 Create a jail:
+
+Make sure that the device name chosen below matches your main network interface,
+as shown by `ifconfig(8)`, and that the IP address doesn't conflict with your
+local network or DHCP address range.
 
 `iocell create tag=myjail ip4_addr="em0|192.168.1.10/24"`
 
 Start the jail:
 
 `iocell start myjail`
+
+Connect to the jail's console:
+
+`iocell console myjail`
+
+You now have root access within your jail -- enjoy!
 
 **USAGE:**
 ```
@@ -120,7 +138,7 @@ Start the jail:
   ```
 
 **REQUIREMENTS**
-- FreeBSD 9.3-RELEASE amd64 or newer
+- FreeBSD 10.3-RELEASE amd64 or newer
 - ZFS file system
 - Optional - Kernel compiled with:
 
@@ -145,3 +163,4 @@ Start the jail:
         net.link.bridge.pfil_onlyip=0  # Only pass IP packets when pfil is enabled
         net.link.bridge.pfil_bridge=0  # Packet filter on the bridge interface
         net.link.bridge.pfil_member=0  # Packet filter on the member interface
+
