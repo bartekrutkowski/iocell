@@ -235,7 +235,7 @@ __deactivate () {
     _pool="$1"
 
     echo "The iocell jails and data on ${_pool} must be manually removed with:"
-    echo "    zfs destroy -r ${_pool}"
+    echo "    zfs destroy -r ${_pool}/iocell"
 }
 
 # Accepts two arguments. Which is used as the UUID for the umount operations
