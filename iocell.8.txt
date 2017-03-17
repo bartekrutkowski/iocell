@@ -1472,7 +1472,7 @@ HINTS
 
   For more information please visit:
 
-    https://github.com/iocell/iocell
+    https://github.com/bartekrutkowski/iocell
 
 SEE ALSO
   jail(8), ifconfig(8), epair(4), bridge(4), jexec(8), zfs(8), zpool(8),
