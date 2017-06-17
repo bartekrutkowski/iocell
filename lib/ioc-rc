@@ -279,7 +279,7 @@ __vnet_start () {
       _tmpfs=""
     fi
 
-    if [ "$(uname -U)" -lt "100400" ]; then
+    if [ "$(uname -U)" -lt "1004000" ]; then
       _sysvmsg=""
       _sysvsem=""
       _sysvshm=""
@@ -366,7 +366,7 @@ __legacy_start () {
       _tmpfs=""
     fi
 
-    if [ "$(uname -U)" -lt "100400" ]; then
+    if [ "$(uname -U)" -lt "1004000" ]; then
       _sysvmsg=""
       _sysvsem=""
       _sysvshm=""
