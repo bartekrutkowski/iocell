@@ -700,11 +700,7 @@ __create_jail () {
         mount -t tmpfs tmpfs ${iocroot}/jails/${uuid}/root/tmp
         mount -t devfs devfs ${iocroot}/jails/${uuid}/root/dev
 
-        if [ "${_template}" != "1" ] ; then
-            __mount_basejail "${uuid}" "${template}"
-        else
-            __mount_basejail "${uuid}" "${release}"
-        fi
+        __mount_basejail "${uuid}" "${release}"
 
         __pkg_install "${iocroot}/jails/${uuid}/root"
     fi
