@@ -1,6 +1,6 @@
 Make sure to follow and check these boxes before submitting a PR! Thank you.
 
-- [ ] Supply documentation according to [CONTRIBUTING.md](https://github.com/iocell/iocell/blob/master/CONTRIBUTING.md)
+- [ ] Supply documentation according to [CONTRIBUTING.md](https://github.com/bartekrutkowski/iocell/blob/master/CONTRIBUTING.md)
 - [ ] Explain the feature
-- [ ] Read [CONTRIBUTING.md](https://github.com/iocell/iocell/blob/master/CONTRIBUTING.md)
+- [ ] Read [CONTRIBUTING.md](https://github.com/bartekrutkowski/iocell/blob/master/CONTRIBUTING.md)
 - [ ] Only open the PR against the `develop` branch.
