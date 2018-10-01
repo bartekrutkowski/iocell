@@ -16,7 +16,7 @@ __activate () {
     # active pools.
     for _fs in ${_filesystems} ; do
         if [ "${_fs}" = "iocell" ] ; then
-            zfs set mountpoint="/${_fs}" "${pool}/${_fs}" > /dev/null 2>&1
+            zfs set mountpoint="/usr/local/${_fs}" "${pool}/${_fs}" > /dev/null 2>&1
         else
             zfs inherit -r mountpoint "${pool}/${_fs}" > /dev/null 2>&1
         fi
@@ -951,23 +951,23 @@ __check_filesystems () {
                 zfs create -p "${pool}/${_fs}"
 
                 if [ "${_fs}" = "iocell" ] ; then
-                    zfs set mountpoint="/${_fs}" "${pool}/${_fs}" \
+                    zfs set mountpoint="/usr/local/${_fs}" "${pool}/${_fs}" \
                         > /dev/null 2>&1
                 fi
 
-                if [ "${_altroot}" != "-" -a ! -d "/iocell" ] ; then
+                if [ "${_altroot}" != "-" -a ! -d "/usr/local/iocell" ] ; then
                     sed -i '' s#.*iocroot.*#iocroot="${_altroot}/iocell"# \
                         "${LIB}/ioc-globals"
                     export iocroot="${_altroot}/iocell"
-                elif [ "${_altroot}" = "/mnt" -a -d "/iocell" ] ; then
+                elif [ "${_altroot}" = "/mnt" -a -d "/usr/local/iocell" ] ; then
                     # we're in a chroot.
-                    sed -i '' s#.*iocroot.*#iocroot="/iocell"# \
+                    sed -i '' s#.*iocroot.*#iocroot="/usr/local/iocell"# \
                         "${LIB}/ioc-globals"
                     export iocroot="${_altroot}/iocell"
                 elif [ "${_altroot}" = "-" ] ; then
-                    sed -i '' s#.*iocroot.*#iocroot="/iocell"# \
+                    sed -i '' s#.*iocroot.*#iocroot="/usr/local/iocell"# \
                         "${LIB}/ioc-globals"
-                    export iocroot="/iocell"
+                    export iocroot="/usr/local/iocell"
                 fi
             fi
         fi
@@ -985,7 +985,7 @@ __check_filesystems () {
     # Checks to see if the user changed the altroot and modify ioc-globals
     # If the user decided to unset their altroot, they need to run again as
     # root to set it back to the default location
-    if [ "${_altroot}" != "-" ] && [ "$(id -un)" = "root" ] && [ ! -d "/iocell" ] ; then
+    if [ "${_altroot}" != "-" ] && [ "$(id -un)" = "root" ] && [ ! -d "/usr/local/iocell" ] ; then
         sed -i '' s#.*iocroot.*#iocroot="${_altroot}/iocell"# \
             "${LIB}/ioc-globals"
         export iocroot="${_altroot}/iocell"
@@ -995,11 +995,11 @@ __check_filesystems () {
         echo "  Please run as root to fix." >&2
         exit 1
     elif [ "${_altroot}" = "-" ] && [ "$(id -un)" = "root" ] ; then
-        sed -i '' s#.*iocroot.*#iocroot="/iocell"# \
+        sed -i '' s#.*iocroot.*#iocroot="/usr/local/iocell"# \
             "${LIB}/ioc-globals"
-        export iocroot="/iocell"
+        export iocroot="/usr/local/iocell"
     elif [ "${_altroot}" = "-" ] && [ "$(id -un)" != "root" ] && \
-        [ "${iocroot}" != "/iocell" ] ; then
+        [ "${iocroot}" != "/usr/local/iocell" ] ; then
         __error "You changed the altroot of ${pool}"
         echo "  Please run as root to fix." >&2
         exit 1

@@ -23,7 +23,7 @@ __hack88_mount () {
     if [ "${_hack88}" = "1" ] && [ "${_mount_len}" -eq "37" ] && [ "${_template}" = "no" ]; then
         __unlink_tag $_dataset
         echo "  INFO: truncating jail mountpoint"
-        zfs umount -f "${iocroot}/jails/${_fulluuid}"
+        zfs umount -f "${pool}/iocell/jails/${_fulluuid}"
         zfs set mountpoint="${iocroot}/jails/${_shortuuid}" "${_dataset}"
         zfs list -rH -o name "${pool}/iocell/jails/${_fulluuid}" | \
             egrep -v "${_jail_zfs_dataset_re}" | xargs -L 1 zfs mount
@@ -36,7 +36,7 @@ __hack88_mount () {
     elif [ "${_hack88}" != "1" ] && [ "${_mount_len}" -lt "37" ] && [ "${_template}" = "no" ] ; then
         __unlink_tag "${_dataset}"
         echo "  INFO: restoring jail mountpoint"
-        zfs umount -f "${iocroot}/jails/${_shortuuid}"
+        zfs umount -f "${pool}/iocell/jails/${_shortuuid}"
         zfs set mountpoint="${iocroot}/jails/${_fulluuid}" "${_dataset}"
         zfs list -rH -o name "${pool}/iocell/jails/${_fulluuid}" | \
             egrep -v "${_jail_zfs_dataset_re}" | xargs -L 1 zfs mount

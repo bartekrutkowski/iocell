@@ -102,7 +102,7 @@ __configure_jail () {
                 fi
 
                 if [ -z "${_dataset}" ] ; then
-                    _dataset="${pool}${_mountpoint}"
+                    _dataset="${pool}/iocell/jails/${_fulluuid}"
                 fi
 
                 __ucl_set "${_mountpoint}" "${_prop_name}" "${_value}" "1"
