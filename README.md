@@ -138,7 +138,7 @@ You now have root access within your jail -- enjoy!
   ```
 
 **REQUIREMENTS**
-- FreeBSD 10.3-RELEASE amd64 or newer
+- FreeBSD 11.2-RELEASE amd64 or newer
 - ZFS file system
 - Optional - Kernel compiled with:
 
