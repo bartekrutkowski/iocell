@@ -249,7 +249,7 @@ __migrate_basejail () {
     _release="$2"
     _orelease="${_release}"
     _grepstring="jails$|base|releases|templates$|download|${pool}/iocell$"
-    _grepstring="${_grepstring}|*./data|*./root"
+    _grepstring="${_grepstring}|/data$|/root$"
     _bfs_list="bin
                boot
                lib
@@ -980,7 +980,7 @@ __check_filesystems () {
     # shellcheck disable=SC2155
     export jail_datasets=$(zfs list -d3 -rH -o name "${pool}/iocell" \
         | egrep -v \
-        "jails$|releases$|templates$|download|${pool}/iocell$|*./root")
+        "jails$|releases$|templates$|download|${pool}/iocell$|/root$")
 
     # Checks to see if the user changed the altroot and modify ioc-globals
     # If the user decided to unset their altroot, they need to run again as
@@ -1041,7 +1041,7 @@ __check_children () {
     _fulluuid="$1"
     _dataset="$2"
     _grepstring="jails$|base|releases|templates$|download|${pool}/iocell$"
-    _grepstring="${_grepstring}|*./data"
+    _grepstring="${_grepstring}|/data$"
     _jail_datasets=$(zfs list -d3 -rH -o name "${pool}/iocell" \
         | egrep -v "${_grepstring}")
 
