@@ -38,6 +38,8 @@ vnet0_mac="none"
 vnet1_mac="none"
 vnet2_mac="none"
 vnet3_mac="none"
+createbridge="on"
+keepbridge="off"
 
 # Standard jail properties
 devfs_ruleset="4"
@@ -208,7 +210,9 @@ CONF_NET="interfaces
           vnet0_mac
           vnet1_mac
           vnet2_mac
-          vnet3_mac"
+          vnet3_mac
+          createbridge
+          keepbridge"
 
 # Native jail properties
 CONF_JAIL="devfs_ruleset
