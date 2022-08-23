@@ -749,6 +749,28 @@ ip4=new | disable | inherit
 
 .fam T
 .fi
+createbridge=on | off
+.PP
+.nf
+.fam C
+    Controls whether default bridge0 and bridge1 will be created
+    on jails's start.
+
+    Default: on
+
+.fam T
+.fi
+keepbridge=on | off
+.PP
+.nf
+.fam C
+    Controls whether bridges bridge0 and bridge1 will be destroyed
+    on jail's shutdown.
+
+    Default: off
+
+.fam T
+.fi
 defaultrouter=none | ipaddress
 .PP
 .nf

@@ -75,6 +75,9 @@ __networking () {
     #local ip4_list="$(echo $ip4 | sed 's/,/ /g')"
     local ip6_list="$(echo $ip6 | sed 's/,/ /g')"
 
+    local createbridge="$(__get_jail_prop createbridge ${_uuid})"
+    local keepbridge="$(__get_jail_prop keepbridge ${_uuid})"
+
     # Get the default and current interfaces specified
     local default_iface="$(__get_default_iface)"
     local cur_ip4_iface=$(echo "$ip4_addr" | cut -d '|' -f 1)
@@ -94,14 +97,14 @@ __networking () {
             for _b in ${_bridge_ifaces} ; do
                 if [ "${_b}" != "bridge0" ] ; then
                     _bridge_exists="$(echo ${_bridge_ifaces} | grep bridge0)"
-                    if [ -z "${_bridge_exists}" ] ; then
+                    if [ -z "${_bridge_exists}" -a "${createbridge}" == "on" ] ; then
                         ifconfig bridge0 create addm "${default_iface}"
                     else
                         continue
                     fi
                 elif [ "${_b}" != "bridge1" ] ; then
                     _bridge_exists="$(echo ${_bridge_ifaces} | grep bridge1)"
-                    if [ -z "${_bridge_exists}" ] ; then
+                    if [ -z "${_bridge_exists}" -a "${createbridge}" == "on" ] ; then
                         ifconfig bridge1 create
                     else
                         continue
@@ -209,9 +212,9 @@ __networking () {
 
         _bridge_inuse="$(netstat -iWn | grep '^vnet' | \
                        awk '{ print $1 }')"
-        # If no vnet interfaces are using the bridges, let's clean up after
+        # If no vnet interfaces are using the bridges, let us clean up after
         # ourselves
-        if [ -z "${_bridge_inuse}" ] ; then
+        if [ -z "${_bridge_inuse}" -a "${keepbridge}" == "off" ] ; then
             ifconfig bridge0 destroy > /dev/null 2>&1
             ifconfig bridge1 destroy > /dev/null 2>&1
         fi

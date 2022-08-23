@@ -225,6 +225,8 @@ __reset_jail_props () {
     host_hostname="$(__get_jail_prop host_hostname ${uuid} ${_dataset})"
     mount_procfs="$(__get_jail_prop mount_procfs ${uuid} ${_dataset})"
     mount_linprocfs="$(__get_jail_prop mount_linprocfs ${uuid} ${_dataset})"
+    createbridge="$(__get_jail_prop createbridge ${uuid} ${_dataset})"
+    keepbridge="$(__get_jail_prop keepbridge ${uuid} ${_dataset})"
 
     __configure_jail ${uuid} ${_dataset}
 }

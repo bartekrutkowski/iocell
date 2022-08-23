@@ -534,6 +534,20 @@ PROPERTIES
     Default: new
     Source: jail(8)
 
+  createbridge=on | off
+
+    Controls whether default bridge0 and bridge1 will be created
+    on jails's start.
+
+    Default: on
+
+  keepbridge=on | off
+
+    Controls whether bridges bridge0 and bridge1 will be destroyed
+    on jail's shutdown.
+
+    Default: off
+
   defaultrouter=none | ipaddress
 
     Setting this property to anything other than none will try to configure a
