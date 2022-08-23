@@ -54,3 +54,7 @@ FAQ
 
 **Is ZFS jailing supported?**
     Yes, please refer to man page.
+
+**How can I prevent from bridge interfaces manipulation on start/stop?**
+    See man page (``iocell set createbridge=off UUID | TAG`` and/or
+    ``iocell set keepbridge=on UUID | TAG``)
