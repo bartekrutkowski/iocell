@@ -189,3 +189,13 @@ To start a jail with no IPv4/6 address whatsoever set these properties:
 ``iocell set ip4_addr=none ip6_addr=none UUID|TAG``
 
 ``iocell set defaultrouter=none defaultrouter6=none UUID|TAG``
+
+To not create bridge interfaces on jail start set this property:
+
+``iocell set createbridge=off UUID|TAG``
+
+To keep bridge interfaces on jail shutdown set this property:
+
+``iocell set keepbridge=on UUID|TAG``
+
+*NOTE: You can set these to or on off according to the use case*
