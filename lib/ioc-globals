@@ -104,7 +104,7 @@ wallclock="off"
 
 # Custom properties
 pool="none"
-iocroot=/iocell
+iocroot="usr/local/iocell"
 tag=$(date "+%F@%T")
 istemplate="no"
 bpf="off"
