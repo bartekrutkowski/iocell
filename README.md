@@ -106,7 +106,7 @@ You now have root access within your jail -- enjoy!
   iocell exec [-u username | -U username] UUID|TAG|ALL command [arg ...]
   iocell export UUID|TAG
   iocell fetch [release=RELEASE | ftphost=ftp.hostname.org | ftpdir=/dir/ |
-                ftpfiles="base.txz doc.txz lib32.txz src.txz"]
+                ftpfiles="base.txz lib32.txz src.txz"]
   iocell get property|all UUID|TAG
   iocell help
   iocell import UUID [property=value]

@@ -15,7 +15,7 @@ SYNOPSIS
   iocell [-v] exec [-u username | -U username] UUID|TAG|ALL command [arg ...]
   iocell [-v] export UUID|TAG
   iocell [-v] fetch [-p|-P] [release=RELEASE | ftphost=ftp.hostname.org |
-                    ftpdir=/dir/ | ftpfiles="base.txz doc.txz lib32.txz src.txz"]
+                    ftpdir=/dir/ | ftpfiles="base.txz lib32.txz src.txz"]
                     [ ftplocaldir=/dir/ ] [ compression=ALGO ]
   iocell [-v] get [-r] property|all UUID|TAG
   iocell [-v] help
@@ -181,7 +181,7 @@ SUBCOMMANDS
     SHA256 checksum. Jail must be in stopped state before exporting.
 
   fetch [-p|-P] [release=RELEASE | ftphost=ftp.hostname.org |
-        ftpdir=/dir/ | ftpfiles="base.txz doc.txz lib32.txz src.txz"]
+        ftpdir=/dir/ | ftpfiles="base.txz lib32.txz src.txz"]
         [ ftplocaldir=/dir/ ] [ compression=ALGO ]
 
     Used for downloading and updating/patching releases.
