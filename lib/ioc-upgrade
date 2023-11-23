@@ -239,10 +239,10 @@ __upgrade () {
             awk 'BEGIN { FS = "/" } ; { if (length($NF)==36) { print }}')
         # Check to see if the jail has a stale upgrade snapshot.
         for _fs in ${_jails} ; do
-            _snapcheck="$(zfs list -Ht snap | \
+            _snapcheck="$(zfs list -rHt snap ${pool}/iocell/jails | \
                      egrep "${_fulluuid}.*ioc-upgrade" | \
                      awk '{print $1}')"
-            if [ ! -z ${_snapcheck} ] ; then
+            if [ ! -z "${_snapcheck}" ] ; then
                 __error "${_name} has an existing upgrade snapshot" >&2
                 printf "%1s ${_snapcheck} \n" >&2
                 printf "%1s please remove this before trying to upgrade. \n" >&2
