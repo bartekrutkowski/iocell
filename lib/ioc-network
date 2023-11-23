@@ -71,7 +71,7 @@ __networking () {
     local defaultgw="$(__get_jail_prop defaultrouter ${_uuid} $_dataset)"
     local defaultgw6="$(__get_jail_prop defaultrouter6 ${_uuid} $_dataset)"
     local nics="$(__get_jail_prop interfaces ${_uuid} $_dataset\
-               |awk 'BEGIN { FS = "," } ; { print $1,$2,$3,$4 }')"
+               |awk 'BEGIN { FS = "," } ; { print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10 }')"
     #local ip4_list="$(echo $ip4 | sed 's/,/ /g')"
     local ip6_list="$(echo $ip6 | sed 's/,/ /g')"
 

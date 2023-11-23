@@ -82,7 +82,43 @@ __configure_jail () {
                            esac
                            _value="${vnet3_mac}"
                     ;;
-                *) _value="${_prop}"
+                vnet4_mac) case "${vnet4_mac}" in
+                               "-") vnet4_mac="none"
+                                   ;;
+                           esac
+                           _value="${vnet4_mac}"
+                    ;;
+                vnet5_mac) case "${vnet5_mac}" in
+                               "-") vnet5_mac="none"
+                                   ;;
+                           esac
+                           _value="${vnet5_mac}"
+                    ;;
+                vnet6_mac) case "${vnet6_mac}" in
+                               "-") vnet6_mac="none"
+                                   ;;
+                           esac
+                           _value="${vnet6_mac}"
+                    ;;
+                vnet7_mac) case "${vnet7_mac}" in
+                               "-") vnet7_mac="none"
+                                   ;;
+                           esac
+                           _value="${vnet7_mac}"
+                    ;;
+                vnet8_mac) case "${vnet8_mac}" in
+                               "-") vnet8_mac="none"
+                                   ;;
+                           esac
+                           _value="${vnet8_mac}"
+                    ;;
+                 vnet9_mac) case "${vnet9_mac}" in
+                               "-") vnet9_mac="none"
+                                   ;;
+                           esac
+                           _value="${vnet9_mac}"
+                    ;;
+             *) _value="${_prop}"
                     ;;
             esac
 
@@ -211,6 +247,12 @@ __reset_jail_props () {
     vnet1_mac="$(__get_jail_prop vnet1_mac ${uuid} ${_dataset})"
     vnet2_mac="$(__get_jail_prop vnet2_mac ${uuid} ${_dataset})"
     vnet3_mac="$(__get_jail_prop vnet3_mac ${uuid} ${_dataset})"
+    vnet4_mac="$(__get_jail_prop vnet4_mac ${uuid} ${_dataset})"
+    vnet5_mac="$(__get_jail_prop vnet5_mac ${uuid} ${_dataset})"
+    vnet6_mac="$(__get_jail_prop vnet6_mac ${uuid} ${_dataset})"
+    vnet7_mac="$(__get_jail_prop vnet7_mac ${uuid} ${_dataset})"
+    vnet8_mac="$(__get_jail_prop vnet8_mac ${uuid} ${_dataset})"
+    vnet9_mac="$(__get_jail_prop vnet9_mac ${uuid} ${_dataset})"
     basedirs="$(__get_jail_prop basedirs ${uuid} ${_dataset})"
     hack88="$(__get_jail_prop hack88 ${uuid} ${_dataset})"
     jail_zfs_dataset="$(__get_jail_prop jail_zfs_dataset ${uuid} ${_dataset})"
