@@ -556,7 +556,7 @@ PROPERTIES
   interfaces=vnet0:bridge0,vnet1:bridge1 | vnet0:bridge0
 
     By default there are two interfaces specified with their bridge
-    association. Up to four interfaces are supported. Interface configurations
+    association. Up to ten interfaces are supported. Interface configurations
     are separated by commas. Format is interface:bridge, where left value is
     the virtual VNET interface name, right value is the bridge name where the
     virtual interface should be attached.

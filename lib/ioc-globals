@@ -38,6 +38,12 @@ vnet0_mac="none"
 vnet1_mac="none"
 vnet2_mac="none"
 vnet3_mac="none"
+vnet4_mac="none"
+vnet5_mac="none"
+vnet6_mac="none"
+vnet7_mac="none"
+vnet8_mac="none"
+vnet9_mac="none"
 createbridge="on"
 keepbridge="off"
 
@@ -211,6 +217,12 @@ CONF_NET="interfaces
           vnet1_mac
           vnet2_mac
           vnet3_mac
+          vnet4_mac
+          vnet5_mac
+          vnet6_mac
+          vnet7_mac
+          vnet8_mac
+          vnet9_mac
           createbridge
           keepbridge"
 
