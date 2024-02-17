@@ -2,10 +2,9 @@
 
 # Print supported releases----------------------------------
 __print_release () {
-    supported="14.0-CURRENT
-               13.1-RELEASE
-               13.0-RELEASE
-               12.3-RELEASE"
+    supported="15.0-CURRENT
+               14.0-RELEASE
+               13.2-RELEASE"
 
     echo "Supported releases are: "
     for rel in $(echo $supported) ; do
