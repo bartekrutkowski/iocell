@@ -276,6 +276,8 @@ __set_jail_prop () {
                     _spinner='/-\|'
                     printf "  INFO: converting ${_template_tag} to a jail:  "
 
+		    _newuuid="$(__get_jail_prop host_hostuuid ${_fulluuid} ${_dataset})"
+
                     while true; do
                         printf '\b%.1s' "${_spinner}"
                         _spinner=${_spinner#?}${_spinner%???}
@@ -286,18 +288,18 @@ __set_jail_prop () {
 
                         # Have to manually specify this for later, as it will
                         # still be the old /iocell/templates location
-                        _dataset="${pool}/iocell/jails/${_fulluuid}"
+                        _dataset="${pool}/iocell/jails/${_newuuid}"
 
                         # Move jail back to the jails dataset
                         zfs rename -f \
                             "${pool}/iocell/templates/${_template_tag}" \
-                            "${pool}/iocell/jails/${_fulluuid}"
+                            "${pool}/iocell/jails/${_newuuid}"
                         # Updating the jail tag
                         __link_tag "${_dataset}" "${_template_tag}"
                         # Throw jail through the checking process and unmount
                         # what remains.
-                        __check_basejail "${_fulluuid}" > /dev/null 2>&1
-                        __umount_basejail "${_fulluuid}" "${_dataset}" \
+                        __check_basejail "${_newuuid}" > /dev/null 2>&1
+                        __umount_basejail "${_newuuid}" "${_dataset}" \
                             > /dev/null 2>&1
 
                         _jailed_dataset="${_dataset}/data"
