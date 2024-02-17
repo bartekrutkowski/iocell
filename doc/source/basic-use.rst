@@ -43,7 +43,7 @@ This will create a fully independent jail.
 
 To create a lightweight jail (clone) run:
 
-``iocell create -c``
+``iocell create -e``
 
 To create a base jail:
 
@@ -51,7 +51,7 @@ To create a base jail:
 
 To create a jail and set its IP address and tag property run:
 
-``iocell create -c tag=myjail ip4_addr="em0|10.1.1.10/24"``
+``iocell create -e tag=myjail ip4_addr="em0|10.1.1.10/24"``
 
 For more information please read iocell(8).
 
