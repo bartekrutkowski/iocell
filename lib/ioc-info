@@ -133,6 +133,10 @@ __find_jail () {
             done
         fi
 
+		if [ "${_name}" = "default" ] ; then
+			_jlist="default"
+		fi
+
         if [ "$(echo ${_jlist}|wc -w)" -eq "1" ] ; then
             # remove whitespace
             echo "${_jlist}" | xargs

@@ -340,7 +340,8 @@ SUBCOMMANDS
 
   set property=value [property=value] UUID|TAG
 
-    Set one or more properties to the supplied value.
+    Set one or more properties to the supplied value. If TAG=default the property is set as
+	a global default, but doesn't touch the configuration of existing jails.
 
   snaplist UUID|TAG
 
