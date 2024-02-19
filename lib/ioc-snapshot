@@ -156,7 +156,7 @@ __rollback () {
 
     if [ ! -z "${_snapshot}" ] ; then
         for _fs in ${_fs_list} ; do
-            if [ "${_jail_type}" = "basejail" -a "${_fs}" = "${_dataset}/root" ] ; then
+            if [ "${_jail_type}" = "basejail" -a "${_fs}" != "${_dataset}/root" ] ; then
                 continue
             fi
             echo "* Rolling back to ${_fs}@${_snapshot}"
