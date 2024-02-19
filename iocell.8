@@ -233,8 +233,11 @@ how the shell is running each of the commands. It's very verbose.
 .PP
 .nf
 .fam C
-    Execute command inside the jail. This is simply an iocell UUID/tag wrapper
+    Execute \fIcommand\fP inside the jail. This is simply an iocell UUID/tag wrapper
     for jexec(8).
+    The \fIcommand\fP that is handed over to jexec(8) gets quoted ("\fIcommand\fP [\fIarg\fP \.\.\.]"),
+    so any quotes within the command part have to be escaped or iocell exec might
+    break.
 
 .fam T
 .fi
