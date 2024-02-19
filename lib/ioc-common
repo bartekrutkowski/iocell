@@ -360,6 +360,9 @@ __set_jail_prop () {
 
     if [ "${_type}" = "custom" ] ; then
         _mountpoint="$(__get_jail_prop mountpoint ${_fulluuid} ${_dataset})"
+			if [ "${_name}" = "default" ] ; then
+			_mountpoint="${iocroot}"
+			fi
         __ucl_set "${_mountpoint}" "${_pname}" "${_pval}"
     elif [ "${_type}" = "native" ] ; then
         zfs set ${_pname}="${_pval}" ${_dataset}
@@ -875,24 +878,29 @@ __pkg_wrapper () {
 # Requires three arguments. The mountpoint of the jail, the property to be set,
 # and the value of that property.
 __ucl_set () {
-    local _mountpoint _property _value _create
+    local _mountpoint _property _value _create _conffile
 
     _mountpoint="$1"
     _property="$2"
     _value="$3"
     _create="$4"
+	_conffile="config"
+
+	if [ "${_mountpoint}" = "${iocroot}" ]; then
+		_conffile=".default"
+	fi
 
     #If creating a jail this will not exist.
     if [ "${_create}" != "1" ] ; then
-        uclcmd set -u -f ${_mountpoint}/config -o ${_mountpoint}/config.new \
+        uclcmd set -u -f ${_mountpoint}/${_conffile} -o ${_mountpoint}/${_conffile}.new \
             -t string -- "${_property}" "${_value}"
 
         if [ $? -eq 0 ] ; then
-            mv ${_mountpoint}/config ${_mountpoint}/config.old
-            mv ${_mountpoint}/config.new ${_mountpoint}/config
+            mv ${_mountpoint}/${_conffile} ${_mountpoint}/${_conffile}.old
+            mv ${_mountpoint}/${_conffile}.new ${_mountpoint}/${_conffile}
         fi
     else
-        uclcmd set -u -f ${_mountpoint}/config -t string -- "${_property}" \
+        uclcmd set -u -f ${_mountpoint}/${_conffile} -t string -- "${_property}" \
             "${_value}"
     fi
 }
