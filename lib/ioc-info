@@ -2,12 +2,15 @@
 
 # Print supported releases----------------------------------
 __print_release () {
-    supported="15.0-CURRENT
-               14.0-RELEASE
-               13.2-RELEASE"
+	arch="$(sysctl -n hw.machine_arch)"
+	releases="$(fetch -qo - https://${ftphost}/pub/FreeBSD/releases/$arch/ | \
+				sed -e 's/<[^>]*>//g' | awk -F/ '/RELEASE/ { print $1 }')"
+	snapshots="$(fetch -qo - https://${ftphost}/pub/FreeBSD/snapshots/$arch/ | \
+				sed -e 's/<[^>]*>//g' | awk -F/ '/CURRENT|STABLE/ { print $1 }')"
+
 
     echo "Supported releases are: "
-    for rel in $(echo $supported) ; do
+    for rel in $(echo $releases $snapshots) ; do
         # hack to get printf to both left adjust and have spaces.
         printf "%1s %-s \n" "" "$rel"
     done
