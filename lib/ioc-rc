@@ -309,6 +309,8 @@ __vnet_start () {
     allow.mount="$(__get_jail_prop allow_mount ${_fulluuid} ${_dataset})" \
     allow.mount.devfs="$(__get_jail_prop allow_mount_devfs ${_fulluuid} \
         ${_dataset})" \
+    allow.mount.fdescfs="$(__get_jail_prop allow_mount_fdescfs ${_fulluuid} \
+        ${_dataset})" \
     allow.mount.nullfs="$(__get_jail_prop allow_mount_nullfs ${_fulluuid} \
         ${_dataset})" \
     allow.mount.procfs="$(__get_jail_prop allow_mount_procfs ${_fulluuid} \
@@ -451,6 +453,8 @@ __legacy_start () {
             ${_dataset})" \
         allow.mount.devfs="$(__get_jail_prop allow_mount_devfs "${_fulluuid}" \
             ${_dataset})" \
+        allow.mount.fdescfs="$(__get_jail_prop allow_mount_fdescfs ${_fulluuid} \
+            ${_dataset})" \
         allow.mount.nullfs="$(__get_jail_prop allow_mount_nullfs \
             "${_fulluuid}" ${_dataset})" \
         allow.mount.procfs="$(__get_jail_prop allow_mount_procfs \
@@ -514,6 +518,8 @@ __legacy_start () {
         allow.mount="$(__get_jail_prop allow_mount "${_fulluuid}" \
             ${_dataset})" \
         allow.mount.devfs="$(__get_jail_prop allow_mount_devfs "${_fulluuid}" \
+            ${_dataset})" \
+        allow.mount.fdescfs="$(__get_jail_prop allow_mount_fdescfs ${_fulluuid} \
             ${_dataset})" \
         allow.mount.nullfs="$(__get_jail_prop allow_mount_nullfs \
             "${_fulluuid}" ${_dataset})" \
