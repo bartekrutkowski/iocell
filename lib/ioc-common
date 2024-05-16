@@ -515,7 +515,7 @@ __cleanup_release_dir () {
     if [ -n "${_dwn_rel_exist}" ] ; then
         _dwn_dir_exist=$(zfs get -H -o value mountpoint \
             ${pool}/iocell/download/${_rel_name})
-        zfs destroy -fr -- ${pool}${iocroot}/download/${_rel_name}
+        zfs destroy -fr -- ${pool}/iocell/download/${_rel_name}
         if [ -d "${_dwn_dir_exist}" ]; then
             rm -rf -- ${_dwn_dir_exist}
         fi

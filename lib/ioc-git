@@ -51,7 +51,7 @@ __fetch_plugin () {
     # does not exist yet.
     if [ -d "${iocroot}/releases/${_release}" ] ; then
         if [ -z "$(ls -A ${iocroot}/releases/${_release}/root)" ] ; then
-            zfs destroy "${iocroot}/releases/${_release}"
+            zfs destroy "${pool}/iocell/releases/${_release}"
         fi
     fi
 
@@ -134,7 +134,7 @@ __fetch_plugin () {
         if [ "${_branch_rel}" != "${_release}" ] ; then
             if [ -d "${iocroot}/releases/${_branch_rel}" ] ; then
                 if [ -z "$(ls -A ${iocroot}/releases/${_branch_rel}/root)" ] ; then
-                    zfs destroy "${iocroot}/releases/${_branch_rel}"
+                    zfs destroy "${pool}/iocell/releases/${_branch_rel}"
                 fi
             fi
 
