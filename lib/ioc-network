@@ -82,8 +82,7 @@ __networking () {
     local default_iface="$(__get_default_iface)"
     local cur_ip4_iface=$(echo "$ip4_addr" | cut -d '|' -f 1)
     local cur_ip6_iface=$(echo "$ip6_addr" | cut -d '|' -f 1)
-    _bridge_ifaces="$(netstat -iWn | egrep 'bridge0|bridge1' | \
-                    awk '{ print $1 }')"
+	_bridge_ifaces="$(ifconfig -g bridge)"
 
     # Change the DEFAULT tag to correct iface
     nics=$(echo $nics | sed "s/DEFAULT/$default_iface/g")
