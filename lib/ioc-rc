@@ -273,6 +273,13 @@ __vnet_start () {
     _sysvmsg="sysvmsg=$(__get_jail_prop sysvmsg ${_fulluuid} ${_dataset})"
     _sysvsem="sysvsem=$(__get_jail_prop sysvsem ${_fulluuid} ${_dataset})"
     _sysvshm="sysvshm=$(__get_jail_prop sysvshm ${_fulluuid} ${_dataset})"
+    if [ "$(__get_jail_prop vnet_interfaces ${_fulluuid} ${_dataset})" = "none" ]; then
+      _vnetifs=""
+    else
+      _vnetifs="$(__get_jail_prop vnet_interfaces ${_fulluuid} ${_dataset} | \
+          awk 'BEGIN { FS="," } { for ( iface = 1; iface <= NF; iface++) \
+          printf "vnet.interface=" $iface " " }')"
+    fi
 
     if [ "$(uname -U)" = "903000" ] ; then
       _fdescfs=""
@@ -286,6 +293,7 @@ __vnet_start () {
     fi
 
     jail -c vnet \
+    ${_vnetifs} \
     name="ioc-${_fulluuid}" \
     host.domainname="$(__get_jail_prop host_domainname ${_fulluuid} \
         ${_dataset})" \

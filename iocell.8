@@ -645,6 +645,21 @@ vnet=on | off
 
 .fam T
 .fi
+vnet_interfaces=none | interfacename(s)
+.PP
+.nf
+.fam C
+    An interface or comma-separated list of interfaces to give to a vnet-enabled
+    jail. This allows to pass e.g. SR-IOV network VFs directly into a jail.
+    Each list element is passed as vnet.interface to the jail command.
+    This also requires the devfs ruleset 5 (jail_vnet) and allow_raw_sockets=1
+    being set.
+
+    Default: none
+    Source: jail(8)
+
+.fam T
+.fi
 bpf=on | off
 .PP
 .nf
