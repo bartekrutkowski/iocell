@@ -478,11 +478,99 @@ __check_basejail () {
     fi
 }
 
+# Isolate traps and template mount state while installing creation packages.
+__create_jail_pkg () (
+    local _uuid _dataset _root _template _release _mounts _mount _status
+
+    _uuid="$1"
+    _dataset="$2"
+    _root="${iocroot}/jails/${_uuid}/root"
+    _template="$(__get_jail_prop template "${_uuid}" "${_dataset}")" \
+        || exit $?
+    _release="$(__get_jail_prop release "${_uuid}" "${_dataset}")" \
+        || exit $?
+
+    # Reverse mount order also handles stacked template overlays. Never
+    # unmount ZFS datasets or anything outside this new jail's root.
+    __create_pkg_mounts () {
+        local _table
+
+        _table="$(mount -p)" || return $?
+        printf '%s\n' "${_table}" | awk -v root="${_root}" '
+            $3 != "zfs" && ($2 == root || index($2, root "/") == 1) {
+                targets[++n] = $2
+            }
+            END { for (i = n; i > 0; i--) print targets[i] }
+        '
+    }
+
+    __create_pkg_cleanup () {
+        _status="$1"
+        trap - EXIT
+        _mounts="$(__create_pkg_mounts)" || exit 1
+
+        for _mount in ${_mounts} ; do
+            if ! umount "${_mount}" ; then
+                __error "failed unmounting ${_mount}"
+
+                if [ "${_status}" -eq 0 ] ; then
+                    _status=1
+                fi
+            fi
+        done
+
+        exit "${_status}"
+    }
+
+    _mounts="$(__create_pkg_mounts)" || exit $?
+
+    if [ -n "${_mounts}" ] ; then
+        __error "jail already has mounted filesystems: ${_root}"
+        exit 1
+    fi
+
+    trap '__create_pkg_cleanup $?' EXIT
+    trap 'exit 129' HUP
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+
+    _status=0
+
+    if [ "${_template}" = "none" ] ; then
+        __mount_basejail "${_uuid}" "${_release}" 1 || _status=$?
+    else
+        __mount_template "${_uuid}" "${_template}" 1 || _status=$?
+    fi
+
+    if [ "${_status}" -ne 0 ] ; then
+        __error "failed preparing package filesystems for ${_uuid}"
+        exit "${_status}"
+    fi
+
+    mount -t devfs devfs "${_root}/dev" || exit $?
+    __pkg_install "${_root}" || exit $?
+    # FreeBSD sh unwinds local variables before an implicit subshell exit.
+    # Exit explicitly so the cleanup trap can still access its mount root.
+    exit 0
+)
+
 # This creates jails----------------------------------------------------
 __create_jail () {
     local _installed _releases _zfsconfig _supported_release _configured \
           _pname _prop _isprop _jail_zfs_mountpoint _basedir_list _uuid \
           _template _zfs_dataset
+
+    if [ "${pkglist}" != "none" ] ; then
+        if [ ! -f "${pkglist}" -o ! -r "${pkglist}" ] ; then
+            __die "package list is not a readable file: ${pkglist}"
+        fi
+
+        # Creation changes directory while copying release files.
+        case "${pkglist}" in
+            /*) ;;
+            *) pkglist="$(pwd)/${pkglist}" ;;
+        esac
+    fi
 
     _installed=$(zfs list -rH ${pool}/iocell/releases | grep ${release})
     _releases=$(__list_jails -r | grep -v "Downloaded releases:")
@@ -692,21 +780,11 @@ __create_jail () {
     # be a date if the user left tag empty.
     __link_tag ${pool}/iocell/jails/${uuid}
 
-    # Install extra packages
-    # this requires working resolv.conf in jail
+    # Clean up package mounts on success or failure; retain failed jails for
+    # inspection, but do not report success or start them.
     if [ "${pkglist}" != "none" ] ; then
-        # Mount all the filesytems needed to properly install pkg's
-        # in a basejail
-        mount -t tmpfs tmpfs ${iocroot}/jails/${uuid}/root/tmp
-        mount -t devfs devfs ${iocroot}/jails/${uuid}/root/dev
-
-        if [ "${_template}" != "1" ] ; then
-            __mount_basejail "${uuid}" "${template}"
-        else
-            __mount_basejail "${uuid}" "${release}"
-        fi
-
-        __pkg_install "${iocroot}/jails/${uuid}/root"
+        __create_jail_pkg "${_uuid}" "${pool}/iocell/jails/${uuid}" \
+            || return $?
     fi
 
     echo "  Successfully created: ${uuid} (${tag})"
@@ -1069,12 +1147,13 @@ __check_children () {
 }
 
 # Accepts two arguments. Which is used as the UUID for the mount operations and
-# which base to use.
+# which base to use. A third argument of 1 enables strict package setup.
 __mount_basejail () {
-    local _fulluuid _release
+    local _fulluuid _release _strict _status
 
     _fulluuid="$1"
     _release="$2"
+    _strict="${3:-0}"
 
     if [ ! -e "${iocroot}/jails/${_fulluuid}/root/var/ports" ] ; then
         mkdir ${iocroot}/jails/${_fulluuid}/root/var/ports
@@ -1096,7 +1175,13 @@ __mount_basejail () {
         # Mount the nullfs needed for basejails
         mount -t nullfs -o ro \
             ${iocroot}/releases/${_release}/root/${_bdir} \
-            ${iocroot}/jails/${_fulluuid}/root/${_bdir} 2> /dev/null
+            ${iocroot}/jails/${_fulluuid}/root/${_bdir} 2> /dev/null || {
+                _status=$?
+
+                if [ "${_strict}" = "1" ] ; then
+                    return "${_status}"
+                fi
+            }
     done
 
     # Mount tmpfs
@@ -1154,12 +1239,14 @@ __mount_istemplate () {
 }
 
 # Accepts two arguments. Which is used as the name for the mount operations,
-# and which template to mount.
+# and which template to mount. A third argument of 1 enables strict setup.
 __mount_template () {
-    local _fulluuid _template _mountcheck _template_release _basedir_list
+    local _fulluuid _template _mountcheck _template_release _basedir_list \
+          _strict _status
 
     _fulluuid="$1"
     _template="$2"
+    _strict="${3:-0}"
     _dataset="${pool}/iocell/templates/${_template}"
     _template_release="$(__get_jail_prop release ${_fulluuid} ${_dataset})"
     _basedir_list="var
@@ -1187,19 +1274,37 @@ __mount_template () {
         # Mount the nullfs needed for basejails
         mount -t nullfs -o ro \
             ${iocroot}/releases/${_template_release}/root/${_bdir} \
-            ${iocroot}/jails/${_fulluuid}/root/${_bdir}
+            ${iocroot}/jails/${_fulluuid}/root/${_bdir} || {
+                _status=$?
+
+                if [ "${_strict}" = "1" ] ; then
+                    return "${_status}"
+                fi
+            }
     done
 
     for _bdir in ${_basedir_list} ; do
         mount -t nullfs -o ro \
             ${iocroot}/templates/${_template}/root/${_bdir} \
-            ${iocroot}/jails/${_fulluuid}/root/${_bdir}
+            ${iocroot}/jails/${_fulluuid}/root/${_bdir} || {
+                _status=$?
+
+                if [ "${_strict}" = "1" ] ; then
+                    return "${_status}"
+                fi
+            }
     done
 
     for _bdir in ${_basedir_list} ; do
         mount -t nullfs -o union \
             ${iocroot}/jails/${_fulluuid}/_/${_bdir} \
-            ${iocroot}/jails/${_fulluuid}/root/${_bdir}
+            ${iocroot}/jails/${_fulluuid}/root/${_bdir} || {
+                _status=$?
+
+                if [ "${_strict}" = "1" ] ; then
+                    return "${_status}"
+                fi
+            }
     done
 
     # Mount tmpfs

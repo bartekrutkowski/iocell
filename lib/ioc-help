@@ -441,9 +441,16 @@ PROPERTIES
 
   pkglist=none | path-to-file
 
-    A text file containing one package per line. These will be auto installed
-    when a jail is created. Works only in combination with the create
-    subcommand.
+    A readable text file containing one package name per line. Blank lines
+    and lines beginning with # are ignored. Packages are installed during
+    jail creation. Relative paths are resolved from the calling directory.
+    Works only in combination with the create subcommand.
+
+    Creation stops at the first package or mount error. The failed jail is
+    retained for inspection, is not started, and is not reported as successfully
+    created. Further jails requested with count are not created. Packages
+    already installed are not rolled back. Installation mounts are cleaned up;
+    a cleanup failure also makes creation fail.
 
     Default: none
     Source: local

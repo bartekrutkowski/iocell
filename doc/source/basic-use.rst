@@ -55,6 +55,26 @@ To create a jail and set its IP address and tag property run:
 
 For more information please read iocell(8).
 
+Installing packages during creation
++++++++++++++++++++++++++++++++++++
+
+Create a readable text file containing one package name per line, for example
+``pkgconf``. Blank lines and lines beginning with ``#`` are ignored. Pass the
+file to create a normal jail with those packages installed. Relative paths are
+resolved from the directory where iocell was invoked:
+
+``iocell create tag=myjail pkglist=/path/to/packages.txt``
+
+The selected release (or template) is mounted for installation and unmounted
+afterwards. An empty package list is allowed. A missing or unreadable list is
+rejected before creating a jail.
+
+Creation stops on the first package or mount error. The failed jail is retained
+for inspection, but is not started or reported as successfully created. If
+``count`` was specified, remaining jails are not created. Packages installed
+before an error are not rolled back. A failed unmount also causes creation to
+fail; inspect the reported mounts before retrying or removing the failed jail.
+
 Listing jails
 -------------
 

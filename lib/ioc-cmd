@@ -81,7 +81,7 @@ __parse_cmd () {
                                 fi
                             fi
 
-                            __create_jail "$@"
+                            __create_jail "$@" || exit $?
                         done
                         exit
                 ;;

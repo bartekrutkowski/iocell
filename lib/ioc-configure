@@ -196,15 +196,25 @@ __resolv_conf () {
 }
 
 __pkg_install () {
-    local _chrootdir="$1"
+    local _chrootdir _package
 
-    if [ -e $pkglist ] ; then
-        echo "* Installing extra packages.."
-        for i in $(cat $pkglist) ; do
-            __info "installing: $i"
-            pkg -c $_chrootdir install -qy $i
-        done
+    _chrootdir="$1"
+
+    if [ ! -f "${pkglist}" -o ! -r "${pkglist}" ] ; then
+        __error "package list is not a readable file: ${pkglist}"
+        return 1
     fi
+
+    echo "* Installing extra packages.."
+
+    while read -r _package || [ -n "${_package}" ] ; do
+        case "${_package}" in
+            ''|\#*) continue ;;
+        esac
+
+        __info "installing: ${_package}"
+        pkg -c "${_chrootdir}" install -qy "${_package}" || return $?
+    done < "${pkglist}"
 }
 
 __reset_jail_props () {
