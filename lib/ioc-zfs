@@ -743,7 +743,9 @@ __clone_jail () {
     _fs_list="$(zfs list -rH -o name ${_dataset})"
 
     if [ -z "${_snapshot}" ] ; then
-        zfs snapshot ${_dataset}/root@${uuid}
+        # Use the generated name only when no source snapshot was supplied.
+        _snapshot="${uuid}"
+        zfs snapshot "${_dataset}/root@${_snapshot}"
     fi
 
     for _fs in ${_fs_list} ; do
@@ -751,7 +753,7 @@ __clone_jail () {
              sed s#${_dataset}#${pool}/iocell/jails/${uuid}#g)"
 
         if [ "${_cfs}" = "${pool}/iocell/jails/${uuid}/root" ] ; then
-            zfs clone ${_fs}@${uuid} ${_cfs}
+            zfs clone "${_fs}@${_snapshot}" "${_cfs}"
         elif [ "${_cfs}" = "${pool}/iocell/jails/${uuid}" ] ; then
             zfs create ${pool}/iocell/jails/${uuid}
             touch ${iocroot}/jails/${uuid}/config
