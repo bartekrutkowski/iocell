@@ -315,8 +315,15 @@ SUBCOMMANDS
 
   rollback UUID|TAG@snapshotname
 
-    Rollback to an existing snapshot. Any intermediate snapshots will be
-    destroyed. For more information on this functionality please read zfs(8).
+    Stop the jail before rolling back to an existing snapshot. A normal
+    snapshot restores only the jail's root dataset. A recursive snapshot
+    restores the jail dataset and its descendants. Every target must have
+    the requested snapshot; otherwise no rollback is performed.
+
+    WARNING: Changes and newer snapshots on the affected datasets will be
+    lost. Shared basejail release datasets are not restored. Multi-dataset
+    rollback is not atomic: a ZFS error stops further rollbacks, but earlier
+    datasets may already have been restored. For more information read zfs(8).
 
   runtime UUID|TAG
 

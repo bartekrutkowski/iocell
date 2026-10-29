@@ -145,24 +145,60 @@ __snaplist () {
 }
 
 __rollback () {
-    local _name _snapshot _fs _fulluuid _dataset _jail_type
+    local _name _snapshot _fs _fulluuid _dataset _fs_list _snapshots \
+          _snap _targets _found
 
-    _name="$(echo $1 |  awk 'BEGIN { FS = "@" } ; { print $1 }')"
-    _snapshot="$(echo $1 |  awk 'BEGIN { FS = "@" } ; { print $2 }')"
-    _dataset="$(__find_jail ${_name})" || exit $?
-    _fulluuid="$(__check_name ${_name} ${_dataset})"
-    _jail_type="$(__get_jail_prop type ${_fulluuid} ${_dataset})"
-    _fs_list=$(zfs list -rH -o name ${_dataset})
+    _name="$(echo "$1" | awk 'BEGIN { FS = "@" } ; { print $1 }')"
+    _snapshot="$(echo "$1" | awk 'BEGIN { FS = "@" } ; { print $2 }')"
 
-    if [ ! -z "${_snapshot}" ] ; then
-        for _fs in ${_fs_list} ; do
-            if [ "${_jail_type}" = "basejail" -a "${_fs}" = "${_dataset}/root" ] ; then
-                continue
-            fi
-            echo "* Rolling back to ${_fs}@${_snapshot}"
-            zfs rollback -r ${_fs}@${_snapshot}
-        done
+    if [ -z "${_name}" -o -z "${_snapshot}" ] ; then
+        __die "missing UUID or snapshot name!"
     fi
+
+    _dataset="$(__find_jail "${_name}")" || return $?
+    _fulluuid="$(__check_name "${_name}" "${_dataset}")" || return $?
+
+    if [ -n "$(__is_running "${_fulluuid}")" ] ; then
+        __die "please stop ${_name} before rolling back!"
+    fi
+
+    _fs_list="$(zfs list -rH -o name "${_dataset}")" || return $?
+    _snapshots="$(zfs list -rH -t snapshot -o name "${_dataset}")" \
+        || return $?
+
+    # Normal snapshots cover root only. A parent snapshot marks a recursive
+    # snapshot, which must also exist on every current descendant.
+    _targets="${_dataset}/root"
+
+    for _snap in ${_snapshots} ; do
+        if [ "${_snap}" = "${_dataset}@${_snapshot}" ] ; then
+            _targets="${_fs_list}"
+            break
+        fi
+    done
+
+    # Check all targets before changing any dataset. Do not silently skip
+    # descendants created after a recursive snapshot was taken.
+    for _fs in ${_targets} ; do
+        _found=0
+
+        for _snap in ${_snapshots} ; do
+            if [ "${_snap}" = "${_fs}@${_snapshot}" ] ; then
+                _found=1
+                break
+            fi
+        done
+
+        if [ "${_found}" -eq 0 ] ; then
+            __die "snapshot ${_fs}@${_snapshot} not found;" \
+                "no rollback performed!"
+        fi
+    done
+
+    for _fs in ${_targets} ; do
+        echo "* Rolling back to ${_fs}@${_snapshot}"
+        zfs rollback -r "${_fs}@${_snapshot}" || return $?
+    done
 }
 
 __promote () {

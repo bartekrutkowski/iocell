@@ -147,6 +147,29 @@ If you'd like to create a snapshot with custom naming run:
 
 ``iocell snapshot UUID|TAG@mysnapshotname``
 
+A normal snapshot covers only the jail's root dataset. To include the jail's
+configuration and all descendant datasets, take a recursive snapshot:
+
+``iocell snapshot -r UUID|TAG@mysnapshotname``
+
+Stop the jail before restoring a snapshot:
+
+``iocell stop UUID|TAG``
+
+``iocell rollback UUID|TAG@mysnapshotname``
+
+Rollback restores only the root dataset for a normal snapshot, or the jail
+configuration and descendant datasets for a recursive snapshot. All targets
+must have the requested snapshot before rollback starts. A descendant created
+after a recursive snapshot therefore prevents rollback; iocell will not delete
+it automatically. Shared basejail release datasets are not restored.
+
+.. warning::
+
+   Rollback discards changes and newer snapshots on the affected datasets.
+   Multi-dataset rollback is not atomic. If ZFS reports an error, iocell stops
+   immediately, but earlier datasets may already have been restored.
+
 Resource limits
 ---------------
 
