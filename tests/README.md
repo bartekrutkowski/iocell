@@ -27,8 +27,9 @@ and parser/write/rename failures without touching existing jails.
 The import test covers successful
 full/prefix selection, corrupt/truncated receives, preserved diagnostics and
 partial data, existing targets, missing images and ambiguous selection.
-The clone test covers explicit and
-automatic snapshot names and rejects source snapshot renaming. The rollback
+The clone test covers explicit and automatic root/data snapshots, missing
+snapshots, source/list/snapshot failures, failed root/data clones and failed
+configuration/alias publication. It verifies saved versus live bytes. The rollback
 test covers target selection, snapshot preflight, running jails, and error
 propagation. Package tests cover list parsing, first-error propagation, release
 and template selection, partial mount failures, cleanup, and cleanup failures.
@@ -87,6 +88,21 @@ cleanup stops its jail if a test fails. Existing jails/datasets are not deleted.
 
 This is CLI syntax coverage, not full property/kernel validation or a promise
 of atomic multi-target commands. Real SSH/send data-path tests are below.
+
+## Real-ZFS clone integration test
+
+With the authorization above:
+
+```sh
+IOC_TEST_POOL=YOUR_TEST_POOL sh tests/clone-zfs.sh
+```
+
+This retains a source and clone fixtures. It checks historical and automatic
+root/delegated-data bytes, original snapshot GUIDs, and absent root/data snapshot
+rejection before destination creation. Injected real clone failures return
+nonzero without publishing config or a tag alias. Partial datasets are retained
+for inspection. An existing data dataset with no matching historical snapshot
+is an error, not a request to silently replace its contents with empty data.
 
 ## Real-ZFS defaults integration test
 

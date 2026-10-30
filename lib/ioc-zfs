@@ -825,36 +825,43 @@ __clone_jail () {
         exit 1
     fi
 
-    _fs_list="$(zfs list -rH -o name ${_dataset})"
+    _fs_list=$(zfs list -rH -o name "${_dataset}") || return $?
 
     if [ -z "${_snapshot}" ] ; then
-        # Use the generated name only when no source snapshot was supplied.
+        # Capture root and delegated data at the same point in time.
         _snapshot="${uuid}"
-        zfs snapshot "${_dataset}/root@${_snapshot}"
+        zfs snapshot -r "${_dataset}@${_snapshot}" || return $?
     fi
 
+    # A root-only historical snapshot cannot supply historical delegated data.
+    # Refuse it before creating a destination rather than inventing empty data.
     for _fs in ${_fs_list} ; do
-        _cfs="$(echo ${_fs} | \
-             sed s#${_dataset}#${pool}/iocell/jails/${uuid}#g)"
-
-        if [ "${_cfs}" = "${pool}/iocell/jails/${uuid}/root" ] ; then
-            zfs clone "${_fs}@${_snapshot}" "${_cfs}"
-        elif [ "${_cfs}" = "${pool}/iocell/jails/${uuid}" ] ; then
-            zfs create ${pool}/iocell/jails/${uuid}
-            touch ${iocroot}/jails/${uuid}/config
-            __configure_jail generate ${uuid}
-        fi
-
-        # See if they had a jailed dataset before
-        if [ $(echo ${_cfs} | grep data$ | wc -l) -eq 1 ] ; then
-            zfs clone -o mountpoint=none -o jailed=on ${_fs}@${_snapshot} \
-                ${_cfs}
-        fi
+        case "${_fs}" in
+            "${_dataset}/root"|*/data)
+                if ! zfs list -H -t snapshot -o name \
+                    "${_fs}@${_snapshot}" >/dev/null 2>&1 ; then
+                    __error "clone snapshot not found: ${_fs}@${_snapshot}"
+                    return 1
+                fi ;;
+        esac
     done
 
-    # create tag link, this does not send the tag to __link_tag so the tag can
-    # be a date if the user left tag empty.
-    __link_tag ${pool}/iocell/jails/${uuid}
+    for _fs in ${_fs_list} ; do
+        _cfs="${pool}/iocell/jails/${uuid}${_fs#"${_dataset}"}"
+        case "${_fs}" in
+            "${_dataset}") zfs create "${_cfs}" || return $? ;;
+            "${_dataset}/root")
+                zfs clone "${_fs}@${_snapshot}" "${_cfs}" || return $? ;;
+            */data)
+                zfs clone -o mountpoint=none -o jailed=on \
+                    "${_fs}@${_snapshot}" "${_cfs}" || return $? ;;
+        esac
+    done
+
+    # Publish configuration and aliases only after every clone succeeded.
+    touch "${iocroot}/jails/${uuid}/config" || return $?
+    __configure_jail generate "${uuid}" >/dev/null || return $?
+    __link_tag "${pool}/iocell/jails/${uuid}" || return $?
 
     # Check if fstab already exists otherwise create it
     if [ -e ${iocroot}/jails/${uuid}/fstab ] ; then
@@ -899,7 +906,8 @@ __clone_jail () {
 
     # configure the jail mountpoint
     __hack88_mount ${uuid} ${pool}/iocell/jails/${uuid}
-    __set_jail_prop type=clonejail "${uuid}" "${pool}/iocell/jails/${uuid}"
+    __set_jail_prop type=clonejail "${uuid}" "${pool}/iocell/jails/${uuid}" \
+        || return $?
 
     echo "  Successfully created: ${uuid} (${tag})"
 
