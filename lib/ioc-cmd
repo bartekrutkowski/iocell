@@ -212,9 +212,8 @@ __validate_cmd () {
     return 0
 }
 
-# Process command line options-------------------------
+# Private dispatch: the entrypoint preflights before filesystem initialization.
 __parse_cmd () {
-    __validate_cmd "$@" || exit $?
     while [ $# -gt 0 ] ; do
         case "$1" in
             activate)   __activate "$2"

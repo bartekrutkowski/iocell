@@ -9,6 +9,7 @@ sh tests/pkg-install.sh
 sh tests/create-pkg.sh
 sh tests/template-toggle.sh
 sh tests/send-safety.sh
+sh tests/send-args.sh
 sh tests/send-cleanup.sh
 sh tests/send-csh.sh
 sh tests/discovery-safety.sh
@@ -74,7 +75,12 @@ file vdevs and fixtures; their printed paths identify what they leave behind.
 ## CLI syntax and native entrypoint tests
 
 `cli-args.sh` exercises the real preflight and dispatcher with inert command
-handler boundaries, plus direct send preflight. Shared failure cases live in
+handler boundaries, plus direct send preflight. The public entrypoint validates
+before initialization; private dispatch does not repeat that whole pass.
+`tests/cli-dispatch.sh` mirrors this flow for unit callers, and a counter regression
+distinguishes CLI syntax checks from independent backend property validation.
+Send tests preserve individual incremental operands and reject failed running-jail
+queries before any move snapshot/transfer. Shared failure cases live in
 `cli-args-cases.sh`. Unknown commands/options, missing/empty operands, bad list
 sort columns, malformed property syntax, late flags and malformed send options
 must fail before a handler/system operation. Positive cases preserve argument

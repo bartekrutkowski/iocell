@@ -4,6 +4,7 @@ set -e
 cd "$(dirname "$0")/.."
 . ./lib/ioc-common
 . ./lib/ioc-cmd
+. ./tests/cli-dispatch.sh
 . ./lib/ioc-info
 . ./lib/ioc-configure
 . ./lib/ioc-zfs
@@ -128,10 +129,10 @@ for label in set set-equals inherit inherit-none inherit-null override \
         [ "$label" != write-failure ] || export IOC_DEFAULT_TEST_FAIL=yes
         [ "$label" != rename-failure ] || export IOC_DEFAULT_TEST_FAIL=rename
         case "$label" in
-            inherit|inherit-none|inherit-null|malformed-create) __parse_cmd create -e ;;
-            missing-property) __parse_cmd set default ;;
-            override) __parse_cmd create -e vnet=off notes=explicit ;;
-            *) __parse_cmd set "$args" default ;;
+            inherit|inherit-none|inherit-null|malformed-create) ioc_test_dispatch create -e ;;
+            missing-property) ioc_test_dispatch set default ;;
+            override) ioc_test_dispatch create -e vnet=off notes=explicit ;;
+            *) ioc_test_dispatch set "$args" default ;;
         esac
     ) > "$state/log" 2>&1 || status=$?
     if [ "$status" -ne "$want" ]; then

@@ -1441,176 +1441,65 @@ __validate_send_args () {
 }
 
 __send () {
-    local _clean _count _date _dest _exists _exit _incremental _Incremental \
-          _buffer _move _opt _remote _remotehost _remoteuser \
-          _snapshot _sshtest _state _zfstest _source_dataset \
-          _full_snapshot _spinner_pid _mountpoint
+    local _clean _date _dest _exit _kind _from _to _buffer _move _opt
+    local _remote _remotehost _remoteuser _peer _state _source_dataset
+    local _full_snapshot _spinner_pid _mountpoint OPTIND OPTARG
 
+    # Direct internal callers retain their own syntax boundary.
     __validate_send_args "$@" || return $?
     _source_dataset="${pool}/iocell"
-    _full_snapshot=''; _buffer=0
-    _date=$(date "+%F")
-
-    # Hack to be able to see the last argument
-    for _last ; do
-        true
-    done
-
-    if ! printf '%s\n' "${_last}" | grep -Eq \
-        '^[[:alpha:]][[:alnum:]_.:-]*$' ; then
-        __die "please specify a valid pool!"
-    fi
-    _exists="$(zfs get -H -o value creation "${_last}" > /dev/null 2>&1 \
-        ; echo $?)"
-
-    if [ "${_exists}" -eq 1 ] ; then
-        __die "please specify a valid pool!" >&2
-    else
-        _dest="${_last}"
-    fi
-
-    # Set up our variables
-    _clean=0
-    _incremental=0
-    _Incremental=0
-    _remote=0
-    _move=0
-    _count=0
-    _state="$(jls -h | grep ioc-)"
-
-    # Check for any combination of a send argument + remote
-    while getopts :ci:I:rmh:u: _opt "$@" ; do
-        case "${_opt}" in
-            r)
-                _remote=1
-            ;;
-        esac
-    done
-
-    if [ "${_remote}" = 0 ] && \
-        [ "${_dest}/iocell" = "${_source_dataset}" ] ; then
-        __die "source and destination pools must differ!"
-    fi
-
-    # Reset so we can check again
+    _full_snapshot=''; _buffer=0; _clean=0; _move=0; _remote=0
+    _kind=''; _from=''; _to=''; _peer=''; _remotehost=''; _remoteuser=''
     OPTIND=1
-
-    # Look for any switches we want
     while getopts :ci:I:rmh:u: _opt "$@" ; do
         case "${_opt}" in
-            r) # Needed to avoid not a switch below
-            ;;
-            c)
-                _clean=1
-            ;;
-            i)
-                # We don't want any nasty surprises, warn the user now.
-                if [ "$(echo $OPTARG | grep -q "^-" ; echo $?)" -eq 1 ] ; then
-                    if [ "${_Incremental}" -eq 1 ] ; then
-                        __die "please use either -i or -I, not both!" >&2
-                    fi
-
-                    _incremental=1
-
-                    if [ "${_count}" -gt 0 ] ; then
-                        _snapshot="${_snapshot} ${OPTARG}"
-                    else
-                        _snapshot="i ${OPTARG}"
-                    fi
-
-                    _count=$((_count + 1))
-                else
-                    __die "please specify a snapshot!"
-                fi
-            ;;
-            I)
-                # We don't want any nasty surprises, warn the user now.
-                if [ "$(echo $OPTARG | grep -q "^-" ; echo $?)" -eq 1 ] ; then
-                    if [ "${_incremental}" -eq 1 ] ; then
-                        __die "please use either -i or -I, not both!" >&2
-                    fi
-
-                    _Incremental=1
-
-                    if [ "${_count}" -gt 0 ] ; then
-                        _snapshot="${_snapshot} ${OPTARG}"
-                    else
-                        _snapshot="I ${OPTARG}"
-                    fi
-
-                    _count=$((_count + 1))
-                else
-                    __die "please specify a snapshot!"
-                fi
-            ;;
-            h)
-                # We don't want any nasty surprises, warn the user now.
-                if [ "$(echo $OPTARG | grep -q "^-" ; echo $?)" -eq 1 ] ; then
-                    _remotehost="${OPTARG}"
-                else
-                    __die "please specify a host!"
-                fi
-            ;;
-            u)
-                # We don't want any nasty surprises, warn the user now.
-                if [ "$(echo $OPTARG | grep -q "^-" ; echo $?)" -eq 1 ] ; then
-                    _remoteuser="${OPTARG}"
-                else
-                    __die "please specify a user!"
-                fi
-            ;;
-            m)
-                _move=1
-            ;;
-            ?)
-                __die "-${OPTARG} is not a valid switch!" >&2
-            ;;
+            c) _clean=1 ;;
+            m) _move=1 ;;
+            r) _remote=1 ;;
+            h) _remotehost="${OPTARG}" ;;
+            u) _remoteuser="${OPTARG}" ;;
+            i|I)
+                _kind="${_opt}"
+                if [ -z "${_from}" ] ; then _from="${OPTARG}"
+                else _to="${OPTARG}"; fi ;;
         esac
     done
-
-    if [ "${_move}" -eq 1 ] ; then
-        if [ ! -z "${_state}" ] ; then
-            __die "please stop all jails before using move!"
-        fi
+    shift $((OPTIND - 1))
+    _dest="$1"
+    zfs get -H -o value creation "${_dest}" >/dev/null 2>&1 || {
+        _exit=$?; __error "please specify a valid pool"; return "${_exit}";
+    }
+    if [ "${_remote}" = 0 ] &&
+        [ "${_dest}/iocell" = "${_source_dataset}" ] ; then
+        __error "source and destination pools must differ"
+        return 1
     fi
-
-    if [ "${_move}" -eq 1 ] ; then
-        if [ "${_remote}" -eq 1 ] ; then
-            __die "move is only for local operations!"
-        fi
-    fi
-
-    if [ ! -z "${_remotehost}" -o ! -z "${_remoteuser}" ] ; then
-        if [ "${_remote}" -ne 1 ] ; then
-            __die "-r is required to specify a user and host!"
-        fi
-    fi
-
-    if [ "${_remote}" -eq 1 -a ! -z "${_remotehost}" -a ! -z "${_remoteuser}" ] ; then
-        _sshtest="$(ssh -o PreferredAuthentications=publickey \
-            ${_remoteuser}@${_remotehost} 'exit' > /dev/null 2>&1 ; echo $?)"
-
-        if [ "${_sshtest}" -ne 0 ] ; then
-            __die "please set up publickey authentication for ${_remoteuser}@${_remotehost}"
-        fi
-
-        _zfstest="$(ssh ${_remoteuser}@${_remotehost} '/usr/bin/which -s zfs' \
-            ; echo $?)"
-
-        if [ "${_zfstest}" -ne 0 ] ; then
-            __die "zfs is needed on the receiving (${_remotehost} side!)"
-        fi
-    fi
-
-    # Optional buffer capability must be known before cleanup or snapshots.
-    if [ "${_remote}" = 1 ] && which -s mbuffer ; then
-        if ! ssh "${_remoteuser}@${_remotehost}" '/usr/bin/which -s mbuffer' ; then
-            __error "mbuffer also needed on receiving ${_remotehost} side"
+    if [ "${_move}" = 1 ] ; then
+        _state=$(jls -h) || return $?
+        if printf '%s\n' "${_state}" | grep -q ioc- ; then
+            __error "please stop all jails before using move"
             return 1
         fi
-        _buffer=1
     fi
-    shift $((OPTIND - 1))
+    if [ "${_remote}" = 1 ] ; then
+        _peer="${_remoteuser}@${_remotehost}"
+        if ! ssh -o PreferredAuthentications=publickey "${_peer}" exit \
+            >/dev/null 2>&1 ; then
+            __error "please set up publickey authentication for ${_peer}"
+            return 1
+        fi
+        if ! ssh "${_peer}" '/usr/bin/which -s zfs' ; then
+            __error "zfs is needed on receiving ${_remotehost} side"
+            return 1
+        fi
+        if which -s mbuffer ; then
+            if ! ssh "${_peer}" '/usr/bin/which -s mbuffer' ; then
+                __error "mbuffer also needed on receiving ${_remotehost} side"
+                return 1
+            fi
+            _buffer=1
+        fi
+    fi
 
     # Never clean a same-named local pool on behalf of a remote destination.
     # Remote -c still only cleans sender retention; receiver cleanup is manual.
@@ -1621,15 +1510,8 @@ __send () {
         fi
     fi
 
-    if [ "${_remote}" -eq 1 ] && \
-        { [ -z "${_remoteuser}" ] || [ -z "${_remotehost}" ]; } ; then
-        __die "please specify both -u user and -h host"
-    fi
-    if [ "${_count}" -ne 0 -a "${_count}" -ne 2 ] ; then
-        __die "please supply two incremental snapshot endpoints"
-    fi
-
-    if [ "${_incremental}" -eq 0 -a "${_Incremental}" -eq 0 ] ; then
+    if [ -z "${_kind}" ] ; then
+        _date=$(date '+%F') || return $?
         _full_snapshot="${_source_dataset}@ioc-send-${_date}-$(uuidgen)" \
             || return $?
         # Never send an older snapshot if creation of this one fails.
@@ -1649,60 +1531,13 @@ __send () {
 
     _spinner_pid=$!
     trap 'kill "${_spinner_pid}" 2>/dev/null' 2 3
-    if [ "${_remote}" -eq 1 ] ; then
-        if [ -z "${_remoteuser}" ] ; then
-            printf "\b%1s\n" "error!" ; kill $! && trap " " 2 3 \
-              ; echo "  ERROR: please specify -u and a user" >&2
-            exit 1
-        elif [ -z "${_remotehost}" ] ; then
-            printf "\b%1s\n" "error!" ; kill $! && trap " " 2 3 \
-                ; echo "  ERROR: please specify -h and a host" >&2
-            exit 1
-        fi
-
-        if [ "${_buffer}" = 1 ] ; then
-
-            if [ "${_incremental}" -eq 1 -o "${_Incremental}" -eq 1 ] ; then
-                if [ "${_count}" -lt 2 ] ; then
-                    printf "\b%1s\n" "error!" ; kill $! && trap " " 2 3 \
-                        ; echo "  ERROR: please supply a minimium of 2 snapshots!" >&2
-                    exit 1
-                fi
-
-                __send_stream "${_dest}" "${_remoteuser}@${_remotehost}" \
-                    1 -R${_snapshot}
-                _exit="$?"
-            else
-                __send_stream "${_dest}" "${_remoteuser}@${_remotehost}" \
-                    1 -R "${_full_snapshot}"
-                _exit="$?"
-            fi
-        else
-            if [ "${_incremental}" -eq 1 -o "${_Incremental}" -eq 1 ] ; then
-                __send_stream "${_dest}" "${_remoteuser}@${_remotehost}" \
-                    0 -R${_snapshot}
-                _exit="$?"
-            else
-                __send_stream "${_dest}" "${_remoteuser}@${_remotehost}" \
-                    0 -R "${_full_snapshot}"
-                _exit="$?"
-            fi
-        fi
+    if [ -n "${_kind}" ] ; then
+        __send_stream "${_dest}" "${_peer}" "${_buffer}" \
+            "-R${_kind}" "${_from}" "${_to}"
     else
-        if [ "${_incremental}" -eq 1 -o "${_Incremental}" -eq 1 ] ; then
-            if [ "${_count}" -lt 2 ] ; then
-                printf "\b%1s\n" "error!" ; kill $! && trap " " 2 3 \
-                    ; echo "  ERROR: please supply a minimum of 2 snapshots!" >&2
-                exit 1
-            fi
-
-            __send_stream "${_dest}" '' 0 -R${_snapshot}
-            _exit="$?"
-        else
-            __send_stream "${_dest}" '' 0 -R "${_full_snapshot}"
-            _exit="$?"
-        fi
+        __send_stream "${_dest}" "${_peer}" "${_buffer}" -R "${_full_snapshot}"
     fi
+    _exit=$?
 
     kill "${_spinner_pid}" 2>/dev/null || :
     wait "${_spinner_pid}" 2>/dev/null || :

@@ -4,6 +4,7 @@ set -e
 cd "$(dirname "$0")/.."
 . ./lib/ioc-common
 . ./lib/ioc-cmd
+. ./tests/cli-dispatch.sh
 workdir=$(mktemp -d "${TMPDIR:-/tmp}/iocell-set-values.XXXXXX")
 trap 'rm -rf "$workdir"' EXIT
 pool=tank; uuid=11111111-1111-1111-1111-111111111111
@@ -21,7 +22,7 @@ failed=0
 check_value () {
     label=$1; property=$2; value=$3; status=0
     rm -f "$workdir/values/$property"
-    ( __parse_cmd set "$property=$value" "$uuid" ) > "$workdir/$label.log" 2>&1 || status=$?
+    ( ioc_test_dispatch set "$property=$value" "$uuid" ) > "$workdir/$label.log" 2>&1 || status=$?
     printf '%s' "$value" > "$workdir/expected"
     if [ "$status" != 0 ] || ! cmp -s "$workdir/expected" "$workdir/values/$property"; then
         echo "FAIL: set $label lost the literal value (status $status)"

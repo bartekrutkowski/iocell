@@ -104,6 +104,7 @@ if iocell set istemplate=no "${tag}" > "${workdir}/invalid.log" 2>&1 ; then
     echo 'FAIL: invalid stored UUID was accepted' >&2
     exit 1
 fi
+grep -q 'invalid stored jail UUID' "${workdir}/invalid.log"
 [ "$(template_prop type)" = template ]
 [ "$(template_prop istemplate)" = yes ]
 [ "$(zfs get -H -o value jailed "${source}/data")" = on ]
@@ -123,6 +124,7 @@ if iocell set istemplate=no "${tag}" > "${workdir}/collision.log" 2>&1 ; then
     echo 'FAIL: occupied UUID destination was accepted' >&2
     exit 1
 fi
+grep -q 'already exists' "${workdir}/collision.log"
 [ "$(zfs get -H -o value guid "${dataset}")" = "${collision_guid}" ]
 [ "$(template_prop type)" = template ]
 [ "$(template_prop istemplate)" = yes ]
@@ -139,6 +141,7 @@ if iocell set istemplate=no "${tag}" > "${workdir}/running.log" 2>&1 ; then
     echo 'FAIL: running template was converted' >&2
     exit 1
 fi
+grep -q 'please stop' "${workdir}/running.log"
 jail -r "ioc-${uuid}"
 [ "$(template_prop type)" = template ]
 echo 'PASS: running template is rejected before conversion'
@@ -150,6 +153,7 @@ if iocell set istemplate=no "${tag}" > "${workdir}/dependent.log" 2>&1 ; then
     echo 'FAIL: template with a dependent clone was converted' >&2
     exit 1
 fi
+grep -q 'dependent clones' "${workdir}/dependent.log"
 [ "$(template_prop type)" = template ]
 [ "$(template_prop istemplate)" = yes ]
 echo 'PASS: dependent clone prevents conversion; template and clone retained'

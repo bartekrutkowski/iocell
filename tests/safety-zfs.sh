@@ -44,24 +44,45 @@ cat > "$workdir/bin/zfs" <<'WRAPPER'
 #!/bin/sh
 case "${IOC_SAFETY_FAULT:-}" in
     snapshot|receive|rename)
-        [ "$1" != "$IOC_SAFETY_FAULT" ] || exit 42 ;;
+        if [ "$1" = "$IOC_SAFETY_FAULT" ]; then
+            echo "injected safety fault: $IOC_SAFETY_FAULT" >&2; exit 42
+        fi ;;
     origin)
-        case " $* " in *' origin '*) exit 42 ;; esac ;;
+        case " $* " in *' origin '*) echo 'injected safety fault: origin' >&2; exit 42 ;; esac ;;
     send-after)
-        if [ "$1" = send ]; then /sbin/zfs "$@" || exit $?; exit 42; fi ;;
+        if [ "$1" = send ]; then
+            /sbin/zfs "$@" || exit $?
+            echo 'injected safety fault: send-after' >&2; exit 42
+        fi ;;
     activate)
         if [ "$1" = set ] && [ "$2" = mountpoint=/iocell ] && \
-            [ "$3" = "$IOC_SAFETY_DESTROOT" ]; then exit 42; fi ;;
+            [ "$3" = "$IOC_SAFETY_DESTROOT" ]; then
+            echo 'injected safety fault: activate' >&2; exit 42
+        fi ;;
     race)
         if [ "$1" = destroy ]; then
-            /sbin/zfs clone "$IOC_SAFETY_TEMPLATE_ROOT" "$IOC_SAFETY_RACE_DEST"
+            /sbin/zfs clone "$IOC_SAFETY_TEMPLATE_ROOT" "$IOC_SAFETY_RACE_DEST" || exit $?
+            echo 'injected safety race after preflight' >&2
         fi ;;
 esac
 exec /sbin/zfs "$@"
 WRAPPER
-chmod +x "$workdir/bin/zfs"
+cat > "$workdir/bin/jls" <<'WRAPPER'
+#!/bin/sh
+if [ "${IOC_SAFETY_FAULT:-}" = jail-query ]; then
+    echo 'injected safety fault: jail-query' >&2; exit 42
+fi
+exec /usr/sbin/jls "$@"
+WRAPPER
+chmod +x "$workdir/bin/zfs" "$workdir/bin/jls"
+require_fault () {
+    grep -Fq "injected safety fault: $1" "$2" || {
+        echo "FAIL: fault $1 did not reach its intended boundary" >&2; exit 1;
+    }
+}
 iocell activate "$src" > "$workdir/activate.log" 2>&1
 activated=1
+src_root=$(zfs get -H -o value mountpoint "$src/iocell")
 [ "$(iocell get pool default)" = "$src" ]
 new_jail () {
     new_uuid=$(iocell create -e "tag=$1")
@@ -86,6 +107,7 @@ if PATH="$workdir/bin:$PATH" IOC_SAFETY_FAULT=origin \
     iocell destroy -f "$u" > "$workdir/destroy-query.log" 2>&1; then
     echo 'FAIL: destroy ignored dependency-query failure' >&2; exit 1
 fi
+require_fault origin "$workdir/destroy-query.log"
 [ "$(zfs get -H -o value guid "$ds/root")" = "$guid_before" ]
 cmp "$mp/config" "$workdir/discovery-config"
 echo 'PASS: shared dependency-query failure also prevents jail destruction'
@@ -115,6 +137,7 @@ cp /config "$workdir/host-sentinel"
 if iocell set istemplate=yes "$bad" > "$workdir/bad-tag.log" 2>&1; then
     echo 'FAIL: generated unsafe template tag was accepted' >&2; exit 1
 fi
+grep -q 'not a safe template dataset name' "$workdir/bad-tag.log"
 cmp /config "$workdir/host-sentinel"
 cmp "$bad_mp/config" "$workdir/bad-config"
 echo 'PASS: invalid template tag changes neither jail metadata nor host /config'
@@ -140,14 +163,15 @@ u="$new_uuid"; ds="$new_ds"; mp="$new_mp"
 zfs create -o mountpoint=none -o jailed=on "$ds/data"
 iocell set "jail_zfs_dataset=$ds/data" "$u"
 cp "$mp/config" "$workdir/rename-config"
-alias_before=$(readlink /iocell/tags/safety-template)
+alias_before=$(readlink "$src_root/tags/safety-template")
 if PATH="$workdir/bin:$PATH" IOC_SAFETY_FAULT=rename \
     iocell set istemplate=yes "$u" > "$workdir/rename.log" 2>&1; then
     echo 'FAIL: failed rename reported success' >&2; exit 1
 fi
+require_fault rename "$workdir/rename.log"
 cmp "$mp/config" "$workdir/rename-config"
 [ "$(zfs get -H -o value jailed "$ds/data")" = on ]
-[ "$(readlink /iocell/tags/safety-template)" = "$alias_before" ]
+[ "$(readlink "$src_root/tags/safety-template")" = "$alias_before" ]
 echo 'PASS: failed rename preserves config, alias and delegated state'
 root_guid=$(zfs get -H -o value guid "$ds/root")
 zfs snapshot "$ds/root@identity"
@@ -155,9 +179,9 @@ iocell set istemplate=yes "$u" > "$workdir/template.log" 2>&1
 tpl="$src/iocell/templates/safety-template"
 [ "$(zfs get -H -o value guid "$tpl/root")" = "$root_guid" ]
 [ "$(zfs get -H -o value jailed "$tpl/data")" = on ]
-[ "$(uclcmd get -qf /iocell/templates/safety-template/config type)" = template ]
-[ "$(uclcmd get -qf /iocell/templates/safety-template/config istemplate)" = yes ]
-[ ! -L /iocell/tags/safety-template ]
+[ "$(uclcmd get -qf "$src_root/templates/safety-template/config" type)" = template ]
+[ "$(uclcmd get -qf "$src_root/templates/safety-template/config" istemplate)" = yes ]
+[ ! -L "$src_root/tags/safety-template" ]
 echo 'PASS: successful template conversion preserves GUID, content and delegated state'
 
 new_jail safety-template-off
@@ -181,12 +205,14 @@ if printf 'y\n' | env PATH="$workdir/bin:$PATH" IOC_SAFETY_FAULT=origin \
 fi
 [ "$(zfs get -H -o value guid "$clone_ds/root")" = "$clone_guid" ]
 [ "$(zfs get -H -o value guid "$tpl/root")" = "$root_guid" ]
+require_fault origin "$workdir/clean-query.log"
 echo 'PASS: cleanup query failure returns nonzero without changing datasets'
 if printf 'y\n' | iocell clean -t > "$workdir/clean-dependent.log" 2>&1; then
     echo 'FAIL: non-force cleanup accepted dependent clone' >&2; exit 1
 fi
 [ "$(zfs get -H -o value guid "$clone_ds/root")" = "$clone_guid" ]
 [ "$(zfs get -H -o value guid "$tpl/root")" = "$root_guid" ]
+grep -Fq "$clone_ds/root" "$workdir/clean-dependent.log"
 echo 'PASS: non-force cleanup preserves template and dependent root clone'
 zfs destroy "$clone_ds/root"
 if printf 'y\n' | env PATH="$workdir/bin:$PATH" IOC_SAFETY_FAULT=race \
@@ -195,13 +221,16 @@ if printf 'y\n' | env PATH="$workdir/bin:$PATH" IOC_SAFETY_FAULT=race \
     > "$workdir/clean-race.log" 2>&1; then
     echo 'FAIL: cleanup destroyed a clone created after preflight' >&2; exit 1
 fi
+grep -q 'injected safety race after preflight' "$workdir/clean-race.log"
 [ "$(zfs get -H -o value guid "$tpl/root")" = "$root_guid" ]
 zfs list "$src/race-clone" >/dev/null
 if printf 'y\n' | iocell clean -t > "$workdir/clean-outside.log" 2>&1; then
     echo 'FAIL: cleanup accepted a clone outside the jails namespace' >&2; exit 1
 fi
+grep -Fq "$src/race-clone" "$workdir/clean-outside.log"
 echo 'PASS: cleanup preserves racing clones and clones outside the jails namespace'
 iocell clean -f -t > "$workdir/clean-force.log" 2>&1
+grep -Fq "$src/race-clone" "$workdir/clean-force.log"
 if zfs list "$tpl" >/dev/null 2>&1 || \
     zfs list "$src/race-clone" >/dev/null 2>&1; then
     echo 'FAIL: explicit force did not remove dependent roots' >&2; exit 1
@@ -211,6 +240,16 @@ echo 'PASS: explicit forced template cleanup works'
 new_jail safety-send
 u="$new_uuid"; ds="$new_ds"; mp="$new_mp"
 source_guid=$(zfs get -H -o value guid "$ds/root")
+zfs list -Hrt snapshot -o name "$src/iocell" > "$workdir/before-jail-query"
+status=0
+PATH="$workdir/bin:$PATH" IOC_SAFETY_FAULT=jail-query \
+    iocell send -m "$dst" > "$workdir/jail-query.log" 2>&1 || status=$?
+[ "$status" = 42 ]
+require_fault jail-query "$workdir/jail-query.log"
+zfs list -Hrt snapshot -o name "$src/iocell" > "$workdir/after-jail-query"
+cmp "$workdir/before-jail-query" "$workdir/after-jail-query"
+[ "$(zfs get -H -o value guid "$ds/root")" = "$source_guid" ]
+echo 'PASS: failed running-jail query prevents move before snapshot or transfer'
 received="$dst/iocell/jails/$u/root"
 read_received () {
     zfs set "mountpoint=$workdir/received" "$dst/iocell"
@@ -257,6 +296,11 @@ for fault in snapshot receive send-after; do
         iocell send -m "$dst" > "$workdir/failure-$fault.log" 2>&1; then
         echo "FAIL: $fault transfer reported success" >&2; exit 1
     fi
+    require_fault "$fault" "$workdir/failure-$fault.log"
+    if [ "$fault" != snapshot ]; then
+        retained=$(awk '/snapshot retained:/ {print $NF}' "$workdir/failure-$fault.log")
+        [ -n "$retained" ] && zfs list -t snapshot "$retained" >/dev/null
+    fi
     [ "$(zfs get -H -o value guid "$ds/root")" = "$source_guid" ]
     [ "$(cat "$mp/root/marker")" = second ]
     [ "$(iocell get pool default)" = "$src" ]
@@ -270,6 +314,7 @@ if env PATH="$workdir/bin:$PATH" IOC_SAFETY_FAULT=activate \
     > "$workdir/failure-activate.log" 2>&1; then
     echo 'FAIL: activation failure reported successful move' >&2; exit 1
 fi
+require_fault activate "$workdir/failure-activate.log"
 [ "$(zfs get -H -o value guid "$ds/root")" = "$source_guid" ]
 p=$(zfs get -H -o value mountpoint "$ds/root")
 [ "$(cat "$p/marker")" = second ]

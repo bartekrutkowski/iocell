@@ -218,6 +218,7 @@ run_case base-tag-collision 1 || failed=1
 # The CLI must not mask a failed conversion or apply later properties/jails.
 source_dataset="${pool}/iocell/templates/${tag}"
 . ./lib/ioc-cmd
+. ./tests/cli-dispatch.sh
 __export_props () {
     :
 }
@@ -234,7 +235,7 @@ __set_jail_prop () {
 trace="${workdir}/set-failure.trace"
 : > "${trace}"
 status=0
-( __parse_cmd set istemplate=no boot=on first second ) \
+( ioc_test_dispatch set istemplate=no boot=on first second ) \
     > "${workdir}/set-failure.log" 2>&1 || status=$?
 printf 'istemplate=no %s\n' "${tag}" > "${workdir}/set-failure.expected"
 

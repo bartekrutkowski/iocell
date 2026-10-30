@@ -4,6 +4,7 @@ set -e
 cd "$(dirname "$0")/.."
 . ./lib/ioc-common
 . ./lib/ioc-cmd
+. ./tests/cli-dispatch.sh
 . ./lib/ioc-help
 . ./lib/ioc-zfs
 . ./tests/cli-args-cases.sh
@@ -35,7 +36,7 @@ reject () {
     label=$1; shift
     trace="$workdir/$label.trace"; : > "$trace"
     status=0
-    ( set +e; __parse_cmd "$@" ) > "$workdir/$label.log" 2>&1 || status=$?
+    ( set +e; ioc_test_dispatch "$@" ) > "$workdir/$label.log" 2>&1 || status=$?
     if [ "$status" = 0 ] || [ -s "$trace" ] || \
         [ ! -s "$workdir/$label.log" ]; then
         echo "FAIL: $label: status=$status; invalid arguments reached a handler"
@@ -67,7 +68,7 @@ done
 valid () {
     label=$1; expected=$2; shift 2
     trace="$workdir/$label.trace"; : > "$trace"; status=0
-    ( set +e; __parse_cmd "$@" ) > "$workdir/$label.log" 2>&1 || status=$?
+    ( set +e; ioc_test_dispatch "$@" ) > "$workdir/$label.log" 2>&1 || status=$?
     printf '%s\n' "$expected" > "$workdir/$label.expected"
     if [ "$status" != 0 ] || ! cmp -s "$trace" "$workdir/$label.expected"; then
         echo "FAIL: valid $label: status=$status"
@@ -168,4 +169,14 @@ accept rollback-snapshot rollback example@saved
 accept remove-all-snapshots snapremove example@ALL
 accept mount-snapshot snapmount example@saved /tmp
 accept unmount-snapshot snapumount example@saved
+# A valid property preflight must run once, not again after initialization.
+# Instrument only this final known-valid CLI syntax check, not the independent
+# backend property validation. Real validation/malformed requests ran above.
+validation_trace="$workdir/validation-count"; : > "$validation_trace"
+trace="$workdir/once.trace"; : > "$trace"
+__cli_properties () { printf '%s\n' "$@" >> "$validation_trace"; }
+( ioc_test_dispatch set notes=once "$target" ) > "$workdir/once.log" 2>&1
+if [ "$(wc -l < "$validation_trace" | tr -d ' ')" != 1 ]; then
+    echo 'FAIL: dispatcher repeated the public syntax preflight'; failed=1
+else echo 'PASS: public syntax preflight runs only once'; fi
 exit "$failed"
