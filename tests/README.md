@@ -230,8 +230,24 @@ The integration cases verify:
 - Recursive rollback restores parent, root, and child content.
 - A missing child snapshot prevents all rollback operations without deleting
   the child dataset.
-- Missing snapshots/names and running jails are rejected.
+- Missing snapshots/names and running jails are rejected with the expected cause.
+- A failed jail lookup makes no ZFS calls (portable) or namespace changes (native).
 - ZFS errors are returned without force-destroying dependent clones.
+
+These are filesystem fixtures, not falsely labeled runnable basejails. A separate
+check creates and boots a real basejail using a fetched release:
+
+```sh
+IOC_TEST_POOL=YOUR_TEST_POOL IOC_TEST_RELEASE=15.1-RELEASE \
+    sh tests/rollback-basejail-zfs.sh
+```
+
+It verifies configuration/root bytes are restored while native compression,
+current tag links and shared release bytes are not. The jail actually reads the
+shared file before and after rollback. Only its uniquely named release marker
+is removed on exit, and its alias is explicitly reconciled after the assertion;
+the runnable jail, snapshot and logs are retained. No automatic rollback relinking
+is added: a saved tag might now belong to a different jail.
 
 ## Real package-creation integration test
 

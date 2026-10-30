@@ -13,6 +13,10 @@ trap 'exit 1' HUP INT TERM
 dataset=tank/iocell/jails/11111111-1111-1111-1111-111111111111
 
 __find_jail () {
+    if [ "${find_failure}" = yes ] ; then
+        echo 'injected jail lookup failure' >&2
+        return 6
+    fi
     echo "${dataset}"
 }
 
@@ -27,6 +31,7 @@ __is_running () {
 }
 
 zfs () {
+    printf '%s\n' "$*" >> "${operations}"
     case "$1" in
         list)
             if [ "${list_failure}" = yes ] ; then
@@ -66,7 +71,8 @@ run_case () {
     _expected_status="$3"
     _expected_calls="$4"
     trace="${workdir}/${_label}.actual"
-    : > "${trace}"
+    operations="${workdir}/${_label}.operations"
+    : > "${trace}"; : > "${operations}"
     _status=0
     ( __rollback "${_argument}" ) > "${workdir}/${_label}.log" 2>&1 || \
         _status=$?
@@ -76,6 +82,10 @@ run_case () {
         return 1
     fi
 
+    if [ "${_label}" = lookup-failure ] ; then
+        [ ! -s "${operations}" ] || return 1
+        grep -q 'injected jail lookup failure' "${workdir}/${_label}.log" || return 1
+    fi
     if [ -n "${_expected_calls}" ] ; then
         printf '%s\n' "${_expected_calls}" > "${workdir}/expected"
     else
@@ -91,6 +101,7 @@ run_case () {
 }
 
 failed=0
+find_failure=no
 running=no
 list_failure=no
 rollback_failure=no
@@ -119,7 +130,10 @@ snapshots="${dataset}/root@saved-other
 ${dataset}/data@saved"
 run_case missing-root example@saved 1 '' || failed=1
 run_case missing-name example 1 '' || failed=1
-run_case missing-jail @saved 1 '' || failed=1
+run_case empty-jail-name @saved 1 '' || failed=1
+find_failure=yes
+run_case lookup-failure example@saved 6 '' || failed=1
+find_failure=no
 
 snapshots="${dataset}/root@saved"
 running=yes

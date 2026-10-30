@@ -12,14 +12,15 @@ iocell () {
     sh ./iocell "$@"
 }
 
-workdir=$(mktemp -d /tmp/iocell-rollback-zfs.XXXXXX)
+workdir=$(mktemp -d /var/tmp/iocell-rollback-zfs.XXXXXX)
 running_jail=''
+failure_sequence=0
+echo "Retained rollback logs: $workdir"
 cleanup () {
     if [ -n "${running_jail}" ] ; then
         jail -r "${running_jail}"
     fi
 
-    rm -rf "${workdir}"
 }
 trap cleanup EXIT
 trap 'exit 1' HUP INT TERM
@@ -27,7 +28,6 @@ trap 'exit 1' HUP INT TERM
 uuid=$(iocell create -e "tag=rollback-test-$(date +%s)-$$")
 dataset="${IOC_TEST_POOL}/iocell/jails/${uuid}"
 mountpoint=$(zfs get -H -o value mountpoint "${dataset}")
-iocell set type=basejail "${uuid}"
 zfs create "${dataset}/data"
 printf 'root before\n' > "${mountpoint}/root/marker"
 printf 'parent before\n' > "${mountpoint}/parent-marker"
@@ -61,32 +61,43 @@ iocell rollback "${uuid}@recursive"
 echo 'PASS: recursive rollback restores parent, root and child data'
 
 expect_failure () {
-    if iocell rollback "$1" > "${workdir}/failure.log" 2>&1 ; then
+    failure_sequence=$((failure_sequence + 1))
+    log="${workdir}/failure-${failure_sequence}.log"
+    if iocell rollback "$1" > "${log}" 2>&1 ; then
         echo "FAIL: rollback unexpectedly succeeded: $1" >&2
         exit 1
     fi
+    grep -Eq "$2" "${log}" || {
+        echo "FAIL: rollback did not report expected cause: $2" >&2; exit 1;
+    }
 }
 
 zfs create "${dataset}/new-child"
 printf 'root unchanged\n' > "${mountpoint}/root/marker"
 printf 'parent unchanged\n' > "${mountpoint}/parent-marker"
 printf 'data unchanged\n' > "${mountpoint}/data/marker"
-expect_failure "${uuid}@recursive"
+expect_failure "${uuid}@recursive" 'new-child@recursive not found'
 [ "$(cat "${mountpoint}/root/marker")" = 'root unchanged' ]
 [ "$(cat "${mountpoint}/parent-marker")" = 'parent unchanged' ]
 [ "$(cat "${mountpoint}/data/marker")" = 'data unchanged' ]
 zfs list -H "${dataset}/new-child" >/dev/null
 echo 'PASS: missing child snapshot prevents every rollback; child survives'
 
-expect_failure "${uuid}@missing"
-expect_failure "${uuid}"
+expect_failure "${uuid}@missing" 'root@missing not found'
+expect_failure "${uuid}" 'snapshot'
 [ "$(cat "${mountpoint}/root/marker")" = 'root unchanged' ]
 echo 'PASS: missing snapshots and missing snapshot names are rejected'
+zfs list -rH -t all -o name "${dataset}" > "${workdir}/before-lookup"
+expect_failure "$(uuidgen)@root-only" 'not found'
+zfs list -rH -t all -o name "${dataset}" > "${workdir}/after-lookup"
+cmp "${workdir}/before-lookup" "${workdir}/after-lookup"
+[ "$(cat "${mountpoint}/root/marker")" = 'root unchanged' ]
+echo 'PASS: failed jail lookup performs no rollback or namespace mutation'
 
 jail -c "name=ioc-${uuid}" "path=${mountpoint}/root" persist \
     ip4=disable ip6=disable
 running_jail="ioc-${uuid}"
-expect_failure "${uuid}@root-only"
+expect_failure "${uuid}@root-only" 'please stop'
 [ "$(cat "${mountpoint}/root/marker")" = 'root unchanged' ]
 jail -r "${running_jail}"
 running_jail=''
@@ -96,7 +107,7 @@ zfs snapshot "${dataset}/root@protected"
 printf 'newer content\n' > "${mountpoint}/root/marker"
 zfs snapshot "${dataset}/root@cloned"
 zfs clone "${dataset}/root@cloned" "${dataset}/dependent"
-expect_failure "${uuid}@protected"
+expect_failure "${uuid}@protected" 'clone|dependent'
 [ "$(cat "${mountpoint}/root/marker")" = 'newer content' ]
 zfs list -H "${dataset}/dependent" >/dev/null
 zfs list -H -t snapshot "${dataset}/root@cloned" >/dev/null

@@ -482,6 +482,8 @@ restart [\fB-s\fP] UUID|TAG|ALL
     snapshot restores only the jail's root dataset. A recursive snapshot
     restores the jail dataset and its descendants. Every target must have
     the requested snapshot; otherwise no rollback is performed.
+    Rollback does not restore native ZFS properties or tag symlinks. A restored
+    tag property may therefore differ from the current alias namespace.
 
     WARNING: Changes and newer snapshots on the affected datasets will be
     lost. Shared basejail release datasets are not restored. Multi-dataset

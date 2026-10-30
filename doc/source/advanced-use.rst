@@ -170,7 +170,10 @@ Rollback restores only the root dataset for a normal snapshot, or the jail
 configuration and descendant datasets for a recursive snapshot. All targets
 must have the requested snapshot before rollback starts. A descendant created
 after a recursive snapshot therefore prevents rollback; iocell will not delete
-it automatically. Shared basejail release datasets are not restored.
+it automatically. Native ZFS properties and tag symlinks are not restored;
+a saved tag property can differ from the current alias namespace. Review that
+namespace before explicitly retagging a jail. Shared basejail release datasets
+are not restored.
 
 .. warning::
 

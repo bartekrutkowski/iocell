@@ -90,8 +90,9 @@ of the stream.
 
 Normal snapshots cover the jail root only; recursive snapshots include the
 configuration and descendants. Shared release datasets are outside jail-root
-rollback. Multi-dataset rollback is not atomic, and newly created descendants
-can prevent recursive rollback rather than being silently destroyed.
+rollback. Native properties and tag links are not restored; the saved tag can
+differ from the current alias namespace. Multi-dataset rollback is not atomic,
+and newly created descendants can prevent it rather than being silently destroyed.
 
 Basejail updates change a shared release, potentially affecting every jail
 using it. Use a maintenance window and back up the shared release separately.
