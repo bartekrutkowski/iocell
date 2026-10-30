@@ -2,19 +2,18 @@
 # Opt-in native SSH replication checks, including real optional mbuffer.
 set -eu
 cd "$(dirname "$0")/.."
-[ "$(uname -s)" = FreeBSD ] && [ "$(id -u)" = 0 ] || exit 1
-: "${IOC_TEST_POOL:?Set the active disposable pool}"
+. ./tests/native-common.sh
+ioc_test_require_pool
 : "${IOC_TEST_REMOTE:?Set root@private-disposable-FreeBSD-receiver}"
 peer="$IOC_TEST_REMOTE"
 iocell () { env PATH="$PATH" sh ./iocell "$@"; }
 remote () { /usr/bin/ssh "$peer" "$@"; }
-original=$(iocell get pool default)
-[ "$original" = "$IOC_TEST_POOL" ]
+original="$IOC_TEST_POOL"
 [ "$(remote uname -s)" = FreeBSD ]
 command -v mbuffer >/dev/null
 remote /usr/bin/which -s mbuffer
 workdir=$(mktemp -d /var/tmp/iocell-remote-safety.XXXXXX)
-src="iocrsrc$$"; dst="iocrrx$$"; activated=0
+src=$(ioc_test_pool_name iocrsrc); dst=$(ioc_test_pool_name iocrrx); activated=0
 cleanup () {
     status=$?
     trap - EXIT
@@ -22,7 +21,9 @@ cleanup () {
         iocell activate "$original" > "$workdir/restore.log" 2>&1 || status=1
     fi
     echo "Retained remote safety logs/vdevs: $workdir"
-    echo "Retained pools: local $src $dst; receiver $dst"
+    echo "Retained pools: local $src $dst; receiver $dst $src"
+    echo "Receiver vdevs: /var/tmp/$dst.vdev /var/tmp/$src.vdev"
+    echo "Receiver wrapper: /var/tmp/$dst-fault/mbuffer"
     exit "$status"
 }
 trap cleanup EXIT

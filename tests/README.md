@@ -16,6 +16,7 @@ sh tests/destroy-guard-safety.sh
 sh tests/import.sh
 sh tests/defaults.sh
 sh tests/cli-args.sh
+sh tests/native-test-guard.sh
 ```
 
 These execute the real shell functions with mocked ZFS/system calls. They do
@@ -37,6 +38,26 @@ Safety tests additionally cover fresh full-send snapshots, every pipeline stage
 (including both buffers), activation failures, source identity across moves,
 read-only discovery, legacy-config preservation, forward conversion failures,
 invalid config paths, cleanup races and propagation of dependency-query errors.
+
+## Authorization for every native test
+
+Use a disposable FreeBSD host and an activated, dedicated test pool. Before
+running any `*-zfs.sh` script, explicitly authorize that pool and each run:
+
+```sh
+export IOC_TEST_POOL=YOUR_DISPOSABLE_POOL
+zfs set org.freebsd.iocell:test=yes "$IOC_TEST_POOL"
+export IOC_TEST_DESTRUCTIVE=yes
+```
+
+Do not set this marker on a production pool. A test-looking pool name is not
+a safety check. The shared guard verifies the local marker, FreeBSD/root,
+the dataset actually mounted at iocell's configured root, and the pool selector
+without invoking iocell's filesystem initialization. Failed preconditions print
+a diagnostic and stop before fixtures or host configuration are changed.
+
+Scratch pool names use UUIDs rather than PIDs. Native tests retain their logs,
+file vdevs and fixtures; their printed paths identify what they leave behind.
 
 ## CLI syntax and native entrypoint tests
 

@@ -5,21 +5,12 @@ set -eu
 
 cd "$(dirname "$0")/.."
 
-if [ "$(uname -s)" != FreeBSD -o "$(id -u)" != 0 ] ; then
-    echo 'This test requires root on FreeBSD with ZFS.' >&2
-    exit 1
-fi
-
-: "${IOC_TEST_POOL:?Set IOC_TEST_POOL to an activated disposable test pool}"
+. ./tests/native-common.sh
+ioc_test_require_pool
 
 iocell () {
     sh ./iocell "$@"
 }
-
-if [ "$(iocell get pool default)" != "${IOC_TEST_POOL}" ] ; then
-    echo 'The activated pool does not match IOC_TEST_POOL.' >&2
-    exit 1
-fi
 
 workdir=$(mktemp -d /tmp/iocell-rollback-zfs.XXXXXX)
 running_jail=''

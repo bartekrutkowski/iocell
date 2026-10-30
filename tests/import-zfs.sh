@@ -2,12 +2,13 @@
 # Opt-in native import checks. Only this run's image and jail fixture are reset.
 set -eu
 cd "$(dirname "$0")/.."
-[ "$(uname -s)" = FreeBSD ] && [ "$(id -u)" = 0 ] || exit 1
-: "${IOC_TEST_POOL:?Set the activated disposable test pool}"
+. ./tests/native-common.sh
+ioc_test_require_pool
 : "${IOC_TEST_RELEASE:?Set a fetched release}"
 iocell () { env PATH="$PATH" sh ./iocell "$@"; }
-[ "$(iocell get pool default)" = "$IOC_TEST_POOL" ]
-[ -d "/iocell/releases/$IOC_TEST_RELEASE/root" ]
+[ -d "$IOC_TEST_ROOT/releases/$IOC_TEST_RELEASE/root" ] || {
+    ioc_test_error "release $IOC_TEST_RELEASE has not been fetched"; exit 1;
+}
 workdir=$(mktemp -d /var/tmp/iocell-import-zfs.XXXXXX)
 printf 'Retained import logs: %s\n' "$workdir"
 uuid=$(iocell create -e "release=$IOC_TEST_RELEASE" "tag=import-test-$$")

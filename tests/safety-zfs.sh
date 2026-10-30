@@ -2,19 +2,18 @@
 # Destructive, opt-in native safety checks using only new file-backed pools.
 set -eu
 cd "$(dirname "$0")/.."
-[ "$(uname -s)" = FreeBSD ] && [ "$(id -u)" = 0 ] || exit 1
-: "${IOC_TEST_POOL:?Set IOC_TEST_POOL to the activated disposable test pool}"
+. ./tests/native-common.sh
+ioc_test_require_pool
 iocell () {
     env PATH="$PATH" IOC_SAFETY_FAULT="${IOC_SAFETY_FAULT:-}" \
         sh ./iocell "$@"
 }
-original=$(iocell get pool default)
-[ "$original" = "$IOC_TEST_POOL" ]
+original="$IOC_TEST_POOL"
 [ "$(jls -h jid | wc -l | tr -d ' ')" = 1 ] || {
     echo 'Stop all jails before this test.' >&2; exit 1;
 }
 workdir=$(mktemp -d /var/tmp/iocell-safety.XXXXXX)
-src="iocs$$"; dst="iocd$$"
+src=$(ioc_test_pool_name iocs); dst=$(ioc_test_pool_name iocd)
 activated=0; config_saved=0; config_existed=0
 cleanup () {
     status=$?

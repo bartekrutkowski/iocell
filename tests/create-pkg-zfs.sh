@@ -4,18 +4,14 @@
 set -eu
 
 cd "$(dirname "$0")/.."
-if [ "$(uname -s)" != FreeBSD -o "$(id -u)" != 0 ] ; then
-    echo 'This test requires root on FreeBSD with ZFS.' >&2
-    exit 1
-fi
-: "${IOC_TEST_POOL:?Set IOC_TEST_POOL to a disposable activated pool}"
+. ./tests/native-common.sh
+ioc_test_require_pool
 : "${IOC_TEST_RELEASE:?Set IOC_TEST_RELEASE to a fetched FreeBSD release}"
 
 iocell () {
     sh ./iocell "$@"
 }
 
-[ "$(iocell get pool default)" = "${IOC_TEST_POOL}" ]
 release_root=$(zfs get -H -o value mountpoint \
     "${IOC_TEST_POOL}/iocell/releases/${IOC_TEST_RELEASE}/root")
 [ -x "${release_root}/bin/sh" ]

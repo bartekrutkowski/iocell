@@ -2,18 +2,14 @@
 # Opt-in FreeBSD template round-trip tests. Keep all filesystem fixtures.
 set -eu
 cd "$(dirname "$0")/.."
-if [ "$(uname -s)" != FreeBSD -o "$(id -u)" != 0 ] ; then
-    echo 'This test requires root on FreeBSD with ZFS.' >&2
-    exit 1
-fi
-: "${IOC_TEST_POOL:?Set IOC_TEST_POOL to a disposable activated pool}"
+. ./tests/native-common.sh
+ioc_test_require_pool
 : "${IOC_TEST_RELEASE:?Set IOC_TEST_RELEASE to a fetched FreeBSD release}"
 
 iocell () {
     sh ./iocell "$@"
 }
 
-[ "$(iocell get pool default)" = "${IOC_TEST_POOL}" ]
 workdir=$(mktemp -d /var/tmp/iocell-template.XXXXXX)
 tag="toggle-test-$(date +%s)-$$"
 iocell create "release=${IOC_TEST_RELEASE}" "tag=${tag}" vnet=off \
@@ -80,7 +76,7 @@ for round in 1 2 ; do
     [ "$(zfs get -H -o value jailed "${dataset}/data")" = \
         "${expected_jailed}" ]
     [ "$(cat "${parent}/root/toggle-marker")" = 'round-trip content' ]
-    [ "$(readlink "/iocell/tags/${tag}")" = "${parent}" ]
+    [ "$(readlink "${IOC_TEST_ROOT}/tags/${tag}")" = "${parent}" ]
     zfs list -H -t snapshot "${dataset}/root@identity" >/dev/null
     if zfs list "${IOC_TEST_POOL}/iocell/jails/${tag}" >/dev/null 2>&1 ; then
         echo 'FAIL: jail dataset was renamed to its tag' >&2
@@ -115,7 +111,7 @@ iocell set "host_hostuuid=${uuid}" "${tag}"
 echo 'PASS: invalid UUID is rejected without changing template metadata'
 
 # Template conversion may leave no tag symlink; preserve its actual state.
-template_tag_link=$(readlink "/iocell/tags/${tag}" 2>/dev/null || :)
+template_tag_link=$(readlink "${IOC_TEST_ROOT}/tags/${tag}" 2>/dev/null || :)
 
 # Occupy the original UUID using a second, newly created empty fixture.
 collision_uuid=$(iocell create -e "tag=${tag}-collision")
@@ -131,7 +127,7 @@ fi
 [ "$(template_prop type)" = template ]
 [ "$(template_prop istemplate)" = yes ]
 [ "$(zfs get -H -o value jailed "${source}/data")" = on ]
-[ "$(readlink "/iocell/tags/${tag}" 2>/dev/null || :)" = \
+[ "$(readlink "${IOC_TEST_ROOT}/tags/${tag}" 2>/dev/null || :)" = \
     "${template_tag_link}" ]
 zfs rename "${dataset}" "${collision}"
 collision_moved=0

@@ -2,14 +2,13 @@
 # Opt-in native defaults checks in a new, retained file-backed pool.
 set -eu
 cd "$(dirname "$0")/.."
-[ "$(uname -s)" = FreeBSD ] && [ "$(id -u)" = 0 ] || exit 1
-: "${IOC_TEST_POOL:?Set the activated disposable test pool}"
+. ./tests/native-common.sh
+ioc_test_require_pool
 iocell () { env PATH="$PATH" sh ./iocell "$@"; }
-original=$(iocell get pool default)
-[ "$original" = "$IOC_TEST_POOL" ]
+original="$IOC_TEST_POOL"
 [ "$(jls -h jid | wc -l | tr -d ' ')" = 1 ] || exit 1
 workdir=$(mktemp -d /var/tmp/iocell-defaults-zfs.XXXXXX)
-scratch="iocdefaults$$"; activated=0
+scratch=$(ioc_test_pool_name iocdefaults); activated=0
 cleanup () {
     status=$?
     trap - EXIT

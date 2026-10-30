@@ -2,11 +2,10 @@
 # Native entrypoint checks; invalid commands must never reach stateful tools.
 set -eu
 cd "$(dirname "$0")/.."
-[ "$(uname -s)" = FreeBSD ] && [ "$(id -u)" = 0 ] || exit 1
-: "${IOC_TEST_POOL:?Set the activated disposable test pool}"
+. ./tests/native-common.sh
+ioc_test_require_pool
 : "${IOC_TEST_RELEASE:?Set a fetched test release}"
 iocell () { env PATH="$PATH" sh ./iocell "$@"; }
-[ "$(iocell get pool default)" = "$IOC_TEST_POOL" ]
 workdir=$(mktemp -d /var/tmp/iocell-cli-args.XXXXXX)
 echo "Retained CLI logs: $workdir"
 running=0
