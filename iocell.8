@@ -39,7 +39,7 @@
 \fBiocell\fP [\fB-v\fP] \fIruntime\fP UUID|TAG
 \fBiocell\fP [\fB-v\fP] \fIsend\fP [\fB-c\fP] [\fB-m\fP] [\fB-r\fP \fB-h\fP \fIHOST\fP \fB-u\fP \fIUSER\fP]
     [\fB-i\fP \fISNAP1\fP \fB-i\fP \fISNAP2\fP | \fB-I\fP \fISNAP1\fP \fB-I\fP \fISNAP2\fP] \fIPOOL\fP
-\fBiocell\fP [\fB-v\fP] \fIset\fP \fIproperty=value\fP [\fIproperty=value\fP] UUID|TAG
+\fBiocell\fP [\fB-v\fP] \fIset\fP \fIproperty=value\fP [\fIproperty=value\fP] UUID|TAG|default
 \fBiocell\fP [\fB-v\fP] \fIsnaplist\fP UUID|TAG
 \fBiocell\fP [\fB-v\fP] \fIsnapmount\fP UUID|TAG@snapshotname \fIDESTINATION\fP
 \fBiocell\fP [\fB-v\fP] \fIsnapremove\fP UUID|TAG@snapshotname|ALL
@@ -211,8 +211,10 @@ Historical chroot, record, package and show commands are not dispatched.
 .PP
 .nf
 .fam C
-    Display defaults stored in the selected pool's UCL configuration. The
-    historical set \.\.\. default setter currently fails; specify per-jail values.
+    Display defaults stored in the selected pool's UCL configuration.
+    Use set property=value default to change defaults for subsequent create
+    commands. Explicit creation properties take precedence; existing jails
+    and configurations copied by clone/import are not rewritten.
 
 .fam T
 .fi
@@ -445,8 +447,9 @@ reboot [\fB-s\fP] UUID|TAG|ALL
 .fam C
     This will reset a jail's properties back to the defaults.
 
-    It reads from the properties set on the "default" dataset. TAG, UUID and
-    generated vnet mac addresses are carried forward.
+    Historically intended to read saved defaults, but that behavior is still
+    unresolved; restoring set \.\.\. default for creation does not repair reset.
+    TAG, UUID and generated vnet mac addresses are carried forward.
 
     Those will retain their values, even if you reset the jail.
     You can also reset every jail to the default properties by using the
@@ -519,12 +522,28 @@ The received pool is not mounted if received locally, but is mounted if
 received remotely.
 .RE
 .PP
-\fIset\fP \fIproperty=value\fP [\fIproperty=value\fP] UUID|TAG
+\fIset\fP \fIproperty=value\fP [\fIproperty=value\fP] UUID|TAG|default
 .PP
 .nf
 .fam C
-    Set one or more per-jail properties. The default target setter currently
-    fails. Names and some values are validated, not every kernel combination.
+    Set one or more per-jail properties, or persist creation defaults in the
+    selected pool's .default UCL file. Example: iocell set vnet=off default.
+    Defaults apply to subsequent create commands, with explicit properties
+    taking precedence. Existing jails are unchanged.
+
+    Pool selection, generated identity/runtime fields, template selection or
+    conversion, and read-only ZFS properties are not creation defaults:
+    pool, tag, host_hostname, host_hostuuid, hostid, last_started,
+    jail_zfs_dataset, template, istemplate, origin, mountpoint, compressratio,
+    available and used. Set applicable fields explicitly per jail; select
+    pools with activate. Other native defaults, such as compression, are
+    stored in UCL and applied to newly created jail datasets, not their parent.
+
+    Unknown names, empty values and invalid on/off switches are rejected.
+    Names and some values are validated, not every kernel combination.
+    Defaults are replaced only after a successful UCL write. Multiple settings
+    are applied individually, stopping on the first failure; this is not a
+    batch transaction. Reset-to-saved-defaults behavior is not restored here.
     A benign apostrophe in notes can break argument parsing; avoid it until
     fixed. Inspect resulting configuration and kernel state.
 
@@ -745,8 +764,8 @@ ip4_addr="interface|ip-address/netmask"
     to the first available based upon the given range and already created
     jails.
 
-    The historical system-wide setter for these ranges is currently broken.
-    AUTOIP4 was not qualified by the current verification; use explicit
+    These ranges can be stored with set property=value default. AUTOIP4
+    itself was not qualified by the current verification; use explicit
     addresses or a deliberately configured/tested DHCP setup instead.
 
     For VNET jails the interface will be configured with the IP addresses

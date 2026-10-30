@@ -25,5 +25,5 @@ Treat migration as a backup/restore and compatibility exercise:
 7. Retain the original data and a rollback plan until the migration is accepted.
 
 Use full UUIDs or tags when operating on the target. Do not rely on short UUID
-lookup, the broken system-wide defaults setter, or an unverified zero exit
-status. See :doc:`basic-use`, :doc:`jailtypes` and :doc:`known-issues`.
+lookup or an unverified zero exit status. Creation defaults do not change
+existing jails. See :doc:`basic-use`, :doc:`jailtypes` and :doc:`known-issues`.

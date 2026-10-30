@@ -121,10 +121,21 @@ Set and inspect a per-jail property:
 
 ``iocell get all www02``
 
-``iocell defaults`` displays configured defaults. The documented historical
-``iocell set property=value default`` setter is currently broken, and
-``iocell get all default`` does not dump all defaults. Specify required
-properties on creation or per jail rather than relying on that setter.
+``iocell defaults`` displays configured defaults. Set defaults for subsequent
+``create`` commands with ``iocell set vnet=off default``, and inspect one with
+``iocell get vnet default``. Explicit creation properties override saved
+defaults; existing jails and cloned/imported configurations are unchanged.
+``iocell get all default`` still does not dump all defaults.
+
+Defaults are stored in the selected pool's ``.default`` UCL file. Generated
+identity/runtime fields, active-pool selection, template selection/conversion
+and read-only ZFS properties cannot be set as creation defaults; see
+``iocell help`` for the exact list. Writable native defaults such as
+``compression`` affect new jail datasets, not existing datasets or their
+parent. Invalid names, empty values, invalid on/off switches and failed UCL
+writes leave the setting unchanged. Other value validation is incomplete;
+a stored string is not proof that every kernel combination will work.
+Multiple settings are independent updates, not a batch transaction.
 
 Some property values are only partially validated. A benign apostrophe in a
 notes value currently breaks argument parsing; avoid it until the parser is

@@ -16,9 +16,15 @@ Current command limitations
 
 * **Identity:** full UUIDs and tags work. Short UUID prefixes are not reliable
   for jail lookup. Image import separately supports a unique image prefix.
-* **Defaults:** ``defaults`` displays configuration, but ``set ... default``
-  currently fails. Specify per-jail properties. ``get all default`` does not
-  dump the default configuration.
+* **Defaults:** ``set ... default`` now persists defaults inherited by later
+  ``create`` commands; explicit creation properties override them without
+  changing existing jails. Managed identity/pool/template fields and read-only
+  ZFS properties are excluded. ``get all default`` still does not dump defaults;
+  use ``defaults``. Reset-to-saved-defaults behavior remains unresolved: this
+  fix loads saved defaults only for creation, not ``reset``.
+* **Property reads:** the per-jail ``get`` path confuses a literal string
+  ``null`` with an absent property. Defaults inheritance preserves the string;
+  inspect the UCL file directly if that value is needed.
 * **Console:** start a stopped jail explicitly before ``console``. Its ``-f``
   startup path is broken; this is distinct from ``start -f`` for a template.
 * **Fetch:** the interactive release list is obsolete and can reject its own
@@ -96,8 +102,8 @@ Historical kernel notes
 Older releases had an 88-character mount-path limitation and iocell's
 ``hack88`` workaround. This is historical guidance, not evidence that a
 current host needs it. If investigating that specific issue, use a stopped
-jail and an explicit target, for example ``iocell set hack88=1 myjail``;
-do not rely on the broken system-wide default setter.
+jail and an explicit target, for example ``iocell set hack88=1 myjail``.
+Changing a creation default does not alter an existing jail.
 
 Reports of VNET teardown crashes and PF/ALTQ interactions in FreeBSD 10 are
 historical, not blanket statements about current kernels. Check the exact

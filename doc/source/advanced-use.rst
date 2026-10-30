@@ -256,8 +256,9 @@ You can also reset every jail to the default properties:
 
 Reset retains the jail's UUID, tag and generated VNET MAC addresses while
 reapplying defaults for other properties. Record and restore your custom
-settings as needed. The historical ``set PROPERTY=value default`` setter is
-currently broken, so do not rely on it to prepare reset behavior.
+settings as needed. ``set PROPERTY=value default`` now saves creation defaults,
+but reset-to-saved-defaults behavior is still unresolved. Do not assume that
+``reset`` reapplies the saved creation defaults; this fix changes only creation.
 
 Replication and moves
 ---------------------

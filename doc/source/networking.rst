@@ -42,8 +42,10 @@ management address as a jail alias.
 
 ``allow_raw_sockets=1`` permits operations such as ping when appropriate to
 your security policy. It is not a substitute for routes or firewall rules.
-The system-wide ``set ... default`` setter is currently broken: specify
-network properties on creation or per jail.
+Use ``iocell set vnet=off default`` to make shared-IP mode the default for
+subsequent ``create`` commands. Explicit creation properties override saved
+defaults. Existing jails need an explicit per-jail setting and any required
+restart; changing a creation default does not reconfigure their networking.
 
 VNET
 ----

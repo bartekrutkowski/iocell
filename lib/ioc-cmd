@@ -37,6 +37,7 @@ __parse_cmd () {
                         exit
                 ;;
             create)     local _tag _hostname _ip4if _ip4addr _ip4subnet _ip4ip
+                        __load_create_defaults || exit $?
                         __export_props "$@"
                         _hostname="${host_hostname}"
                         _tag="${tag}"
@@ -243,8 +244,15 @@ __parse_cmd () {
                         while [ "${_i}" -lt "${_njails}" ] ; do
                             _var=\$$(printf "_jail_${_i}")
                             _jail=$(eval "echo ${_var}")
-                            _dataset=$(__find_jail ${_jail}) || exit $?
-                            _fulluuid="$(__check_name ${_jail} ${_dataset})"
+                            if [ "${_jail}" = default ] ; then
+                                if [ "${_nprops}" -eq 0 ] ; then
+                                    __die "please specify a property!"
+                                fi
+                                _fulluuid=default
+                            else
+                                _dataset=$(__find_jail ${_jail}) || exit $?
+                                _fulluuid="$(__check_name ${_jail} ${_dataset})"
+                            fi
                             _j=0
 
                             while [ "${_j}" -lt "${_nprops}" ] ; do
@@ -253,8 +261,12 @@ __parse_cmd () {
                                 _pname=$(echo "${_prop}" | cut -f1 -d'=' -s)
                                 _pval=$(echo "${_prop}" | cut -f2 -d'=' -s)
 
-                                __set_jail_prop "${_pname}=${_pval}" \
-                                    "${_fulluuid}" || exit $?
+                                if [ "${_jail}" = default ] ; then
+                                    __set_jail_prop "${_prop}" default || exit $?
+                                else
+                                    __set_jail_prop "${_pname}=${_pval}" \
+                                        "${_fulluuid}" || exit $?
+                                fi
                                 _j=$((_j + 1))
                             done
 

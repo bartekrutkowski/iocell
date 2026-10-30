@@ -13,11 +13,85 @@ __export_props () {
         fi
     done
 
-    if [ "$tag" == 'default' ] && ([ "$1" != 'set' ] || [ "$1" != 'get' ]); then
+    if [ "$tag" = 'default' ] && ([ "$1" != 'set' ] || [ "$1" != 'get' ]); then
         tag=$(date "+%F@%T")
         echo "  WARNING: tag value \"default\" is a reserved keyword" >&2
         echo "           tag was changed to: $tag" >&2
     fi
+}
+
+# Defaults are configuration, never a jail or a parent ZFS dataset.
+__default_property_allowed () {
+    case "$1" in
+        pool|tag|host_hostname|host_hostuuid|hostid|last_started|\
+        jail_zfs_dataset|istemplate|template|\
+        origin|mountpoint|compressratio|available|used) return 1 ;;
+    esac
+    return 0
+}
+
+__set_default_prop () {
+    local _property _pname _pval _tmp _status
+
+    _property="$1"
+    case "${_property}" in
+        *=*) _pname="${_property%%=*}"; _pval="${_property#*=}" ;;
+        *) __error "set failed, incorrect property syntax!"; return 1 ;;
+    esac
+    if [ -z "${_pname}" ] || [ -z "${_pval}" ] ; then
+        __error "set failed, incorrect property syntax!"
+        return 1
+    fi
+    __validate_pname "${_pname}" ""
+    if ! __default_property_allowed "${_pname}" ; then
+        __error "${_pname} is managed or read-only; not a creation default"
+        return 1
+    fi
+    case "${_pname}" in
+        vnet|bpf|dhcp|boot|jail_zfs|rlimits|createbridge|keepbridge)
+            case "${_pval}" in
+                on|off) ;;
+                *) __error "${_pname} must be on or off"; return 1 ;;
+            esac
+            ;;
+    esac
+    case "${iocroot}" in
+        /*) ;;
+        *) __error "invalid defaults directory"; return 1 ;;
+    esac
+    if [ "${iocroot}" = / ] || [ ! -f "${iocroot}/.default" ] ; then
+        __error "missing or invalid defaults configuration"
+        return 1
+    fi
+
+    # Prepare a separate file; parse/write failures must retain the original.
+    _tmp=$(mktemp "${iocroot}/.default.XXXXXX") || return $?
+    if cp -p "${iocroot}/.default" "${_tmp}" &&
+        uclcmd set -u -f "${_tmp}" -t string -- "${_pname}" "${_pval}" &&
+        mv -f "${_tmp}" "${iocroot}/.default" ; then
+        return 0
+    else
+        _status=$?
+        rm -f "${_tmp}"
+        return "${_status}"
+    fi
+}
+
+# Load before explicit create arguments, not during reads or existing-jail edits.
+__load_create_defaults () {
+    local _prop _value _raw
+
+    for _prop in ${CONF_NET} ${CONF_JAIL} ${CONF_RCTL} ${CONF_CUSTOM} \
+        ${CONF_SYNC} ${CONF_FTP} ${CONF_GIT} ${CONF_ZFS} ; do
+        __default_property_allowed "${_prop}" || continue
+        _value=$(uclcmd get -qf "${iocroot}/.default" "${_prop}") || return $?
+        if [ "${_value}" = null ] ; then
+            # A literal string "null" is not a missing UCL property.
+            _raw=$(uclcmd get -f "${iocroot}/.default" "${_prop}") || return $?
+            [ "${_raw}" != null ] || continue
+        fi
+        export "${_prop}=${_value}"
+    done
 }
 
 # Set properties ------------------------------------------------------
@@ -34,6 +108,11 @@ __set_jail_prop () {
 
     if [ -z "${_name}" -o -z "${_property}" ] ; then
         __die "missing property or UUID!"
+    fi
+
+    if [ "${_name}" = default ] ; then
+        __set_default_prop "${_property}"
+        return $?
     fi
 
     # Avoid having a stale list when called.

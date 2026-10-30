@@ -14,10 +14,15 @@ sh tests/template-forward-safety.sh
 sh tests/clean-template-safety.sh
 sh tests/destroy-guard-safety.sh
 sh tests/import.sh
+sh tests/defaults.sh
 ```
 
 These execute the real shell functions with mocked ZFS/system calls. They do
-not require FreeBSD, root, or a ZFS pool. The import test covers successful
+not require FreeBSD, root, or a ZFS pool. The defaults test needs Python 3 for
+its external UCL boundary double. It covers persistence, creation inheritance,
+explicit overrides, literal none/null values, fresh identities, invalid input,
+and parser/write/rename failures without touching existing jails.
+The import test covers successful
 full/prefix selection, corrupt/truncated receives, preserved diagnostics and
 partial data, existing targets, missing images and ambiguous selection.
 The clone test covers explicit and
@@ -31,6 +36,25 @@ Safety tests additionally cover fresh full-send snapshots, every pipeline stage
 (including both buffers), activation failures, source identity across moves,
 read-only discovery, legacy-config preservation, forward conversion failures,
 invalid config paths, cleanup races and propagation of dependency-query errors.
+
+## Real-ZFS defaults integration test
+
+On a disposable FreeBSD VM, stop all jails and opt in using the activated test
+pool. Root, real `uclcmd`, ZFS and normal iocell dependencies are required:
+
+```sh
+IOC_TEST_POOL=YOUR_TEST_POOL sh tests/defaults-zfs.sh
+```
+
+This creates a uniquely named 512 MiB file-backed pool, temporarily activates it
+and restores the original activation on exit. Logs, vdev, pool and fixtures are
+retained. No release download or jail startup is needed. Independent CLI
+invocations verify persistence/display, inherited and overridden properties,
+fresh UUIDs/hostnames, native compression, creation-count defaults, literal
+none/zero/null values, default-file permissions and rejection/error propagation.
+Existing config bytes, data, GUIDs and active-pool identity are checked. The
+native UCL parser and an injected writer failure both leave originals intact.
+This does not qualify arbitrary property combinations or reset-to-saved-defaults.
 
 ## Real-ZFS import integration test
 

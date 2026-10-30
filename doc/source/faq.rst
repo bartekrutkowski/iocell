@@ -59,7 +59,9 @@ FAQ
 
 **Where is configuration stored?**
     In UCL files under the selected iocell dataset, plus native ZFS properties.
-    ``defaults`` displays defaults; the system-wide setter is currently broken.
+    ``defaults`` displays defaults. ``set property=value default`` saves
+    creation defaults; explicit create properties override them. Existing
+    jails are not rewritten. See :doc:`basic-use` for managed-field exclusions.
 
 **Can I run without a ZFS pool?**
     No. The host OS itself need not be installed on ZFS, but iocell requires a
