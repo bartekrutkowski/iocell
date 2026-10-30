@@ -29,9 +29,12 @@ Current command limitations
   it does not clear a native pool discovery comment. Do not interpret it as
   disabling jails or erasing data. Removing a ZFS dataset is a separate,
   destructive operator decision.
-* **Imports:** extra property operands are ignored by the dispatcher. Set
-  properties after a verified import. A malformed stream can print a receive
-  error followed by success; inspect native datasets, config and content.
+* **Imports:** extra property operands are not applied to ordinary ZFS-stream
+  imports; set properties separately after verifying the restored data. Raw
+  receive failures now return nonzero without success output, preserving the
+  image and leaving any received datasets for inspection. Inspect partial
+  namespaces before retrying. Legacy thick-jail archive handling is separate
+  and was not changed by this error-propagation fix.
 * **Image format:** ordinary exports are raw recursive ZFS streams in
   ``/iocell/images``, not necessarily a compressed archive plus checksum file.
   Legacy thick-jail archive import has a separate checksum path. Do not

@@ -13,10 +13,14 @@ sh tests/discovery-safety.sh
 sh tests/template-forward-safety.sh
 sh tests/clean-template-safety.sh
 sh tests/destroy-guard-safety.sh
+sh tests/import.sh
 ```
 
 These execute the real shell functions with mocked ZFS/system calls. They do
-not require FreeBSD, root, or a ZFS pool. The clone test covers explicit and
+not require FreeBSD, root, or a ZFS pool. The import test covers successful
+full/prefix selection, corrupt/truncated receives, preserved diagnostics and
+partial data, existing targets, missing images and ambiguous selection.
+The clone test covers explicit and
 automatic snapshot names and rejects source snapshot renaming. The rollback
 test covers target selection, snapshot preflight, running jails, and error
 propagation. Package tests cover list parsing, first-error propagation, release
@@ -27,6 +31,28 @@ Safety tests additionally cover fresh full-send snapshots, every pipeline stage
 (including both buffers), activation failures, source identity across moves,
 read-only discovery, legacy-config preservation, forward conversion failures,
 invalid config paths, cleanup races and propagation of dependency-query errors.
+
+## Real-ZFS import integration test
+
+On the disposable FreeBSD host, use an activated test pool and a fetched release:
+
+```sh
+IOC_TEST_POOL=YOUR_TEST_POOL IOC_TEST_RELEASE=15.1-RELEASE \
+    sh tests/import-zfs.sh
+```
+
+This creates a filesystem-only fixture with real config, random data and a
+recursive snapshot/stream. It verifies valid full/short image imports, native
+corrupt/truncated stream rejection, diagnostic/exit propagation, original image
+integrity, and protection of existing full/prefix-selected targets. A receive
+that completes writing data and then reports failure must return that failure
+without destroying the received data. Contents, exact config bytes, filesystem
+and snapshot GUIDs are checked as appropriate.
+
+Only this run's fixture is explicitly reset between cases, after recording any
+partial receive state. The importer itself must not automatically destroy a
+partial target. Logs, input images and the final restored jail are retained.
+Legacy thick-jail archive error handling is not covered by this stream fix.
 
 ## Real-ZFS rollback integration test
 

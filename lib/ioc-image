@@ -54,7 +54,7 @@ __import_old_thickjails () {
 
 __import () {
     local _name _fulluuid _tag _image _icount _irelease _idate _jail_release \
-          _spinner _date _dataset
+          _spinner _date _dataset _spinner_pid _status
 
     _name="${1}"
 
@@ -122,9 +122,22 @@ __import () {
             sleep .1
         done &
 
-        trap "kill $!" 2 3
-        zfs recv -d "${pool}" < "${_image}"
-        printf "\b%1s\n" "done!" ; kill $! && trap " " 2 3
+        _spinner_pid=$!
+        trap 'kill "${_spinner_pid}" 2>/dev/null' 2 3
+        _status=0
+        zfs recv -d "${pool}" < "${_image}" || _status=$?
+        kill "${_spinner_pid}" 2>/dev/null || :
+        wait "${_spinner_pid}" 2>/dev/null || :
+        trap - 2 3
+
+        if [ "${_status}" -ne 0 ] ; then
+            __error "import failed; image retained. Inspect any partially" \
+                "received datasets before retrying."
+            return "${_status}"
+        fi
+
+        printf "\b%1s\n" "done!"
+        return 0
     fi
 }
 

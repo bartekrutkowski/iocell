@@ -23,8 +23,15 @@ its required release, then select it by full UUID or a unique image prefix:
 ``iocell import FULL_IMAGE_UUID``
 
 Verify native datasets, properties and content before setting per-jail
-properties or starting it. Extra properties on the import command are ignored;
-use a separate verified ``set`` afterward. Malformed stream input can report a
-receive error followed by success, so exit status alone is not proof of import.
-Legacy thick-jail archives have a separate import/checksum path and were not
-all qualified by the current tests. See :doc:`known-issues`.
+properties or starting it. Extra properties are not applied to ordinary stream
+imports; use a separate verified ``set`` afterward. A raw ZFS receive error
+returns nonzero, keeps diagnostics and does not print success. The input image
+is retained, and the importer does not automatically destroy received datasets.
+ZFS itself may roll back an incomplete receive; inspect any remaining partial
+namespace before retrying rather than blindly removing an existing jail.
+
+Valid full-UUID/unique-prefix images, corrupt and truncated streams, existing
+jail protection and a receive reporting failure after writing real data have
+native regression coverage. Legacy thick-jail archives have a separate
+import/checksum path; their error handling was not changed by this fix and
+not all archive formats were qualified. See :doc:`known-issues`.

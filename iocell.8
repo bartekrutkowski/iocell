@@ -338,8 +338,11 @@ Example: \fBiocell\fP \fIfetch\fP release=15.1-RELEASE ftplocaldir=/path/to/dist
     first. Ordinary ZFS-stream import differs from legacy thick-jail archive
     import and does not universally verify SHA256 sidecars. Extra property
     operands are ignored: verify the import, then use a separate set command.
-    Malformed streams can print a receive error followed by success. Inspect
-    actual datasets, configuration and content before starting the jail.
+    Ordinary ZFS receive failures return nonzero, retain diagnostics and do
+    not print success. The image is retained; any received datasets are left
+    for inspection, not automatically destroyed. Inspect partial state before
+    retrying. Legacy thick-jail archive error handling is a separate path.
+    Verify actual configuration and content before starting a restored jail.
 
 .fam T
 .fi
