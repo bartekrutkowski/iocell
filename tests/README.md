@@ -19,6 +19,7 @@ sh tests/defaults.sh
 sh tests/cli-args.sh
 sh tests/native-test-guard.sh
 sh tests/set-values.sh
+sh tests/console-force.sh
 ```
 
 These execute the real shell functions with mocked ZFS/system calls. They do
@@ -92,6 +93,21 @@ cleanup stops its jail if a test fails. Existing jails/datasets are not deleted.
 
 This is CLI syntax coverage, not full property/kernel validation or a promise
 of atomic multi-target commands. Real SSH/send data-path tests are below.
+
+## Forced console startup
+
+`console-force.sh` checks the resolved identity, no redundant start for a
+running jail, and no login after a failed start.
+
+```sh
+IOC_TEST_POOL=YOUR_TEST_POOL IOC_TEST_RELEASE=15.1-RELEASE \
+    sh tests/console-force-zfs.sh
+```
+
+The native fixture starts through the real `console -f` path. Only interactive
+login is replaced; the wrapper requires that its kernel jail actually exists.
+A second console invocation must retain the same jail ID. Cleanup stops the
+fixture and retains its datasets and logs.
 
 ## Literal property-value tests
 

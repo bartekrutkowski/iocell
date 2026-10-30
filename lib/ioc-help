@@ -140,9 +140,9 @@ SUBCOMMANDS
 
   console [-f] UUID|TAG
 
-    Execute login to have a shell inside the jail. If the -f flag is specified,
-    its stopped-jail startup path currently fails. Start the jail explicitly
-    before using the normal console command.
+    Execute login to open a shell inside the jail. With -f, start a stopped
+    jail first; if startup fails, return the error without attempting login.
+    An already running jail is not restarted.
 
   create [-e] [release=RELEASE] [pkglist=file] [property=value] [count=value]
 

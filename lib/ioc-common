@@ -530,8 +530,8 @@ __console () {
     if [ "${_state}" ] ; then
         ${_jexec} ioc-${_fulluuid} login ${_login_flags}
     elif [ "${_force}" = "1" ] ; then
-        __start_jail "${_jail}"
-       ${_jexec} ioc-${_fulluuid} login ${_login_flags}
+        __start_jail "${_fulluuid}" || return $?
+        ${_jexec} ioc-${_fulluuid} login ${_login_flags}
     else
         __die "jail: ${_name} is not running!"
     fi

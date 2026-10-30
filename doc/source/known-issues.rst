@@ -25,8 +25,6 @@ Current command limitations
 * **Property reads:** the per-jail ``get`` path confuses a literal string
   ``null`` with an absent property. Defaults inheritance preserves the string;
   inspect the UCL file directly if that value is needed.
-* **Console:** start a stopped jail explicitly before ``console``. Its ``-f``
-  startup path is broken; this is distinct from ``start -f`` for a template.
 * **Fetch:** the interactive release list is obsolete and can reject its own
   default. Specify ``release=...`` and an appropriate mirror/path explicitly.
   Legacy ports ``-p``/``-P`` depend on unavailable tooling on the verified

@@ -100,8 +100,9 @@ Console and commands
 --------------------
 
 ``iocell console www01`` opens a shell in an already running jail.
-``console -f`` has a known stopped-jail startup defect; start the jail explicitly
-first. To run a command without an interactive console:
+``iocell console -f www01`` starts it first if stopped, then opens the console.
+A failed startup returns an error without attempting login. To run a command
+without an interactive console:
 
 ``iocell exec www01 /bin/sh -c 'echo ready'``
 
