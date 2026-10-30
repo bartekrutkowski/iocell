@@ -10,6 +10,7 @@ sh tests/create-pkg.sh
 sh tests/template-toggle.sh
 sh tests/send-safety.sh
 sh tests/discovery-safety.sh
+sh tests/bulk-jails.sh
 sh tests/template-forward-safety.sh
 sh tests/clean-template-safety.sh
 sh tests/destroy-guard-safety.sh
@@ -88,6 +89,24 @@ cleanup stops its jail if a test fails. Existing jails/datasets are not deleted.
 
 This is CLI syntax coverage, not full property/kernel validation or a promise
 of atomic multi-target commands. Real SSH/send data-path tests are below.
+
+## Real-ZFS discovery and bulk lifecycle test
+
+With the authorization above and a fetched release:
+
+```sh
+IOC_TEST_POOL=YOUR_TEST_POOL IOC_TEST_RELEASE=15.1-RELEASE \
+    sh tests/discovery-zfs.sh
+```
+
+It verifies actual legacy migration preserves native quota/compression, string
+values and data; a failed UCL write publishes no partial config and can be
+retried. Unconfigured identities remain visible without invented metadata.
+A new unconfigured kernel jail and a real basejail exercise `stop ALL`: the
+former is reported/skipped, the later valid jail stops, and the command returns
+failure. Cleanup removes the temporary kernel jail; datasets/logs are retained.
+Portable bulk tests cover start/stop/reboot/restart continuation and enumeration
+failures without relying on pipelines that can hide discovery status.
 
 ## Real-ZFS clone integration test
 

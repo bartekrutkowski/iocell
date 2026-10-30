@@ -1,5 +1,10 @@
 #!/bin/sh
 
+__is_jail_uuid () {
+    printf '%s\n' "$1" | grep -Eq \
+        '^[[:xdigit:]]{8}(-[[:xdigit:]]{4}){3}-[[:xdigit:]]{12}$'
+}
+
 # Export every property specified on command line ----------------------
 __export_props () {
     local _pname
@@ -114,11 +119,6 @@ __set_jail_prop () {
         __set_default_prop "${_property}"
         return $?
     fi
-
-    # Avoid having a stale list when called.
-    export jail_datasets="$(zfs list -d3 -rH -o name ${pool}/iocell \
-        | egrep -v \
-        "jails$|releases$|templates$|download|${pool}/iocell$|/root$")"
 
     if [ "$3" ] ; then
         _dataset="$3"

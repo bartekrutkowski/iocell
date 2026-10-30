@@ -2,7 +2,7 @@
 
 # Configure properties -------------------------------------------------
 __configure_jail () {
-    local _value _CONF _fulluuid _dataset _prop _prop_name
+    local _value _CONF _fulluuid _dataset _prop _prop_name _mountpoint
 
     _CONF="$CONF_NET
            $CONF_JAIL

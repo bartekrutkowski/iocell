@@ -687,75 +687,46 @@ __stop_jail () {
     fi
 }
 
-__stop_jail_all () {
-    local _jails _state
-    _jails=$(__find_jail ALL | \
-            awk 'BEGIN { FS = "/" } ; { if (length($NF)==36) { print }}')
-
-    for _jail in ${_jails} ; do
-        # _jail is actually a dataset, so fulluuid needs to be faked.
-        _juuid="$(__check_name "name" ${_jail} 2> /dev/null)"
-        _state="$(__is_running ${_juuid} ; echo $?)"
-        if [ "${_state}" != "0" ] ; then
-            __stop_jail ${_juuid}
-        fi
-    done
-    return $?
-}
-
-__start_jail_all () {
-    local _jails _juuid _jtag _state
-    _jails=$(__find_jail ALL | \
-            awk 'BEGIN { FS = "/" } ; { if (length($NF)==36) { print }}')
-
-    for _jail in ${_jails} ; do
-        # _jail is actually a dataset, so fulluuid needs to be faked.
-        _juuid="$(__check_name "name" ${_jail} 2> /dev/null)"
-        _state="$(__is_running ${_juuid} ; echo $?)"
-        if [ "${_state}" != "1" ] ; then
-            __start_jail ${_juuid}
-        fi
-    done
-    return $?
-}
-
-__reboot_jail_all () {
-    local _jails _juuid _jtag _state
-    _jails=$(__find_jail ALL | \
-            awk 'BEGIN { FS = "/" } ; { if (length($NF)==36) { print }}')
-
-    for _jail in ${_jails} ; do
-        # _jail is actually a dataset, so fulluuid needs to be faked.
-        _juuid="$(__check_name "name" ${_jail} 2> /dev/null)"
-        _jtag=$(__get_jail_prop tag ${_jail})
-        _state="$(__is_running ${_juuid} ; echo $?)"
-        if [ "${_state}" != "0" ] ; then
-            __reboot_jail ${_juuid}
+__jails_action_all () {
+    local _action _jails _dataset _uuid _running _mountpoint _stored _status _failure
+    _action="$1"; _status=0
+    _jails=$(__find_jail ALL) || return $?
+    for _dataset in ${_jails} ; do
+        _uuid="${_dataset##*/}"
+        [ "${_dataset}" = "${pool}/iocell/jails/${_uuid}" ] || continue
+        __is_jail_uuid "${_uuid}" || continue
+        _running=$(__is_running "${_uuid}")
+        if [ "${_action}" = start ] ; then
+            [ -z "${_running}" ] || continue
         else
-            __info "${_jtag} is not running." >&2
+            [ -n "${_running}" ] || continue
         fi
-    done
-    return $?
-}
-
-__restart_jail_all () {
-    local _jails _juuid _jtag _state
-    _jails=$(__find_jail ALL | \
-            awk 'BEGIN { FS = "/" } ; { if (length($NF)==36) { print }}')
-
-    for _jail in ${_jails} ; do
-        # _jail is actually a dataset, so fulluuid needs to be faked.
-        _juuid="$(__check_name "name" ${_jail} 2> /dev/null)"
-        _jtag=$(__get_jail_prop tag ${_jail})
-        _state="$(__is_running ${_juuid} ; echo $?)"
-        if [ "${_state}" != "0" ] ; then
-                __restart_jail ${_juuid}
+        _mountpoint=$(zfs get -H -o value mountpoint "${_dataset}") || {
+            __error "cannot ${_action}: unreadable mountpoint for ${_dataset}"
+            [ "${_status}" -ne 0 ] || _status=1
+            continue
+        }
+        _stored=$(uclcmd get -qf "${_mountpoint}/config" host_hostuuid 2>/dev/null) || _stored=''
+        if [ "${_stored}" != "${_uuid}" ] ; then
+            __error "cannot ${_action} ${_uuid}: missing or invalid configuration"
+            [ "${_status}" -ne 0 ] || _status=1
+            continue
+        fi
+        # Legacy backends may exit. Isolate each failure and process the rest.
+        if ( "__${_action}_jail" "${_uuid}" ) ; then :
         else
-            __info "${_jtag} is not running." >&2
+            _failure=$?
+            __error "${_action} failed for ${_uuid} (status ${_failure})"
+            [ "${_status}" -ne 0 ] || _status="${_failure}"
         fi
     done
-    return $?
+    return "${_status}"
 }
+
+__stop_jail_all () { __jails_action_all stop; }
+__start_jail_all () { __jails_action_all start; }
+__reboot_jail_all () { __jails_action_all reboot; }
+__restart_jail_all () { __jails_action_all restart; }
 
 # Soft restart
 __restart_jail () {

@@ -248,15 +248,10 @@ __deactivate () {
 # Accepts two arguments. Which is used as the UUID for the umount operations
 # and what release to use.
 __migrate_basejail () {
-    local _bfs_list _fulluuid _release _basedir_list _spinner _oldtemplate \
-          _grepstring _jail_type _clone_check _ofulluuid _orelease _error
+    local _bfs_list _fulluuid _release _basedir_list _spinner _oldtemplate _error
 
     _fulluuid="$1"
-    _ofulluuid="${_fulluuid}"
     _release="$2"
-    _orelease="${_release}"
-    _grepstring="jails$|base|releases|templates$|download|${pool}/iocell$"
-    _grepstring="${_grepstring}|/data$|/root$"
     _bfs_list="bin
                boot
                lib
@@ -361,29 +356,9 @@ __migrate_basejail () {
     _oldtemplate="$(__get_jail_prop template ${_fulluuid} \
         ${pool}/iocell/jails/${_fulluuid})"
 
-    _jail_datasets="$(zfs list -d3 -rH -o name "${pool}/iocell" \
-        | egrep -v "${_grepstring}")"
+    # Discovery owns legacy config migration. Do not scan unrelated datasets
+    # here, after the selected jail's old layout has already been changed.
 
-    for _jail in ${_jail_datasets} ; do
-        _mountpoint="$(zfs get -H -o value mountpoint "${_jail}")"
-
-        if [ ! -e "${_mountpoint}/config" ] ; then
-            _juuid="$(echo "${_jail}" | cut -d / -f 4)"
-            __dump_config "${_juuid}"
-            _clone_check=$(zfs get -H origin "${_jail}" | awk '{print $3}')
-            _jail_type=$(__get_jail_prop type "${_juuid}" "${_jail}")
-            if [ "${_jail_type}" = "jail" ] ; then
-                # Check for thick or clone jails and migrate their type
-                if [ "${_clone_check}" != "-" ] ; then
-                    __set_jail_prop type=clonejail "${_juuid}" "${_jail}"
-                fi
-            fi
-        fi
-    done
-
-    # These get mangled from above.
-    _fulluuid="${_ofulluuid}"
-    _release="${_orelease}"
     _mountpoint=$(__get_jail_prop mountpoint "${_fulluuid}" \
         "${pool}/iocell/jails/${_fulluuid}")
     # Normally we'd use __set_jail_prop but these are special properties that
@@ -1067,11 +1042,6 @@ __check_filesystems () {
     if [ ${_missing} -gt 0 ] ; then
         zfs mount -a
     fi
-
-    # shellcheck disable=SC2155
-    export jail_datasets=$(zfs list -d3 -rH -o name "${pool}/iocell" \
-        | egrep -v \
-        "jails$|releases$|templates$|download|${pool}/iocell$|/root$")
 
     # Checks to see if the user changed the altroot and modify ioc-globals
     # If the user decided to unset their altroot, they need to run again as
@@ -1758,70 +1728,47 @@ __send () {
 }
 
 # Accepts one argument, and that is the UUID to match everything.
-__dump_config () {
-    local _fulluuid _dataset _config _mountpoint
-
+__dump_config () (
+    local _fulluuid _dataset _mountpoint _legacy_uuid _properties _stage
+    local _prop _value host_hostuuid host_hostname jail_zfs_dataset CONF_ZFS
     _fulluuid="$1"
-    if ! printf '%s\n' "${_fulluuid}" | grep -Eq \
-        '^[[:xdigit:]]{8}(-[[:xdigit:]]{4}){3}-[[:xdigit:]]{12}$' ; then
-        __die "invalid jail UUID for configuration migration"
+    if ! __is_jail_uuid "${_fulluuid}" ; then
+        __error "invalid jail UUID for configuration migration"
+        return 1
     fi
     _dataset="${pool}/iocell/jails/${_fulluuid}"
     _mountpoint=$(zfs get -H -o value mountpoint "${_dataset}") || return $?
     case "${_mountpoint}" in
-        ''|/|none|legacy|-) __die "invalid jail mountpoint for migration" ;;
+        ''|/|none|legacy|-) __error "invalid jail mountpoint for migration"; return 1 ;;
     esac
     [ -d "${_mountpoint}" ] || return 1
-    # Only missing legacy configuration is eligible for generation.
     [ ! -e "${_mountpoint}/config" ] || return 0
-    # shellcheck disable=SC1004
-    _config=$(zfs get -H -o property,value all \
-        "${_dataset}" | awk -v dq='"' '/org.freebsd.iocell/ \
-        { $2=dq$2; sub(" "," VALUE ",$0); \
-        sub("org.freebsd.iocell:","PROP ",$1); print $0dq }')
-    _v="no"
-    _p="no"
-
-    touch "${_mountpoint}/config"
-    __configure_jail generate "${_fulluuid}" "${_dataset}" "${_mountpoint}"
-
-    for _conf in ${_config} ; do
-        if [ "${_conf}" = "PROP" ] ; then
-            _p="yes"
-            _v="no"
-            unset _value
-            continue
-        fi
-
-        if [ "${_conf}" = "VALUE" ] ; then
-            _v="yes"
-            continue
-        fi
-
-        if [ "${_p}" = "yes" ] ; then
-            _prop="${_conf}"
-            _p="no"
-            continue
-        elif [ "${_v}" = "yes" ] ; then
-            if [ ! -z "${_value}" ] ; then
-                _value="${_value} ${_conf}"
-            else
-                _value="${_conf}"
-            fi
-
-            if ! echo "${_value}" | egrep -q '"$' ; then
-                continue
-            fi
-        fi
-
-        # Old jails had an invalid duplicate property for host_hostname.
-        if [ "${_prop}" = "hostname" ] ; then
-            continue
-        fi
-
-        eval __ucl_set "${_mountpoint}" "${_prop}" "${_value}" "1"
-    done
-}
+    _legacy_uuid=$(zfs get -H -o value org.freebsd.iocell:host_hostuuid \
+        "${_dataset}") || return $?
+    if [ "${_legacy_uuid}" != "${_fulluuid}" ] ; then
+        __error "missing configuration: ${_dataset}; no matching legacy identity"
+        return 1
+    fi
+    _properties=$(zfs get -H -o property,value all "${_dataset}") || return $?
+    _stage=$(mktemp -d "${_mountpoint}/.ioc-config.XXXXXX") || return $?
+    trap 'rm -rf "${_stage}"' EXIT
+    touch "${_stage}/config" || return $?
+    # Generate metadata, not replacement native quotas/compression settings.
+    CONF_ZFS=''; host_hostuuid="${_fulluuid}"; host_hostname="${_fulluuid}"
+    jail_zfs_dataset="iocell/jails/${_fulluuid}/data"
+    __configure_jail generate "${_fulluuid}" "${_dataset}" "${_stage}" || return $?
+    printf '%s\n' "${_properties}" | while IFS="$(printf '\t')" read -r _prop _value ; do
+        case "${_prop}" in
+            org.freebsd.iocell:*) _prop="${_prop#org.freebsd.iocell:}" ;;
+            *) continue ;;
+        esac
+        # The test marker is not jail configuration. hostname is a legacy typo.
+        case "${_prop}" in hostname|test) continue ;; esac
+        __ucl_set "${_stage}" "${_prop}" "${_value}" 1 || exit $?
+    done || return $?
+    # Atomic no-clobber publication on the same filesystem.
+    ln "${_stage}/config" "${_mountpoint}/config"
+)
 
 # Add the poolname to ZFS datasets that live under iocell/jails --------------
 __zfs_dataset_add_poolname () {
