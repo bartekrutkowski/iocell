@@ -26,7 +26,8 @@ __set_jail_prop () {
           _type _state _tag _release _jail_type _jail_zfs_mountpoint \
           _jail_zfs_datasets _old_mountpoint _tmp_mountpoint _zfs_dataset \
           _parent _release_tag _jid _jailed_dataset _jailed_dataset_check \
-          _jail_zfs _jail_datasets
+          _jail_zfs _jail_datasets _newuuid _template_tag _jailed_state \
+          _status _fs _origin _uuid
 
     _name="$2"
     _property="$1"
@@ -175,83 +176,103 @@ __set_jail_prop () {
                         "- jail is running!"
                 fi
 
-                _jailed_dataset=$(__get_jail_prop jail_zfs_dataset \
-                    "${_fulluuid}" "${_dataset}")
-                _jailed_dataset_check="$(zfs get -H creation ${_jailed_dataset} > \
-                                       /dev/null 2>&1 ; echo $?)"
-
-                # Check to see if the user has the old style of jailed datasets
-                if [ "${_jailed_dataset_check}" = "0" ] ; then
-                    zfs set jailed=off "${_jailed_dataset}"
+                _tag="$(__get_jail_prop tag "${_fulluuid}" "${_dataset}")" \
+                    || return $?
+                if ! printf '%s\n' "${_tag}" | grep -Eq \
+                    '^[[:alnum:]_][[:alnum:]_.:-]*$' ; then
+                    __die "tag is not a safe template dataset name; retag first"
                 fi
-
-                __check_children "${_fulluuid}" "${_dataset}"
-
-                if [ "$?" -eq 1 ] ; then
-                    #shellcheck disable=SC2154
-                    if [ "${migrate}" = "yes" ] ; then
-                        return 1
-                    fi
-
-                    #shellcheck disable=SC2154
-                    echo "${error}"
-                    return 1
-                fi
-
-                __unlink_tag "${_dataset}"
-                _tag="$(__get_jail_prop tag ${_fulluuid} ${_dataset})"
-                _release="$(__get_jail_prop release ${_fulluuid} ${_dataset})"
-
-                __set_jail_prop type="template" "${_fulluuid}" "${_dataset}"
-
-                if [ -d "${iocroot}/jails/${_fulluuid}" ] ; then
-                    # __spinner needs to be recreated here as we use
-                    # multiple commands
-                    _spinner='/-\|'
-                    printf "  INFO: converting ${_tag} to a template:  "
-
-                    while true; do
-                        printf '\b%.1s' "${_spinner}"
-                        _spinner=${_spinner#?}${_spinner%???}
-                        sleep .1
-                        done &
-
-                        trap "kill $!" 2 3
-                        # Creating jail's /root in it's new home
-                        zfs rename -f \
-                            "${pool}/iocell/jails/${_fulluuid}" \
-                            "${pool}/iocell/templates/${_tag}"
-                        _dataset="${pool}/iocell/templates/${_tag}"
-                        _jailed_dataset="${pool}/iocell/templates/${_tag}/data"
-                        # Check to see if the user has the old style of jailed datasets
-                        if [ "${_jailed_dataset_check}" = "0" ] ; then
-                            zfs set jailed=on "${_jailed_dataset}"
-                        fi
-                        printf "\b%1s\n" "done!" ; kill $! && trap " " 2 3
-                else
+                if [ "${_dataset}" != \
+                    "${pool}/iocell/jails/${_fulluuid}" ] ; then
                     __die "${_tag} is already a template"
                 fi
+                if zfs get -H creation "${pool}/iocell/templates/${_tag}" \
+                    >/dev/null 2>&1 ; then
+                    __die "template destination already exists: ${_tag}"
+                fi
+                _old_mountpoint="$(__get_jail_prop mountpoint \
+                    "${_fulluuid}" "${_dataset}")" || return $?
+                __check_children "${_fulluuid}" "${_dataset}" || {
+                    _status=$?
+                    [ -z "${error}" ] || __error "${error}"
+                    return "${_status}"
+                }
+
+                _jailed_dataset="${_dataset}/data"
+                _jailed_dataset_check="$(zfs get -H creation \
+                    "${_jailed_dataset}" >/dev/null 2>&1; echo $?)"
+                _jailed_state=off
+                if [ "${_jailed_dataset_check}" = 0 ] ; then
+                    _jailed_state=$(zfs get -H -o value jailed \
+                        "${_jailed_dataset}") || return $?
+                    if [ "${_jailed_state}" = on ] ; then
+                        zfs set jailed=off "${_jailed_dataset}" || return $?
+                    fi
+                fi
+                __info "converting ${_tag} to a template"
+                zfs rename -f "${_dataset}" \
+                    "${pool}/iocell/templates/${_tag}" || {
+                        _status=$?
+                        if [ "${_jailed_state}" = on ] ; then
+                            zfs set jailed=on "${_jailed_dataset}" || \
+                                __error "failed restoring ${_jailed_dataset}"
+                        fi
+                        return "${_status}"
+                    }
+                _dataset="${pool}/iocell/templates/${_tag}"
+                if [ "${_jailed_state}" = on ] ; then
+                    zfs set jailed=on "${_dataset}/data" || return $?
+                fi
+                # No metadata or alias changes until the rename succeeds.
+                __set_jail_prop type=template "${_fulluuid}" "${_dataset}" \
+                    || return $?
+                __unlink_tag "${_dataset}" "${_old_mountpoint}"
             elif [ "${_pval}" = "no" ] ; then
                 _template_tag="$(__get_jail_prop tag ${_fulluuid} ${_dataset})"
                 _release="$(__get_jail_prop release ${_fulluuid} ${_dataset})"
+                _newuuid="$(__get_jail_prop host_hostuuid \
+                    "${_fulluuid}" "${_dataset}")" || return $?
+
+                # Template datasets are named by tag, not by jail UUID.
+                if ! printf '%s\n' "${_newuuid}" | grep -Eq \
+                    '^[[:xdigit:]]{8}(-[[:xdigit:]]{4}){3}-[[:xdigit:]]{12}$'
+                then
+                    __die "invalid stored jail UUID: ${_newuuid}"
+                fi
+
+                if [ -n "$(__is_running "${_newuuid}")" ] || \
+                    [ -n "$(__is_running "${_fulluuid}")" ] ; then
+                    __die "please stop ${_template_tag} before converting it!"
+                fi
+
+                if [ ! -d "${iocroot}/templates/${_template_tag}" ] ; then
+                    __die "${_template_tag} is already a jail"
+                fi
+
+                _parent=0
                 _jailed_dataset="${pool}/iocell/templates/${_template_tag}/data"
                 _jailed_dataset_check="$(zfs get -H creation ${_jailed_dataset} > \
                                        /dev/null 2>&1 ; echo $?)"
 
-                # We need to ignore a few more datasets here.
+                # Include root datasets: their origin identifies dependent
+                # clones, while the parent jail dataset is usually not a clone.
                 _jail_datasets="$(zfs list -d3 -rH -o name \
-                    ${pool}/iocell | egrep -v \
-                    "jails$|base|releases|templates$|download|${pool}/iocell$|/root$")"
+                    "${pool}/iocell")" || return $?
+                _jail_datasets="$(printf '%s\n' "${_jail_datasets}" | \
+                    egrep -v \
+                    "jails$|base|releases|templates$|download|${pool}/iocell$")"
 
                 for _fs in ${_jail_datasets} ; do
-                    # _jail_fs is actually a dataset, so fulluuid needs to
+                    # _fs is actually a dataset, so fulluuid needs to
                     # be faked.
                     _uuid=$(__check_name "name" ${_fs} 2> /dev/null)
-                    _origin="$(__get_jail_prop origin ${_uuid} ${_fs} | \
-                        cut -f1 -d@)"
-                    _tag="$(__get_jail_prop tag ${_uuid} ${_jail_fs})"
+                    _origin="$(zfs get -H -o value origin "${_fs}")" \
+                        || return $?
+                    _origin="${_origin%@*}"
 
                     if [ "${_origin}" = "${_dataset}/root" ] ; then
+                        _tag="$(__get_jail_prop tag "${_uuid}" \
+                            "${_fs%/root}")"
                         __info "${_template_tag} has dependent clone," \
                             "uuid: ${_uuid} (${_tag})"
                         _parent=1
@@ -263,52 +284,45 @@ __set_jail_prop () {
                         "back to a jail"
                 fi
 
-                # Check to see if the user has the old style of jailed datasets
+                _jailed_state=off
+
                 if [ "${_jailed_dataset_check}" = "0" ] ; then
-                    zfs set jailed=off "${_jailed_dataset}"
+                    _jailed_state="$(zfs get -H -o value jailed \
+                        "${_jailed_dataset}")" || return $?
+
+                    if [ "${_jailed_state}" = "on" ] ; then
+                        zfs set jailed=off "${_jailed_dataset}" || return $?
+                    fi
                 fi
 
-                __set_jail_prop type="basejail" "${_fulluuid}" "${_dataset}"
+                __info "converting ${_template_tag} to a jail"
+                zfs rename -f "${_dataset}" \
+                    "${pool}/iocell/jails/${_newuuid}" || {
+                        _status=$?
 
-                if [ -d "${iocroot}/templates/${_template_tag}" ] ; then
-                    # __spinner needs to be recreated here as we use
-                    # multiple commands
-                    _spinner='/-\|'
-                    printf "  INFO: converting ${_template_tag} to a jail:  "
-
-                    while true; do
-                        printf '\b%.1s' "${_spinner}"
-                        _spinner=${_spinner#?}${_spinner%???}
-                        sleep .1
-                        done &
-
-                        trap "kill $!" 2 3
-
-                        # Have to manually specify this for later, as it will
-                        # still be the old /iocell/templates location
-                        _dataset="${pool}/iocell/jails/${_fulluuid}"
-
-                        # Move jail back to the jails dataset
-                        zfs rename -f \
-                            "${pool}/iocell/templates/${_template_tag}" \
-                            "${pool}/iocell/jails/${_fulluuid}"
-                        # Updating the jail tag
-                        __link_tag "${_dataset}" "${_template_tag}"
-                        # Throw jail through the checking process and unmount
-                        # what remains.
-                        __check_basejail "${_fulluuid}" > /dev/null 2>&1
-                        __umount_basejail "${_fulluuid}" "${_dataset}" \
-                            > /dev/null 2>&1
-
-                        _jailed_dataset="${_dataset}/data"
-                        # Check to see if the user has the old style of jailed datasets
-                        if [ "${_jailed_dataset_check}" = "0" ] ; then
-                            zfs set jailed=on "${_jailed_dataset}"
+                        if [ "${_jailed_state}" = "on" ] ; then
+                            zfs set jailed=on "${_jailed_dataset}" || \
+                                __error "failed restoring ${_jailed_dataset}"
                         fi
-                        printf "\b%1s\n" "done!" ; kill $! && trap " " 2 3
-                else
-                    __die "${_template_tag} is already a jail"
+
+                        return "${_status}"
+                    }
+
+                # Only update metadata and links after a successful rename.
+                _dataset="${pool}/iocell/jails/${_newuuid}"
+                _fulluuid="${_newuuid}"
+                _jailed_dataset="${_dataset}/data"
+
+                if [ "${_jailed_state}" = "on" ] ; then
+                    zfs set jailed=on "${_jailed_dataset}" || return $?
                 fi
+
+                __set_jail_prop type="basejail" "${_newuuid}" "${_dataset}"
+                __link_tag "${_dataset}" "${_template_tag}"
+                __check_basejail "${_newuuid}" "${_dataset}" \
+                    > /dev/null 2>&1
+                __umount_basejail "${_newuuid}" "${_dataset}" \
+                    > /dev/null 2>&1
             fi
             ;;
         allow*)
@@ -359,7 +373,8 @@ __set_jail_prop () {
     esac
 
     if [ "${_type}" = "custom" ] ; then
-        _mountpoint="$(__get_jail_prop mountpoint ${_fulluuid} ${_dataset})"
+        _mountpoint="$(__get_jail_prop mountpoint \
+            "${_fulluuid}" "${_dataset}")" || return $?
         __ucl_set "${_mountpoint}" "${_pname}" "${_pval}"
     elif [ "${_type}" = "native" ] ; then
         zfs set ${_pname}="${_pval}" ${_dataset}
@@ -780,7 +795,13 @@ __unlink_tag () {
     local _dataset _mountpoint
     _dataset=$1
 
-    if _mountpoint=$(zfs get -H -o value mountpoint ${_dataset}) ; then
+    if [ -n "$2" ] ; then
+        _mountpoint="$2"
+    else
+        _mountpoint=$(zfs get -H -o value mountpoint "${_dataset}") \
+            || return $?
+    fi
+    if [ -n "${_mountpoint}" ] ; then
         find ${iocroot}/tags -type l -lname "${_mountpoint}*" \
             -exec rm -f \{\} \; > /dev/null 2>&1
         _mountpoint=..${_mountpoint#${iocroot}}
@@ -882,17 +903,25 @@ __ucl_set () {
     _value="$3"
     _create="$4"
 
-    #If creating a jail this will not exist.
-    if [ "${_create}" != "1" ] ; then
-        uclcmd set -u -f ${_mountpoint}/config -o ${_mountpoint}/config.new \
-            -t string -- "${_property}" "${_value}"
+    # A failed lookup must never turn into an edit of the host's /config.
+    case "${_mountpoint}" in
+        /*) ;;
+        *) __error "invalid configuration mountpoint"; return 1 ;;
+    esac
+    if [ "${_mountpoint}" = / ] || [ ! -d "${_mountpoint}" ] ; then
+        __error "invalid configuration mountpoint: ${_mountpoint}"
+        return 1
+    fi
 
-        if [ $? -eq 0 ] ; then
-            mv ${_mountpoint}/config ${_mountpoint}/config.old
-            mv ${_mountpoint}/config.new ${_mountpoint}/config
-        fi
+    # If creating a jail this will not exist.
+    if [ "${_create}" != "1" ] ; then
+        uclcmd set -u -f "${_mountpoint}/config" \
+            -o "${_mountpoint}/config.new" -t string -- \
+            "${_property}" "${_value}" || return $?
+        cp -p "${_mountpoint}/config" "${_mountpoint}/config.old" || return $?
+        mv "${_mountpoint}/config.new" "${_mountpoint}/config"
     else
-        uclcmd set -u -f ${_mountpoint}/config -t string -- "${_property}" \
-            "${_value}"
+        uclcmd set -u -f "${_mountpoint}/config" -t string -- \
+            "${_property}" "${_value}"
     fi
 }

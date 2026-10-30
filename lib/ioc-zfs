@@ -935,11 +935,7 @@ __destroy_jail () {
     _state="$(__is_running ${_fulluuid})"
     _jail_type="$(__get_jail_prop type ${_fulluuid} ${_dataset})"
 
-    __check_children ${_fulluuid} ${_dataset}
-
-    if [ "$?" -eq 1 ] ; then
-        exit 1
-    fi
+    __check_children "${_fulluuid}" "${_dataset}" || exit $?
 
     if [ "${_force}" -ne "1" ] ; then
             echo " "
@@ -1129,11 +1125,14 @@ __check_children () {
     _dataset="$2"
     _grepstring="jails$|base|releases|templates$|download|${pool}/iocell$"
     _grepstring="${_grepstring}|/data$"
-    _jail_datasets=$(zfs list -d3 -rH -o name "${pool}/iocell" \
-        | egrep -v "${_grepstring}")
+    error=''
+    _jail_datasets=$(zfs list -d3 -rH -o name "${pool}/iocell") || return $?
+    _jail_datasets=$(printf '%s\n' "${_jail_datasets}" | \
+        egrep -v "${_grepstring}")
 
     for _fs in ${_jail_datasets} ; do
-        _origin=$(zfs get -H -o value origin "${_fs}" | cut -f1 -d@)
+        _origin=$(zfs get -H -o value origin "${_fs}") || return $?
+        _origin="${_origin%@*}"
 
         if ! echo "${_fs}" | grep -q "/root" ; then
             # _fs is actually a dataset, so fulluuid needs to be faked.

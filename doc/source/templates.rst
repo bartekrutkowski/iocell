@@ -5,7 +5,17 @@ How to create and use templates
 
 Set up a jail any way you like, and create a template from it. All packages and pre-configured settings will be available for deployment next time within seconds.
 
-Any jail can be converted to a template and back to a jail again as required. In fact a template is just another jail which has the property ``template`` set to "yes". The difference is that templates are not started by iocell.
+A stopped basejail can be converted to a template and back again using the
+``istemplate`` property. Templates are not started automatically. Converting a
+template back to a jail preserves its stored ``host_hostuuid``, tag, snapshots,
+and child datasets; it does not give the jail a new identity.
+
+Template tags become ZFS dataset names. Start the tag with a letter, digit or
+underscore; use only letters, digits, underscores, periods, colons and hyphens.
+A generated timestamp tag contains ``@`` and must first be changed explicitly,
+for example with ``iocell set tag=mytemplate UUID``. An unsafe tag is rejected
+before changing datasets, metadata, aliases or delegated state. Tags are not
+silently rewritten.
 
 **Here is how to create a template with iocell:**
 
@@ -14,14 +24,14 @@ Any jail can be converted to a template and back to a jail again as required. In
 3. Install any package you like and customize jail
 4. Once finished with customization stop the jail ``iocell stop UUID | TAG``
 5. A good idea is set some notes ``iocell set notes="customized PHP,nginx jail" UUID | TAG``
-6. Turn the template property on ``iocell set template=yes UUID | TAG``
+6. Turn the template property on ``iocell set istemplate=yes UUID|TAG``
 7. List your template with ``iocell list -t``
 
 **Here is how to use the created template:**
 
 To create a new jail from this template simply clone it!
 
-1. ``iocell clone UUID-of-mytemplate tag=mynewjail``
+1. ``iocell clone TAG-of-mytemplate tag=mynewjail``
 2. List new jail ``iocell list``
 3. Start jail ``iocell start UUID | TAG``
 
@@ -29,5 +39,25 @@ Done!
 
 **If you need to make further customization in the template or want to patch it, you have two options.**
 
-* convert template back to jail with ``iocell set template=no UUID-of-template``, and start the jail
-* if you don't need network access to make the changes simply run ``iocell chroot UUID-of-template``, make the changes and exit
+* Stop the template if it was started for maintenance, convert it back with
+  ``iocell set istemplate=no TAG-of-template``, then start the jail as usual.
+* If you do not need network access, run ``iocell chroot TAG-of-template``,
+  make the changes, and exit.
+
+Conversion back is refused if the stored UUID is invalid, the template is
+running, or its root dataset has dependent clones. A failed ZFS rename (for
+example, because the original UUID destination is occupied) is reported as an
+error without changing the template flags or tag link. The previous ``jailed``
+state of the template's ``data`` child dataset is restored if the rename fails;
+any failure to restore it is also reported. Forward conversion likewise
+renames before changing metadata or aliases, and preserves both ``on`` and
+``off`` delegated states. A failed config lookup cannot edit the host's
+``/config``.
+
+Without ``-f``, ``iocell clean -t`` refuses dependent clones, including clones
+outside the jails namespace. ZFS dependency protection also remains enabled
+if a clone appears after the preflight check. ``iocell clean -f -t`` explicitly
+permits destruction of the templates and their dependent clones.
+
+To make it a template again, stop the jail and run
+``iocell set istemplate=yes UUID|TAG``.
