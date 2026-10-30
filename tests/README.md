@@ -15,6 +15,7 @@ sh tests/template-forward-safety.sh
 sh tests/clean-template-safety.sh
 sh tests/dependent-clones.sh
 sh tests/migrate-safety.sh
+sh tests/tag-links.sh
 sh tests/destroy-guard-safety.sh
 sh tests/import.sh
 sh tests/defaults.sh
@@ -270,6 +271,19 @@ It verifies internal template clones can be removed non-force, outside root
 and data-only clones are protected, and explicit force lists what it destroys.
 Both retain logs and data fixtures. Portable migration tests additionally prove
 that returned and exiting backend failures reap the spinner and keep user files.
+
+## Tag aliases with a real altroot
+
+```sh
+IOC_TEST_POOL=YOUR_TEST_POOL sh tests/tag-links-zfs.sh
+```
+
+This creates an isolated file-backed pool with a real ZFS altroot and invokes
+the production setter with that pool/root explicitly selected. It checks relative
+alias replacement, both owners' configurations, data/GUID preservation, injected
+writer/link errors, foreign-target rejection and unchanged original defaults.
+It does not claim to validate the legacy CLI altroot bootstrap, which cannot
+select this layout while the usual `/iocell` already exists. Fixtures are retained.
 
 ## Real template round-trip integration test
 
