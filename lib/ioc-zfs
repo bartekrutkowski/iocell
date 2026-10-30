@@ -171,7 +171,7 @@ __clean_jails () {
         fi
     fi
 
-    __clean_snapshots
+    __clean_snapshots || return $?
     __stop_jail_all > /dev/null 2>&1
 
     if [ $? -eq 0 ] ; then
@@ -229,12 +229,25 @@ __clean_templates () {
 }
 
 __clean_snapshots () {
-    local _snapshots
-
-    _snapshots=$(zfs list -Hrt snapshot -o name "${pool}/iocell" | grep ioc-)
-    for _snap in echo ${_snapshots} ; do
-        zfs destroy -rR "${_snap}" > /dev/null 2>&1
-    done
+    local _snapshots _snap _pool _status
+    _pool="${1:-${pool}}"
+    # Enumerating the pool also handles an empty destination without confusing
+    # a missing iocell tree with a failed snapshot query.
+    _snapshots=$(zfs list -Hrt snapshot -o name "${_pool}") || {
+        _status=$?
+        __error "cannot enumerate send snapshots in ${_pool}"
+        return "${_status}"
+    }
+    while IFS= read -r _snap ; do
+        case "${_snap}" in
+            "${_pool}/iocell@ioc-send-"*|"${_pool}/iocell/"*@ioc-send-*)
+                # Each snapshot is listed explicitly: never enable -R or
+                # remove clones to make cleanup succeed.
+                zfs destroy "${_snap}" || return $? ;;
+        esac
+    done <<EOF
+${_snapshots}
+EOF
 }
 
 __deactivate () {
@@ -1321,31 +1334,31 @@ __send_stream () (
     _peer="$2"
     _buffer="$3"
     shift 3
-    _work=$(mktemp -d "${TMPDIR:-/tmp}/iocell-send.XXXXXX") || return $?
+    _work=$(mktemp -d "${TMPDIR:-/tmp}/iocell-send.XXXXXX") || exit $?
     trap 'rm -rf "${_work}"' EXIT
 
     if [ "${_buffer}" = 1 ] ; then
-        { trap - EXIT; zfs send "$@"; printf '%s\n' "$?" > "${_work}/send"; } | \
-            { trap - EXIT; mbuffer -s 128k -m 1G; \
+        { zfs send "$@"; printf '%s\n' "$?" > "${_work}/send"; } | \
+            { mbuffer -q -s 128k -m 1G; \
               printf '%s\n' "$?" > "${_work}/buffer"; } | \
-            { trap - EXIT; __send_receive "${_dest}" "${_peer}" 1; }
+            __send_receive "${_dest}" "${_peer}" 1
         _status=$?
         _buffer_status=$(cat "${_work}/buffer" 2>/dev/null) || _buffer_status=1
     else
-        { trap - EXIT; zfs send "$@"; printf '%s\n' "$?" > "${_work}/send"; } | \
-            { trap - EXIT; __send_receive "${_dest}" "${_peer}" 0; }
+        { zfs send "$@"; printf '%s\n' "$?" > "${_work}/send"; } | \
+            __send_receive "${_dest}" "${_peer}" 0
         _status=$?
         _buffer_status=0
     fi
 
     _sender=$(cat "${_work}/send" 2>/dev/null) || _sender=1
-    [ "${_sender}" = 0 ] || return "${_sender}"
-    [ "${_buffer_status}" = 0 ] || return "${_buffer_status}"
-    return "${_status}"
+    [ "${_sender}" = 0 ] || exit "${_sender}"
+    [ "${_buffer_status}" = 0 ] || exit "${_buffer_status}"
+    exit "${_status}"
 )
 
 __send_receive () {
-    local _dest _peer _buffer
+    local _dest _peer _buffer _script
     _dest="$1"
     _peer="$2"
     _buffer="$3"
@@ -1354,18 +1367,18 @@ __send_receive () {
     elif [ "${_buffer}" = 0 ] ; then
         ssh "${_peer}" "zfs receive -F ${_dest}/iocell"
     else
-        # Capture the remote buffer's status as well as zfs receive's status.
-        ssh "${_peer}" '/bin/sh -c '\''
-            work=$(mktemp -d /tmp/iocell-receive.XXXXXX) || exit $?
-            trap "rm -rf \"${work}\"" EXIT
-            { trap - EXIT; mbuffer -s 128k -m 1G;
-              printf "%s\\n" "$?" > "${work}/buffer"; } |
-                zfs receive -F '"${_dest}"'/iocell
-            status=$?
-            buffer_status=$(cat "${work}/buffer" 2>/dev/null) || buffer_status=1
-            [ "${buffer_status}" = 0 ] || exit "${buffer_status}"
-            exit "${status}"
-        '\'''
+        # Keep the outer command on one line: the SSH login shell may be csh.
+        # Only the explicitly invoked /bin/sh parses the pipeline and trap.
+        _script='work=$(mktemp -d /tmp/iocell-receive.XXXXXX) || exit $?; '
+        _script="${_script}"'trap "rm -rf \"${work}\"" EXIT; '
+        _script="${_script}"'{ mbuffer -q -s 128k -m 1G; '
+        _script="${_script}"'printf "%s\\n" "$?" > "${work}/buffer"; } | '
+        _script="${_script}zfs receive -F ${_dest}/iocell; "
+        _script="${_script}"'status=$?; '
+        _script="${_script}"'buffer_status=$(cat "${work}/buffer" 2>/dev/null) || buffer_status=1; '
+        _script="${_script}"'[ "${buffer_status}" = 0 ] || exit "${buffer_status}"; '
+        _script="${_script}"'exit "${status}"'
+        ssh "${_peer}" "/bin/sh -c '${_script}'"
     fi
 }
 
@@ -1429,12 +1442,13 @@ __validate_send_args () {
 
 __send () {
     local _clean _count _date _dest _exists _exit _incremental _Incremental \
-          _mbuffertest _move _opt _pool _remote _remotehost _remoteuser \
-          _snapshot _sshtest _state _switch _zfstest _source_dataset \
+          _buffer _move _opt _remote _remotehost _remoteuser \
+          _snapshot _sshtest _state _zfstest _source_dataset \
           _full_snapshot _spinner_pid _mountpoint
 
     __validate_send_args "$@" || return $?
     _source_dataset="${pool}/iocell"
+    _full_snapshot=''; _buffer=0
     _date=$(date "+%F")
 
     # Hack to be able to see the last argument
@@ -1588,19 +1602,23 @@ __send () {
         fi
     fi
 
-    # Cleanup
-    shift $(expr $OPTIND - 1)
-
-    # Clean before taking the fresh snapshot, never after creating it.
-    if [ "${_clean}" -eq 1 ] ; then
-        if [ "${_incremental}" -eq 1 -o "${_Incremental}" -eq 1 ] ; then
-            __die "cannot use clean with incrementals!"
+    # Optional buffer capability must be known before cleanup or snapshots.
+    if [ "${_remote}" = 1 ] && which -s mbuffer ; then
+        if ! ssh "${_remoteuser}@${_remotehost}" '/usr/bin/which -s mbuffer' ; then
+            __error "mbuffer also needed on receiving ${_remotehost} side"
+            return 1
         fi
-        __clean_snapshots > /dev/null 2>&1
-        _pool="${pool}"
-        export pool="${_dest}"
-        __clean_snapshots > /dev/null 2>&1
-        export pool="${_pool}"
+        _buffer=1
+    fi
+    shift $((OPTIND - 1))
+
+    # Never clean a same-named local pool on behalf of a remote destination.
+    # Remote -c still only cleans sender retention; receiver cleanup is manual.
+    if [ "${_clean}" -eq 1 ] ; then
+        __clean_snapshots || return $?
+        if [ "${_remote}" = 0 ] ; then
+            __clean_snapshots "${_dest}" || return $?
+        fi
     fi
 
     if [ "${_remote}" -eq 1 ] && \
@@ -1642,18 +1660,7 @@ __send () {
             exit 1
         fi
 
-        which -s mbuffer # Kudos to @dlangille for mbuffer idea
-
-        if [ $? -eq 0 ] ; then
-            _mbuffertest="$(ssh ${_remoteuser}@${_remotehost} \
-                '/usr/bin/which -s mbuffer' \
-                ; echo $?)"
-
-            if [ "${_mbuffertest}" -ne 0 ] ; then
-                printf "\b%1s\n" "error!" ; kill $! && trap " " 2 3 \
-                    ; echo "  ERROR: mbuffer also needed on receiving ${_remotehost} side!" >&2
-                exit 1
-            fi
+        if [ "${_buffer}" = 1 ] ; then
 
             if [ "${_incremental}" -eq 1 -o "${_Incremental}" -eq 1 ] ; then
                 if [ "${_count}" -lt 2 ] ; then
@@ -1702,17 +1709,17 @@ __send () {
     trap - 2 3
     if [ "${_exit}" -ne 0 ] ; then
         __error "transfer failed; source retained"
+        if [ -n "${_full_snapshot}" ] ; then
+            __error "snapshot retained: ${_full_snapshot}"
+        fi
         return "${_exit}"
     fi
 
-    # Clean snapshots after send
     if [ "${_clean}" -eq 1 ] ; then
-        __clean_snapshots > /dev/null 2>&1
-        # Change the global pool variable to the destination
-        # so it can be cleaned of snapshots as well
-        export pool="${_dest}"
-        __clean_snapshots > /dev/null 2>&1
-        export pool="${_pool}"
+        __clean_snapshots || return $?
+        if [ "${_remote}" = 0 ] ; then
+            __clean_snapshots "${_dest}" || return $?
+        fi
     fi
 
     if [ "${_move}" -eq 1 ] ; then
@@ -1727,7 +1734,6 @@ __send () {
         fi
         # Activation changes global pool. Never derive the source from it.
         zfs destroy -rf "${_source_dataset}" || return $?
-        export pool="${_dest}"
     fi
 
     printf "\b%1s\n" "done!"

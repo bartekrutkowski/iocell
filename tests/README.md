@@ -9,6 +9,8 @@ sh tests/pkg-install.sh
 sh tests/create-pkg.sh
 sh tests/template-toggle.sh
 sh tests/send-safety.sh
+sh tests/send-cleanup.sh
+sh tests/send-csh.sh
 sh tests/discovery-safety.sh
 sh tests/bulk-jails.sh
 sh tests/template-forward-safety.sh
@@ -324,6 +326,17 @@ snapshot/send/receive/activation failures, and a successful move with verified
 destination content and activation. Native full-stream fixtures use fresh
 receivers; existing snapshot-bearing replicas use incremental streams.
 
+Managed snapshot cleanup has a separate isolated native check:
+
+```sh
+IOC_TEST_POOL=YOUR_TEST_POOL sh tests/send-cleanup-zfs.sh
+```
+
+It preserves unmanaged snapshot/data GUIDs, propagates an injected enumeration
+failure without changing the namespace, and verifies native clone protection.
+Only the test's own blocker is explicitly removed to exercise successful cleanup.
+The pool/vdev and remaining fixtures are retained; activation is unchanged.
+
 For real remote and buffered pipelines, prepare a second disposable FreeBSD
 host with root public-key SSH authentication and `mbuffer` installed on both
 hosts. Allow sufficient RAM for the existing 1 GiB buffer at each end (the
@@ -334,9 +347,12 @@ IOC_TEST_POOL=YOUR_TEST_POOL IOC_TEST_REMOTE=root@PRIVATE_TEST_RECEIVER \
     sh tests/send-remote-zfs.sh
 ```
 
-This checks actual plain/buffered full and incremental streams, intermediate
-snapshots, identical pool names across different hosts, and real local/remote
-buffer failures after a completed stream. It creates a matching local receiver
+This checks actual plain/buffered full and incremental streams, a real csh
+receiver parser, intermediate snapshots, and identical pool names across hosts.
+A second full receive into a snapshot-bearing destination must fail without
+changing its data/GUID or source data. Actual local/remote buffer failures must
+return 42 with the injected diagnostic and a retained recovery snapshot.
+Remote ``-c`` must preserve a same-named local backup's snapshot/data. It creates a matching local receiver
 pool name because the separate, pre-existing remote-pool validation bug has
 not been changed. Only the test's own receiver namespaces are reset between
 full-stream cases; existing user data and VM disks are not deleted.

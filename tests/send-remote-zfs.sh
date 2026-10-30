@@ -39,7 +39,7 @@ u=$(iocell create -e tag=remote-safety)
 root="$src/iocell/jails/$u/root"
 mp=$(zfs get -H -o value mountpoint "$root")
 guid=$(zfs get -H -o value guid "$root")
-mkdir "$workdir/plain" "$workdir/fault"
+mkdir "$workdir/plain" "$workdir/fault" "$workdir/csh"
 # Force the no-buffer branch even though mbuffer is installed for later cases.
 cat > "$workdir/plain/which" <<'WHICH'
 #!/bin/sh
@@ -47,10 +47,24 @@ cat > "$workdir/plain/which" <<'WHICH'
 exec /usr/bin/which "$@"
 WHICH
 chmod +x "$workdir/plain/which"
+# Route only the production receiver command through a real csh parser. The
+# login account need not be modified, and all probes still use ordinary SSH.
+cat > "$workdir/csh/ssh" <<'CSH'
+#!/bin/sh
+case "$*" in
+    *iocell-receive.XXXXXX*)
+        peer=$1; shift
+        quoted=$(printf '%s' "$*" | sed "s/'/'\\\\''/g")
+        exec /usr/bin/ssh "$peer" "/bin/csh -c '$quoted'" ;;
+    *) exec /usr/bin/ssh "$@" ;;
+esac
+CSH
+chmod +x "$workdir/csh/ssh"
 # A real buffer completing a real stream, then reporting a failure.
 cat > "$workdir/fault/mbuffer" <<'BUFFER'
 #!/bin/sh
 /usr/local/bin/mbuffer "$@" || exit $?
+echo 'injected real buffer failure' >&2
 exit 42
 BUFFER
 chmod +x "$workdir/fault/mbuffer"
@@ -72,16 +86,30 @@ chmod +x "$workdir/fault/ssh"
 read_remote () {
     remote "zfs set mountpoint=/var/tmp/$dst-received $dst/iocell; zfs mount $dst/iocell 2>/dev/null || :; zfs mount $dst/iocell/jails/$u/root 2>/dev/null || :; p=\$(zfs get -H -o value mountpoint $dst/iocell/jails/$u/root); cat \"\$p/marker\""
 }
-for mode in plain buffered; do
+for mode in plain buffered csh-buffered; do
     if remote "zfs list $dst/iocell" >/dev/null 2>&1; then
         remote "zfs destroy -r $dst/iocell"
     fi
     echo "$mode-first" > "$mp/marker"
-    if [ "$mode" = plain ]; then test_path="$workdir/plain:$PATH"
-    else test_path="$PATH"; fi
+    case "$mode" in plain) test_path="$workdir/plain:$PATH" ;;
+        csh-buffered) test_path="$workdir/csh:$PATH" ;;
+        *) test_path="$PATH" ;; esac
     PATH="$test_path" iocell send -r -h "${peer#*@}" -u "${peer%@*}" "$dst" > "$workdir/$mode-full.log" 2>&1
     [ "$(read_remote)" = "$mode-first" ]
     base=$(zfs list -H -d1 -t snapshot -o name -s creation "$src/iocell" | grep "^$src/iocell@" | tail -1)
+    receiver_guid=$(remote "zfs get -H -o value guid $dst/iocell/jails/$u/root")
+    echo "$mode-second-full" > "$mp/marker"
+    status=0
+    PATH="$test_path" iocell send -r -h "${peer#*@}" -u "${peer%@*}" "$dst" \
+        > "$workdir/$mode-repeat-full.log" 2>&1 || status=$?
+    [ "$status" != 0 ]
+    grep -q 'transfer failed' "$workdir/$mode-repeat-full.log"
+    [ "$(read_remote)" = "$mode-first" ]
+    [ "$(remote "zfs get -H -o value guid $dst/iocell/jails/$u/root")" = "$receiver_guid" ]
+    [ "$(cat "$mp/marker")" = "$mode-second-full" ]
+    retained=$(awk '/snapshot retained:/ {print $NF}' "$workdir/$mode-repeat-full.log")
+    zfs list -t snapshot "$retained" >/dev/null
+    echo "PASS: real remote $mode second full receive fails with source/receiver data and GUID intact"
     echo "$mode-incremental" > "$mp/marker"
     zfs snapshot -r "$src/iocell@$mode-inc1"
     PATH="$test_path" iocell send -r -h "${peer#*@}" -u "${peer%@*}" \
@@ -109,9 +137,13 @@ for fault in local-buffer remote-buffer; do
         cp "$workdir/fault/mbuffer" "$workdir/local-only/mbuffer"
         test_path="$workdir/local-only:$PATH"
     fi
-    if PATH="$test_path" iocell send -r -h "${peer#*@}" -u "${peer%@*}" "$dst" > "$workdir/$fault.log" 2>&1; then
-        echo "FAIL: $fault failure reported success" >&2; exit 1
-    fi
+    status=0
+    PATH="$test_path" iocell send -r -h "${peer#*@}" -u "${peer%@*}" "$dst" \
+        > "$workdir/$fault.log" 2>&1 || status=$?
+    [ "$status" = 42 ]
+    grep -q 'injected real buffer failure' "$workdir/$fault.log"
+    retained=$(awk '/snapshot retained:/ {print $NF}' "$workdir/$fault.log")
+    zfs list -t snapshot "$retained" >/dev/null
     [ "$(zfs get -H -o value guid "$root")" = "$guid" ]
     [ "$(iocell get pool default)" = "$src" ]
     echo "PASS: real $fault failure propagates and source is retained"
@@ -120,7 +152,19 @@ done
 remote "zfs set mountpoint=/var/tmp/$dst-last $dst/iocell"
 remote "truncate -s 512M /var/tmp/$src.vdev; zpool create -O mountpoint=none $src /var/tmp/$src.vdev"
 iocell send -r -h "${peer#*@}" -u "${peer%@*}" "$src" > "$workdir/same-name.log" 2>&1
-[ "$(remote "p=\$(zfs get -H -o value mountpoint $src/iocell/jails/$u/root); cat \"\$p/marker\"")" = buffered-inclusive ]
+[ "$(remote "p=\$(zfs get -H -o value mountpoint $src/iocell/jails/$u/root); cat \"\$p/marker\"")" = "$mode-inclusive" ]
 echo 'PASS: remote source and destination may use the same pool name'
+# Remote cleanup must not delete a backup in a same-named local pool.
+remote "zfs destroy -r $dst/iocell"
+zfs create -o mountpoint="$workdir/local-shadow" "$dst/iocell"
+echo local-preserved > "$workdir/local-shadow/marker"
+zfs snapshot "$dst/iocell@ioc-send-local-keep"
+local_guid=$(zfs get -H -o value guid "$dst/iocell@ioc-send-local-keep")
+echo remote-clean > "$mp/marker"
+iocell send -c -r -h "${peer#*@}" -u "${peer%@*}" "$dst" > "$workdir/remote-clean.log" 2>&1
+[ "$(read_remote)" = remote-clean ]
+[ "$(zfs get -H -o value guid "$dst/iocell@ioc-send-local-keep")" = "$local_guid" ]
+[ "$(cat "$workdir/local-shadow/marker")" = local-preserved ]
+echo 'PASS: remote clean send preserves same-named local backup snapshot/data'
 zpool status -x
 remote zpool status -x

@@ -81,11 +81,12 @@ incremental streams or explicitly prepare a fresh destination. Remote send
 still incorrectly requires the destination pool name to exist locally. Pool
 names may be identical on different hosts; that is not a local self-send.
 
-Legacy ``send -c`` cleanup selects snapshot paths containing ``ioc-``. It does
-not guarantee removal of all snapshots, and remote cleanup scope is not fully
-implemented. Inspect snapshots and do not rely on remote ``-c`` as a retention
-policy. Do not delete a source backup merely because another command printed
-``done!``.
+``send -c`` removes only reserved ``ioc-send-*`` snapshots under ``iocell``;
+it does not remove dependent clones or other snapshots. Local transfers clean
+both ends; remote transfers clean only the sender, never a same-named local
+pool. Manage receiver retention separately. Failed full transfers report and
+retain their source snapshot because a receiver may have accepted some or all
+of the stream.
 
 Normal snapshots cover the jail root only; recursive snapshots include the
 configuration and descendants. Shared release datasets are outside jail-root

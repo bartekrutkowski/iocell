@@ -24,6 +24,7 @@ ssh () {
     if [ "$1" = -o ]; then shift 2; fi
     shift
     case "$*" in
+        *'which -s mbuffer'*) [ "$fault" != missing-buffer ] ;;
         exit|*'which -s'*) return 0 ;;
         '/bin/sh -c '*) eval "set -- $*"; ( eval "$3" ) ;;
         *) ( eval "$*" ) ;;
@@ -38,6 +39,7 @@ __activate () {
 zfs () {
     case "$1" in
         list)
+            [ "$fault" != clean-query ] || return 8
             for f in "${state}/snapshots/"*; do
                 [ ! -f "$f" ] || printf '%s@%s\n' "${pool}/iocell" "${f##*/}"
             done
@@ -77,17 +79,19 @@ zfs () {
 }
 failed=0
 for mode in local remote buffered ; do
-    for fault in none clean snapshot send receive buffer activate mount ; do
+    for fault in none clean clean-query missing-buffer snapshot send receive buffer activate mount ; do
         [ "$mode" = buffered ] || [ "$fault" != buffer ] || continue
         state="${workdir}/${mode}-${fault}"; mkdir -p "$state/snapshots"
         echo 0 > "$state/sequence"; echo original > "$state/source"
         echo first > "$state/current"; buffer=no; OPTIND=1; pool=src
         args=dst
         [ "$mode" = local ] || args='-r -h peer -u root dst'
-        if [ "$fault" = clean ]; then
-            [ "$mode" = local ] || continue
-            args='-c dst'
-        fi
+        case "$fault" in
+            clean|clean-query)
+                [ "$mode" = local ] || continue
+                args='-c dst' ;;
+            missing-buffer) [ "$mode" = buffered ] || continue ;;
+        esac
         [ "$mode" != buffered ] || buffer=yes
         # Activation/mount faults are local-move cases, not remote sends.
         case "$fault" in
@@ -99,6 +103,8 @@ for mode in local remote buffered ; do
             if [ "$status" -ne 0 ] || [ "$(cat "$state/destination")" != first ]; then
                 echo "FAIL: $mode initial transfer"; cat "$state/log"; failed=1; continue
             fi
+            # Each full stream needs a fresh receiver (native refusal tested separately).
+            rm -f "$state/destination" "$state/received"
             echo second > "$state/current"; status=0; OPTIND=1
             ( set +e; __send $args ) >> "$state/log" 2>&1 || status=$?
             if [ "$status" -ne 0 ] || [ "$(cat "$state/destination")" != second ]; then
@@ -108,6 +114,17 @@ for mode in local remote buffered ; do
             echo "FAIL: $mode $fault reports success or removes source"
             failed=1; continue
         fi
+        case "$fault" in
+            missing-buffer|clean-query)
+                if [ -n "$(find "$state/snapshots" -type f -print)" ]; then
+                    echo "FAIL: $mode $fault took a snapshot before preflight"; failed=1; continue
+                fi ;;
+            send|receive|buffer)
+                if [ -z "$(find "$state/snapshots" -type f -print)" ] || \
+                    ! grep -q 'snapshot retained' "$state/log"; then
+                    echo "FAIL: $mode $fault did not retain/report recovery snapshot"; failed=1; continue
+                fi ;;
+        esac
         echo "PASS: $mode $fault"
     done
 done

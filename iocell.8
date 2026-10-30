@@ -502,10 +502,11 @@ restart [\fB-s\fP] UUID|TAG|ALL
 [\fB-i\fP \fISNAP1\fP \fB-i\fP \fISNAP2\fP | \fB-I\fP \fISNAP1\fP \fB-I\fP \fISNAP2\fP] \fIPOOL\fP
 .RS
 .PP
-Will take a recursive snapshot of the \fIPOOL\fP/\fBiocell\fP dataset and \fIsend\fP it to
-the specified pool. Supports remote, incremental and movement operations.
+Takes a recursive snapshot of the active SOURCEPOOL/\fBiocell\fP dataset and
+sends it to \fIPOOL\fP/\fBiocell\fP. Supports remote, incremental and movement operations.
 Every full \fIsend\fP creates a unique fresh snapshot; snapshot or pipeline
-failures are returned as errors. Existing snapshot-bearing replicas may
+failures are returned as errors. A failed full transfer reports and retains
+its source snapshot for recovery. Existing snapshot-bearing replicas may
 require incremental streams rather than another full receive.
 Moving (\fB-m\fP) removes the original source only after successful transfer,
 destination activation and mounting. It is only available locally.
@@ -515,9 +516,11 @@ Remote (\fB-r\fP) requires a user (\fB-u\fP), host (\fB-h\fP), and publickey
 authentication. If using incremental (\fB-i\fP) or Incremental (\fB-I\fP) be sure to
 supply the flag for each snapshot.
 .PP
-Legacy \fIclean\fP (\fB-c\fP) selects snapshot paths containing ioc-; it does not
-guarantee removal of all snapshots. Remote cleanup is not a complete
-retention policy. Do not combine \fIclean\fP with incremental streams.
+Clean (\fB-c\fP) removes only reserved ioc-\fIsend\fP-* snapshots below \fBiocell\fP,
+before and after transfer. Other snapshots and dependent clones are not
+destroyed to make cleanup succeed; cleanup failures are returned.
+Local transfers \fIclean\fP both ends. Remote \fB-c\fP cleans only the sender;
+manage receiver retention separately. Do not combine \fIclean\fP with incrementals.
 Remote destination validation still incorrectly requires a matching local
 pool name. Identical names on different hosts are valid, not self-\fIsend\fP.
 .PP
