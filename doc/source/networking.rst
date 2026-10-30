@@ -102,7 +102,8 @@ Use ``iocell get vnet myjail``, ``iocell exec myjail ifconfig`` and host
 Only running jails accept ``exec`` or normal ``console`` operations.
 
 ``iocell restart myjail`` destroys and recreates the jail/networking;
-``iocell restart -s myjail`` requests a soft restart retaining them.
+``iocell restart -s myjail`` runs the configured stop/start commands and signals
+remaining processes while retaining the kernel jail and network stack.
 
 Bridge filtering sysctls and packet-filter rules depend on the intended
 security boundary. Do not universally disable ``pfil`` to obtain connectivity.
@@ -117,7 +118,3 @@ This alone does not configure an otherwise missing bridge or give a shared-IP
 jail a VNET stack. ``createbridge=off`` leaves bridge creation to the operator;
 ``keepbridge=on`` requests retaining a bridge during jail shutdown. Review other
 jails using a bridge before changing or deleting it.
-
-Private shared IPv4/IPv6, isolated VNET IPv4/IPv6, multiple VNET interfaces and
-MACs, DHCP and alias cleanup were exercised in the command audit. Arbitrary
-provider, VLAN, per-jail firewall and routing configurations were not qualified.

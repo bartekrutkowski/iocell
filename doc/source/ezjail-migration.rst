@@ -3,7 +3,7 @@ Migration from ezjail
 
 There is no automatic ezjail conversion command in the current CLI. Earlier
 archive-copy examples were written for FreeBSD 10.1 and a particular 2015
-archive layout; they were not qualified by the current command tests.
+layout. Inspect the actual archive structure instead of assuming that layout.
 
 Treat migration as a backup/restore and compatibility exercise:
 

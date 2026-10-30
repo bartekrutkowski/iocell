@@ -247,9 +247,8 @@ Check limits:
 Resetting a jail's properties
 +++++++++++++++++++++++++++++
 
-If you have many properties on a jail that you would like to reset back to defaults, iocell easily allows that!
+Record custom properties before requesting a reset:
 
-To reset to defaults:
 
 ``iocell reset UUID | TAG``
 
@@ -257,11 +256,11 @@ You can also reset every jail to the default properties:
 
 ``iocell reset ALL``
 
-Reset retains the jail's UUID, tag and generated VNET MAC addresses while
-reapplying defaults for other properties. Record and restore your custom
-settings as needed. ``set PROPERTY=value default`` now saves creation defaults,
-but reset-to-saved-defaults behavior is still unresolved. Do not assume that
-``reset`` reapplies the saved creation defaults; this fix changes only creation.
+Reset carries forward the jail's UUID, tag, generated VNET MAC addresses and
+selected networking/type fields. It uses built-in values for other properties;
+it does not reload defaults saved by ``set PROPERTY=value default``. Those saved
+values apply to later ``create`` commands. Use explicit ``set`` commands when
+changing an existing jail to your chosen settings.
 
 Replication and moves
 ---------------------
@@ -274,9 +273,8 @@ full receive:
 ``iocell send -i source-pool/iocell@before -i source-pool/iocell@after backup-pool``
 
 Use ``-I`` on both endpoints to include intermediate snapshots. Remote mode
-requires ``-r -u USER -h HOST`` and public-key SSH. A pre-existing bug still
-requires the remote destination pool name to exist locally too; do not
-mistake that workaround for remote-only pool validation working correctly.
+requires ``-r -u USER -h HOST`` and public-key SSH. Destination validation still
+incorrectly requires a matching local pool name, even for remote sends.
 
 ``iocell send -m new-pool`` is local only and requires stopped jails. The
 original source is removed only after successful transfer, destination
@@ -285,9 +283,10 @@ failures are errors. A failed activation retains data but may have relocated
 the source mountpoint; inspect state and explicitly reactivate the source
 before resuming operations.
 
-Legacy ``-c`` cleanup selects snapshot paths containing ``ioc-`` rather than
-guaranteeing all snapshots are removed. Inspect its scope and do not use
-remote cleanup as a complete retention policy.
+``-c`` removes only reserved ``ioc-send-*`` snapshots under the iocell tree,
+without deleting dependent clones. Local transfers clean both ends; remote
+transfers clean only the sender, leaving receiver retention to the operator.
+A failed full transfer reports and retains its source snapshot for recovery.
 
 Automatic package installation
 ------------------------------

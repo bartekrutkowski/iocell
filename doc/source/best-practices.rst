@@ -1,17 +1,16 @@
 Best practices
 ==============
 
-Use a disposable environment before applying changes to production. The
-current verification covers FreeBSD 15.1-RELEASE-p6/amd64, not every kernel,
-architecture or combination of properties. Read :doc:`known-issues` first.
+Try operational changes in a disposable environment and keep recoverable
+backups. See :doc:`known-issues` for current command and storage limitations.
 
 Identify and back up jails
 --------------------------
 
 Use meaningful tags and record full UUIDs. Do not rely on partial UUID prefixes
 for jail operations. Template tags must be safe ZFS components, not generated
-timestamp names containing ``@``. Notes are useful, but the current argument
-parser does not handle apostrophes safely in notes values.
+timestamp names containing ``@``. Quote notes for the invoking shell; property
+values preserve spaces, apostrophes and equals signs.
 
 Take application-consistent backups before updates or destructive operations.
 A normal snapshot covers the jail's root only. Use ``snapshot -r`` when you need
@@ -22,9 +21,9 @@ Restart deliberately
 --------------------
 
 ``iocell restart TAG`` is a hard stop/start. Use ``iocell restart -s TAG`` when
-you want a soft restart retaining the kernel jail and network stack. Neither
-choice guarantees application consistency; follow the application's shutdown
-and recovery requirements.
+you want to retain the kernel jail and network stack while running its configured
+stop/start commands and signaling remaining processes. Neither method guarantees
+application consistency; follow the application's shutdown/recovery requirements.
 
 Isolate networking and firewall changes
 ---------------------------------------
@@ -55,9 +54,9 @@ back with ``istemplate=no`` for normal start/console maintenance. The historical
 Clean up explicitly
 -------------------
 
-Remove snapshots only after checking their clone dependencies. Non-force
-``clean -t`` protects dependent clones, including racing clones. Explicit
-``clean -f -t`` permits their destruction. Other cleanup modes remove complete
+Remove snapshots only after checking their clone dependencies. ``clean -t``
+includes internal template clones but protects outside clones, including racing
+ones. Explicit ``clean -f -t`` permits outside-clone destruction. Other cleanup modes remove complete
 namespaces and must never be used as generic housekeeping without reviewing
 what is stored there.
 

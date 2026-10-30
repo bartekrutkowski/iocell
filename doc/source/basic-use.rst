@@ -2,17 +2,17 @@
 Basic usage
 ===========
 
-Start with a disposable host or pool. These examples use ``www01`` as a tag;
-replace ``zroot``, release names, interfaces and addresses for your environment.
+Use an existing dedicated jail pool. These examples call it ``jailpool`` and
+use ``www01`` as a tag; replace pool/release names, interfaces and addresses.
 Use a full UUID or tag, not a short UUID prefix. See :doc:`known-issues` for
 remaining command limitations.
 
 Activate a pool and fetch a release
 -----------------------------------
 
-Activate an existing ZFS pool first:
+Activate the dedicated pool first, not the host's boot pool:
 
-``iocell activate zroot``
+``iocell activate jailpool``
 
 Then request an available release explicitly:
 
@@ -32,7 +32,8 @@ do not assume every download/import path verifies a checksum.
 Fetched releases include the base files and etcupdate data needed to create
 basejails. The fetch/update paths can apply patches with ``freebsd-update(8)``.
 Inspect their output and the resulting release before deploying it. Legacy
-``-p``/``-P`` ports options do not work on the verified modern platform.
+``-p``/``-P`` ports options rely on obsolete tooling; use current FreeBSD package
+or ports management instead.
 
 Create a jail
 -------------
@@ -73,7 +74,7 @@ Creation stops on the first package or mount error. The failed jail is retained
 for inspection, but is not started or reported as successfully created. With
 ``count``, remaining jails are not created. Packages installed before an error
 are not rolled back. Failed unmounts are also errors: inspect reported mounts
-before retrying or deleting the fixture.
+before retrying or deleting the failed jail.
 
 Listing and lifecycle
 ---------------------
@@ -92,9 +93,12 @@ A normal restart stops and recreates the jail:
 
 ``iocell restart www01``
 
-For a soft restart that retains the kernel jail and networking, specify ``-s``:
+For a soft restart, retaining the kernel jail and networking, specify ``-s``:
 
 ``iocell restart -s www01``
+
+This runs the configured stop/start commands and signals remaining processes;
+it does not guarantee graceful shutdown or recovery of every application.
 
 Console and commands
 --------------------
@@ -138,19 +142,10 @@ writes leave the setting unchanged. Other value validation is incomplete;
 a stored string is not proof that every kernel combination will work.
 Multiple settings are independent updates, not a batch transaction.
 
-Malformed command syntax, unknown commands/options and missing required
-operands return nonzero with diagnostics before pool/filesystem setup or
-command dispatch. For example, ``iocell start`` without a target fails rather
-than reporting success. The complete argument list is checked before a valid
-target preceding a bad option can be acted on. No-argument usage, help/version
-aliases and ``-v help``/``-v version`` still succeed.
-
-This is syntax checking, not a transaction or complete property validation.
-A command with valid syntax can still fail during execution after an earlier
-target has changed. Some property values are only partially validated.
-Quote values for your invoking shell; spaces, apostrophes and equals signs
-within property values are preserved literally. The known-issues chapter records these limitations rather than treating
-unsupported examples as working commands.
+Malformed syntax fails before pool/filesystem setup. Valid multi-target commands
+are not transactional: a runtime failure can follow earlier successful changes.
+Some property values are only partially validated. Quote values for the invoking
+shell; spaces, apostrophes and equals signs are preserved literally.
 
 Destroy a jail
 --------------
@@ -162,7 +157,4 @@ bypasses confirmation and may stop a running jail before destroying it.
 .. warning::
 
    Destruction is irreversible. Verify identity, dependent clones and backups.
-   Syntax errors now fail before dispatch, but runtime status propagation is
-   not universally reliable. Never treat a zero exit status alone as proof of
-   the intended state. Explicit template force-cleanup can destroy dependent
-   clones.
+   Explicit template force-cleanup can also destroy clones outside its tree.

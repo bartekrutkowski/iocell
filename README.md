@@ -11,24 +11,17 @@ properties still control storage settings.
 
 ## Status
 
-The current safety fixes were verified on **FreeBSD 15.1-RELEASE-p6/amd64**,
-including 14.5-RELEASE jail fixtures. This is not a compatibility guarantee for
-all other host releases or architectures. Use a FreeBSD release still receiving
-security support and test upgrades on a disposable host first.
-
-There are remaining command limitations. Read the
-[known issues](doc/source/known-issues.rst),
-[historical command audit](doc/command-audit-2026-10-29.md), and
-[safety-fix verification](doc/safety-fixes-2026-10-30.md) before production use.
-The `develop` branch may contain experimental work and unqualified migrations.
+Use a FreeBSD release receiving security updates and a compatible jail
+userland. See [known limitations](doc/source/known-issues.rst) for command
+restrictions and storage behavior.
 
 ## Requirements and installation
 
 - FreeBSD with ZFS and jail support, and at least one usable ZFS pool.
 - `uclcmd` (the `devel/uclcmd` port/package); this is not a zero-dependency tool.
 - Root for mutating commands; supported read-only commands can run unprivileged.
-- VNET kernel support for VNET jails. Shared-IP jails do not require it.
-- RACCT/RCTL kernel support and `kern.racct.enable=1` at boot for resource limits.
+- VNET/VIMAGE kernel support only for VNET jails; shared-IP jails do not need it.
+- RACCT/RCTL support and `kern.racct.enable=1` at boot only for resource limits.
 - Git for Git-backed workflows; SSH keys for remote operations. `mbuffer` is
   optional and must be available at both ends when selected by remote send.
 
@@ -44,11 +37,11 @@ from the repository root in place of the installed `iocell` command.
 
 ## Quick start
 
-Use a dedicated test pool initially. The example assumes the installer-created
-pool `zroot`; substitute your actual pool name.
+The example assumes an existing **dedicated jail pool** named `jailpool`, not
+the host's boot pool. Provision that pool separately and substitute its name.
 
 ```sh
-iocell activate zroot
+iocell activate jailpool
 iocell fetch release=15.1-RELEASE
 iocell create release=15.1-RELEASE tag=myjail vnet=off \
     ip4_addr="em0|192.168.1.10/24"
@@ -88,21 +81,23 @@ do not rely on short UUID prefixes except for image selection during import.
 - [Templates](doc/source/templates.rst)
 - [Snapshots, rollback, updates and resource limits](doc/source/advanced-use.rst)
 - [Operational guidance](doc/source/best-practices.rst)
-- [Tests and destructive-test prerequisites](tests/README.md)
 
 Useful distinctions:
 
 - `create` creates a basejail; `create -e` creates an empty filesystem, not a
   clone. Legacy `create -b`, `-c`, `-t` and `base=` recipes are not supported.
-- `clone TAG@snapshot tag=newtag` uses an existing root snapshot.
-- `restart TAG` is a hard stop/start; `restart -s TAG` requests a soft restart.
+- `clone TAG@snapshot tag=newtag` uses the requested snapshot. Existing delegated
+  data requires its matching snapshot too; use recursive snapshots for that tree.
+- `restart TAG` is a hard stop/start. `restart -s TAG` runs the configured stop/start
+  commands and signals remaining processes, retaining the kernel jail/network.
 - Template names must be valid safe ZFS components. Retag generated timestamp
   names before conversion. Invalid names fail before metadata/alias changes.
 - Full sends take fresh unique snapshots. `send -m` removes only the original
   source after successful receive and activation. Existing replicas generally
   need incremental streams, not a forced full replacement.
-- Non-force `clean -t` protects dependent clones; explicit `-f` permits their
-  destruction. All cleanup operations are destructive.
+- `clean -t` removes the templates tree, including its internal clones. Outside
+  clones block cleanup unless `-f` explicitly permits their destruction.
+  All cleanup operations are destructive.
 - Historical `chroot`, `record`, `package` and `show` subcommands are not
   dispatched. Use the documented current workflows instead.
 

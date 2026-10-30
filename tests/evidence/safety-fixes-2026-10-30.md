@@ -64,7 +64,7 @@ Host: FreeBSD 15.1-RELEASE-p6, amd64. The private receiver was temporarily given
 2 GiB for the existing 1 GiB buffers; its original memory configuration is
 restored after verification. No VM definition or VM disk is deleted.
 
-See [tests/README.md](../tests/README.md) for commands and requirements. The
+See [tests/README.md](../README.md) for commands and requirements. The
 combined native log and portable logs are retained on the test host under
 `/vms/iocell-test/safety-fixes/`; native fixture/log paths are printed by each
 script. Scratch pools/file vdevs are retained separately from the VM disks.

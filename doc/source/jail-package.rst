@@ -30,8 +30,6 @@ is retained, and the importer does not automatically destroy received datasets.
 ZFS itself may roll back an incomplete receive; inspect any remaining partial
 namespace before retrying rather than blindly removing an existing jail.
 
-Valid full-UUID/unique-prefix images, corrupt and truncated streams, existing
-jail protection and a receive reporting failure after writing real data have
-native regression coverage. Legacy thick-jail archives have a separate
-import/checksum path; their error handling was not changed by this fix and
-not all archive formats were qualified. See :doc:`known-issues`.
+Legacy thick-jail archives use a separate import/checksum path. Match the image
+to its importer rather than assuming every archive is a raw ZFS stream; see
+:doc:`known-issues`.

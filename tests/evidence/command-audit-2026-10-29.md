@@ -57,7 +57,9 @@ assume every template has a tag symlink.
 
 The source functions `__send`, `__clean_templates`, `__check_filesystems`,
 `__find_jail`, `__console`, `__deactivate` and `__import` are byte-identical to
-pre-fix base `af493c6`. Their hashes are retained in `source-provenance.json`.
+pre-fix base `af493c6`. Their hashes are in the recovered original
+[source provenance](source-provenance.json). The file was extracted from the
+original results archive; it describes this historical audit, not current code.
 Runtime comparisons against committed `916fe23` also reproduced stale version,
 short-UUID, defaults setter, forced console, unknown-command, import-property,
 and generated-tag/outside-`/config` failures. The destructive/migration

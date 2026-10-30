@@ -47,7 +47,7 @@ After maintenance, stop it and convert it to a template again. The historical
 isolation; it is not an automatic stopped-template maintenance interface.
 
 Conversion back is refused if the stored UUID is invalid, the template is
-running, or its root dataset has dependent clones. A failed ZFS rename (for
+running, or its root/data datasets have clones outside the template tree. A failed ZFS rename (for
 example, because the original UUID destination is occupied) is reported as an
 error without changing the template flags or tag link. The previous ``jailed``
 state of the template's ``data`` child dataset is restored if the rename fails;
@@ -64,6 +64,3 @@ clones before explicitly permitting their destruction.
 A failed metadata or alias update after a successful conversion rename returns
 an error; the dataset may already have moved. The final template flag is not
 written after that failure.
-
-To make it a template again, stop the jail and run
-``iocell set istemplate=yes UUID|TAG``.

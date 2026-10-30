@@ -34,8 +34,8 @@ FAQ
 **Can I run a firewall in a jail?**
     Availability depends on VNET, the host kernel, jail permissions and device
     exposure. Do not apply an old blanket PF/IPFW or securelevel recipe to all
-    host versions. Keep host filtering and management access while testing;
-    per-jail firewall policy was not qualified by the command audit.
+    host versions. Keep host filtering and management access while testing
+    rules on an isolated network.
 
 **Can I use templates and clones?**
     Yes. Use ``istemplate=yes/no`` for conversion and ``clone`` for deployment.
@@ -71,7 +71,7 @@ FAQ
     Prepare the bridge yourself and use ``createbridge=off`` and
     ``keepbridge=on`` as appropriate. See :doc:`networking`.
 
-**Is every documented workflow qualified?**
-    No. Current verification targets FreeBSD 15.1-RELEASE-p6/amd64, including
-    14.5 jail fixtures. Historical recipes and remaining command defects are
-    identified in :doc:`known-issues`; do not assume success text proves state.
+**What should I back up before updates?**
+    Back up jail configuration and data, plus the shared release used by
+    basejails. Stop or quiesce applications for consistent backups. See
+    :doc:`best-practices` and :doc:`known-issues` for storage boundaries.

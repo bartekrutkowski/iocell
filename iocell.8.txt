@@ -65,28 +65,22 @@ DESCRIPTION
   Use full UUIDs or tags for jail operations. Short UUID prefixes are currently
   unreliable. Import separately accepts a unique image UUID prefix.
 
-  To ease jail identification a TAG field is included in list mode which can
-  be set to any string (hostname, label, note, etc.). By default if unset the
-  TAG field contains the creation date and time stamp.
+  A descriptive TAG (hostname, label, etc.) makes jails easier to identify.
+  Alias names cannot be empty, contain a slash, or equal "." or "..". Template
+  tags have stricter ZFS component rules. An unset tag defaults to a timestamp.
 
   Jail configuration is stored in UCL files alongside datasets, with storage
   properties managed by ZFS. uclcmd is a required dependency. Replication
   transfers the selected filesystem tree; basejail images still need their
   shared release files on the receiving host.
 
-  iocell relies on ZFS and at least one ZFS pool must be present on the host
-  system. To enable all the features iocell supports, consider the following
-  optional kernel options and system requirements:
-    o  A supported FreeBSD release with ZFS and jail support
-    o  Kernel compiled with:
+  Use a supported FreeBSD release with ZFS, jail support, uclcmd and an existing
+  ZFS pool. Additional kernel features are needed only for their corresponding
+  optional functions:
+    o  VIMAGE/VNET support for vnet=on; shared-IP jails do not require it.
+    o  RACCT and RCTL, with kern.racct.enable=1 at boot, for resource limits.
 
-        options         VIMAGE
-        options         RACCT
-        options         RCTL
-
-  Current verification used FreeBSD 15.1-RELEASE-p6/amd64, including 14.5 jail
-  fixtures. The historical 9.3 kernel-version check is not a support guarantee.
-  Enable RACCT at boot (kern.racct.enable=1) before using resource limits.
+  Check the running kernel's capabilities before enabling those features.
 
   The -v switch before a command enables verbose shell tracing. Unknown
   commands, missing required operands and malformed option/argument lists
@@ -122,10 +116,11 @@ SUBCOMMANDS
 
   clone UUID|TAG[@snapshot] [property=value]
 
-    Clone jail identified by UUID (ZFS clone). All properties will be reset on
-    the clone, defaults can be overridden by specifying properties on the fly.
-    Custom point-in-time snapshots can be used as a source for cloning in the
-    form of UUID@snapshot or TAG@snapshot.
+    Create a new jail identity using a ZFS clone of the selected source.
+    Optional property=value operands configure the copy. UUID@snapshot or
+    TAG@snapshot selects an existing point in time. Existing delegated data
+    requires its matching snapshot too; otherwise cloning is refused. Without
+    a snapshot operand, a fresh recursive source snapshot is created.
 
     Examples:
 
@@ -200,7 +195,7 @@ SUBCOMMANDS
     Export a stopped jail as a recursive raw ZFS stream under /iocell/images.
     Ordinary exports do not necessarily produce a tar.xz archive or SHA256
     sidecar. Basejail shared release files are not part of the jail image.
-    Verify output and content; not all legacy image formats were qualified.
+    Check the image format and required release before restoring it.
 
   fetch [-p|-P] [release=RELEASE | ftphost=ftp.hostname.org |
         ftpdir=/dir/ | ftpfiles="base.txz lib32.txz src.txz"]
@@ -224,8 +219,8 @@ SUBCOMMANDS
     Newly created jails or basejails will automatically have the latest
     updates applied.
 
-    Legacy -p/-P ports options rely on tooling unavailable on the verified
-    modern platform and can report success without installing a ports tree.
+    Legacy -p/-P ports options rely on obsolete tooling and can report
+    success without installing a ports tree.
     They are not a working modern ports installation procedure.
 
     compression: Compression is lz4 by default; see zfs(8) for the list of
@@ -313,12 +308,10 @@ SUBCOMMANDS
 
   reboot [-s] UUID|TAG|ALL
 
-    Fully stops the jail with `iocell stop` and, upon success, restarts it with
-    `iocell start`. If `-s` is specified it will instead do a soft restart
-    on the jail. The soft method will restart the jail without destroying
-    the jail's networking or the jail process itself. All processes are
-    gracefully restarted inside the jail. This is useful for quick and graceful
-    restarts.
+    Fully stops the jail and, upon success, starts it again. With -s, runs the
+    configured exec_stop command, signals remaining processes, then runs
+    exec_start while retaining the kernel jail and networking. Soft restart
+    does not guarantee graceful shutdown or recovery of every application.
 
   rcshutdown
 
@@ -329,15 +322,10 @@ SUBCOMMANDS
 
   reset UUID|TAG|ALL
 
-    This will reset a jail's properties back to the defaults.
-
-    Historically intended to read saved defaults, but that behavior is still
-    unresolved; restoring set ... default for creation does not repair reset.
-    TAG, UUID and generated vnet mac addresses are carried forward.
-
-    Those will retain their values, even if you reset the jail.
-    You can also reset every jail to the default properties by using the
-    keyword "ALL".
+    Resets properties using built-in values while carrying forward selected
+    identity/network settings, including TAG, UUID and generated VNET MACs.
+    Reset does not reload defaults saved by set ... default; those values
+    apply to later creation. Use ALL to target all jails.
 
   restart [-s] UUID|TAG|ALL
 
@@ -571,9 +559,9 @@ PROPERTIES
     to the first available based upon the given range and already created
     jails.
 
-    These ranges can be stored with set property=value default. AUTOIP4
-    itself was not qualified by the current verification; use explicit
-    addresses or a deliberately configured/tested DHCP setup instead.
+    These ranges can be stored with set property=value default. Check the
+    selected address and interface before exposing services. Explicit addresses
+    or a configured DHCP setup are alternatives to automatic range allocation.
 
     For VNET jails the interface will be configured with the IP addresses
     listed.

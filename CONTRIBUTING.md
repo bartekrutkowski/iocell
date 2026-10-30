@@ -30,7 +30,7 @@ if [ "$(command | test)" ] ; then
 fi
 ```
 - Edit `lib/ioc-help`, not generated `iocell.8`/`iocell.8.txt`, when changing
-  the command reference. On the prepared FreeBSD test host, install `txt2man`
+  the command reference. On FreeBSD, install `txt2man`
   and regenerate both files from the checkout:
 ```
 sh ./iocell help > iocell.8.txt
@@ -124,6 +124,7 @@ internal reference before committing:
 sphinx-build -E -a -n -W --keep-going -b html doc/source /tmp/iocell-doc-html
 ```
 Build output should stay outside the source tree. See [tests/README.md](tests/README.md)
-for portable and opt-in native regression commands. Website publication depends
-on the documentation service's configuration; local validation is required even
-when an upstream hosting service builds automatically.
+for portable and opt-in native regression commands. Historical test results and their source provenance live in
+[tests/evidence](tests/evidence/README.md), separate from the user guide.
+Website publication depends on the documentation service; validate locally even
+when it also builds automatically.
