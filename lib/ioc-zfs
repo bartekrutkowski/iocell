@@ -38,7 +38,16 @@ __activate () {
             fi
 
             export pool="${_npool}"
-            __check_filesystems
+            # A received tree (-u), or a previously active pool, may exist
+            # without being mounted at the active location. Select its real
+            # configuration before writing the new active-pool value.
+            if zfs get -H creation "${pool}/iocell" >/dev/null 2>&1 ; then
+                zfs set mountpoint=/iocell "${pool}/iocell" || return $?
+                if [ "$(zfs get -H -o value mounted "${pool}/iocell")" != yes ] ; then
+                    zfs mount "${pool}/iocell" || return $?
+                fi
+            fi
+            __check_filesystems || return $?
             uclcmd set -u -f "${iocroot}/.default" -t string -- "pool" \
                 "${_npool}"
         else
@@ -1321,11 +1330,68 @@ __umount_istemplate () {
     done
 }
 
+# Check every pipeline stage, including the sender. POSIX sh has no pipefail.
+__send_stream () (
+    local _dest _peer _buffer _work _status _sender _buffer_status
+    _dest="$1"
+    _peer="$2"
+    _buffer="$3"
+    shift 3
+    _work=$(mktemp -d "${TMPDIR:-/tmp}/iocell-send.XXXXXX") || return $?
+    trap 'rm -rf "${_work}"' EXIT
+
+    if [ "${_buffer}" = 1 ] ; then
+        { trap - EXIT; zfs send "$@"; printf '%s\n' "$?" > "${_work}/send"; } | \
+            { trap - EXIT; mbuffer -s 128k -m 1G; \
+              printf '%s\n' "$?" > "${_work}/buffer"; } | \
+            { trap - EXIT; __send_receive "${_dest}" "${_peer}" 1; }
+        _status=$?
+        _buffer_status=$(cat "${_work}/buffer" 2>/dev/null) || _buffer_status=1
+    else
+        { trap - EXIT; zfs send "$@"; printf '%s\n' "$?" > "${_work}/send"; } | \
+            { trap - EXIT; __send_receive "${_dest}" "${_peer}" 0; }
+        _status=$?
+        _buffer_status=0
+    fi
+
+    _sender=$(cat "${_work}/send" 2>/dev/null) || _sender=1
+    [ "${_sender}" = 0 ] || return "${_sender}"
+    [ "${_buffer_status}" = 0 ] || return "${_buffer_status}"
+    return "${_status}"
+)
+
+__send_receive () {
+    local _dest _peer _buffer
+    _dest="$1"
+    _peer="$2"
+    _buffer="$3"
+    if [ -z "${_peer}" ] ; then
+        zfs receive -Fu "${_dest}/iocell"
+    elif [ "${_buffer}" = 0 ] ; then
+        ssh "${_peer}" "zfs receive -F ${_dest}/iocell"
+    else
+        # Capture the remote buffer's status as well as zfs receive's status.
+        ssh "${_peer}" '/bin/sh -c '\''
+            work=$(mktemp -d /tmp/iocell-receive.XXXXXX) || exit $?
+            trap "rm -rf \"${work}\"" EXIT
+            { trap - EXIT; mbuffer -s 128k -m 1G;
+              printf "%s\\n" "$?" > "${work}/buffer"; } |
+                zfs receive -F '"${_dest}"'/iocell
+            status=$?
+            buffer_status=$(cat "${work}/buffer" 2>/dev/null) || buffer_status=1
+            [ "${buffer_status}" = 0 ] || exit "${buffer_status}"
+            exit "${status}"
+        '\'''
+    fi
+}
+
 __send () {
     local _clean _count _date _dest _exists _exit _incremental _Incremental \
           _mbuffertest _move _opt _pool _remote _remotehost _remoteuser \
-          _snapshot _sshtest _state _switch _zfstest
+          _snapshot _sshtest _state _switch _zfstest _source_dataset \
+          _full_snapshot _spinner_pid _mountpoint
 
+    _source_dataset="${pool}/iocell"
     _date=$(date "+%F")
 
     # Hack to be able to see the last argument
@@ -1333,7 +1399,11 @@ __send () {
         true
     done
 
-    _exists="$(zfs get -H -o value creation ${_last} > /dev/null 2>&1 \
+    if ! printf '%s\n' "${_last}" | grep -Eq \
+        '^[[:alpha:]][[:alnum:]_.:-]*$' ; then
+        __die "please specify a valid pool!"
+    fi
+    _exists="$(zfs get -H -o value creation "${_last}" > /dev/null 2>&1 \
         ; echo $?)"
 
     if [ "${_exists}" -eq 1 ] ; then
@@ -1359,6 +1429,11 @@ __send () {
             ;;
         esac
     done
+
+    if [ "${_remote}" = 0 ] && \
+        [ "${_dest}/iocell" = "${_source_dataset}" ] ; then
+        __die "source and destination pools must differ!"
+    fi
 
     # Reset so we can check again
     OPTIND=1
@@ -1473,6 +1548,33 @@ __send () {
     # Cleanup
     shift $(expr $OPTIND - 1)
 
+    # Clean before taking the fresh snapshot, never after creating it.
+    if [ "${_clean}" -eq 1 ] ; then
+        if [ "${_incremental}" -eq 1 -o "${_Incremental}" -eq 1 ] ; then
+            __die "cannot use clean with incrementals!"
+        fi
+        __clean_snapshots > /dev/null 2>&1
+        _pool="${pool}"
+        export pool="${_dest}"
+        __clean_snapshots > /dev/null 2>&1
+        export pool="${_pool}"
+    fi
+
+    if [ "${_remote}" -eq 1 ] && \
+        { [ -z "${_remoteuser}" ] || [ -z "${_remotehost}" ]; } ; then
+        __die "please specify both -u user and -h host"
+    fi
+    if [ "${_count}" -ne 0 -a "${_count}" -ne 2 ] ; then
+        __die "please supply two incremental snapshot endpoints"
+    fi
+
+    if [ "${_incremental}" -eq 0 -a "${_Incremental}" -eq 0 ] ; then
+        _full_snapshot="${_source_dataset}@ioc-send-${_date}-$(uuidgen)" \
+            || return $?
+        # Never send an older snapshot if creation of this one fails.
+        zfs snapshot -r "${_full_snapshot}" || return $?
+    fi
+
     # __spinner needs to be recreated here as we want one dialog
     _spinner='/-\|'
 
@@ -1484,24 +1586,8 @@ __send () {
         sleep .1
     done &
 
-    trap "kill $!" 2 3
-    # Clean all snapshots before send
-    if [ "${_clean}" -eq 1 ] ; then
-        if [ "${_incremental}" -eq 1 -o "${_Incremental}" -eq 1 ] ; then
-            printf "\b%1s\n" "error!" ; kill $! && trap " " 2 3 \
-                ; echo "  ERROR: cannot use clean with incrementals!" >&2
-            exit 1
-        fi
-
-        __clean_snapshots > /dev/null 2>&1
-        _pool="${pool}"
-        # Change the global pool variable to the destination
-        # so it can be cleaned of snapshots as well
-        export pool="${_dest}"
-        __clean_snapshots > /dev/null 2>&1
-        export pool="${_pool}"
-    fi
-
+    _spinner_pid=$!
+    trap 'kill "${_spinner_pid}" 2>/dev/null' 2 3
     if [ "${_remote}" -eq 1 ] ; then
         if [ -z "${_remoteuser}" ] ; then
             printf "\b%1s\n" "error!" ; kill $! && trap " " 2 3 \
@@ -1533,30 +1619,22 @@ __send () {
                     exit 1
                 fi
 
-                zfs send -R${_snapshot} | \
-                    mbuffer -s 128k -m 1G 2> /dev/null | \
-                    ssh ${_remoteuser}@${_remotehost} "mbuffer -s 128k -m 1G | \
-                    zfs receive -F ${_dest}/iocell"
+                __send_stream "${_dest}" "${_remoteuser}@${_remotehost}" \
+                    1 -R${_snapshot}
                 _exit="$?"
             else
-                zfs snapshot -r ${pool}/iocell@ioc-send-${_date} > /dev/null 2>&1
-                zfs send -R ${pool}/iocell@ioc-send-${_date} | \
-                    mbuffer -s 128k -m 1G 2> /dev/null | \
-                    ssh ${_remoteuser}@${_remotehost} "mbuffer -s 128k -m 1G | \
-                    zfs receive -F ${_dest}/iocell"
+                __send_stream "${_dest}" "${_remoteuser}@${_remotehost}" \
+                    1 -R "${_full_snapshot}"
                 _exit="$?"
             fi
         else
             if [ "${_incremental}" -eq 1 -o "${_Incremental}" -eq 1 ] ; then
-                zfs send -R${_snapshot} | \
-                    ssh ${_remoteuser}@${_remotehost} \
-                    "zfs receive -F ${_dest}/iocell"
+                __send_stream "${_dest}" "${_remoteuser}@${_remotehost}" \
+                    0 -R${_snapshot}
                 _exit="$?"
             else
-                zfs snapshot -r ${pool}/iocell@ioc-send-${_date} > /dev/null 2>&1
-                zfs send -R ${pool}/iocell@ioc-send-${_date} | \
-                    ssh ${_remoteuser}@${_remotehost} \
-                    "zfs receive -F ${_dest}/iocell"
+                __send_stream "${_dest}" "${_remoteuser}@${_remotehost}" \
+                    0 -R "${_full_snapshot}"
                 _exit="$?"
             fi
         fi
@@ -1568,15 +1646,20 @@ __send () {
                 exit 1
             fi
 
-            zfs send -R${_snapshot} | \
-                zfs receive -Fu ${_dest}/iocell
+            __send_stream "${_dest}" '' 0 -R${_snapshot}
             _exit="$?"
         else
-            zfs snapshot -r ${pool}/iocell@ioc-send-${_date} > /dev/null 2>&1
-            zfs send -R ${pool}/iocell@ioc-send-${_date} | \
-                zfs receive -Fu ${_dest}/iocell
+            __send_stream "${_dest}" '' 0 -R "${_full_snapshot}"
             _exit="$?"
         fi
+    fi
+
+    kill "${_spinner_pid}" 2>/dev/null || :
+    wait "${_spinner_pid}" 2>/dev/null || :
+    trap - 2 3
+    if [ "${_exit}" -ne 0 ] ; then
+        __error "transfer failed; source retained"
+        return "${_exit}"
     fi
 
     # Clean snapshots after send
@@ -1590,15 +1673,22 @@ __send () {
     fi
 
     if [ "${_move}" -eq 1 ] ; then
-        if [ "${_exit}" -eq 0 ] ; then
-            __activate "${_dest}"
-            zfs destroy -rf "${pool}/iocell"
-            export pool="${_dest}"
-            zfs mount -a
+        __activate "${_dest}" || return $?
+        zfs mount -a || return $?
+        _mountpoint=$(zfs get -H -o value mountpoint "${_dest}/iocell") \
+            || return $?
+        if [ "$(uclcmd get -qf "${_mountpoint}/.default" pool)" != \
+            "${_dest}" ] ; then
+            __error "destination activation failed; source retained"
+            return 1
         fi
+        # Activation changes global pool. Never derive the source from it.
+        zfs destroy -rf "${_source_dataset}" || return $?
+        export pool="${_dest}"
     fi
 
-    printf "\b%1s\n" "done!" ; kill $! && trap " " 2 3
+    printf "\b%1s\n" "done!"
+    return 0
 }
 
 # Accepts one argument, and that is the UUID to match everything.
