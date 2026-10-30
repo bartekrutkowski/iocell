@@ -2,172 +2,145 @@
 Basic usage
 ===========
 
-This section is about basic use and is a suitable quick howto for newcomers.
+Start with a disposable host or pool. These examples use ``www01`` as a tag;
+replace ``zroot``, release names, interfaces and addresses for your environment.
+Use a full UUID or tag, not a short UUID prefix. See :doc:`known-issues` for
+remaining command limitations.
 
-Fetch a release
----------------
+Activate a pool and fetch a release
+-----------------------------------
 
-The very first step with iocell is to fetch a RELEASE. By default iocell will attempt to fetch the
-host's current RELEASE from the freebsd.org servers. Once the RELEASE bits are downloaded, the most
-recent patches are applied too.
+Activate an existing ZFS pool first:
 
-Simply run:
+``iocell activate zroot``
 
-``iocell fetch``
+Then request an available release explicitly:
 
-If a specific RELEASE is required run:
+``iocell fetch release=15.1-RELEASE``
 
-``iocell fetch release=9.3-RELEASE``
+The interactive ``iocell fetch`` menu is obsolete and can reject its own
+current-host default. An explicit release avoids that selection path. If the
+legacy default mirror/path is unavailable, specify both, for example:
 
-In case a specific download mirror (FTP or HTTP) is required simply run:
+``iocell fetch release=15.1-RELEASE ftphost=download.freebsd.org ftpdir=/releases/amd64/amd64/15.1-RELEASE``
 
-``iocell fetch ftphost=ftp.hostname.org``
+The architecture and directory must match the host and distribution server.
+The downloader also supports ``ftplocaldir=/path/to/distributions`` for local
+release archives. Use trusted distribution files and verify their provenance;
+do not assume every download/import path verifies a checksum.
 
-You can also specify a directory to fetch the base files from:
-
-``iocell fetch ftpdir=/dir/``
+Fetched releases include the base files and etcupdate data needed to create
+basejails. The fetch/update paths can apply patches with ``freebsd-update(8)``.
+Inspect their output and the resulting release before deploying it. Legacy
+``-p``/``-P`` ports options do not work on the verified modern platform.
 
 Create a jail
 -------------
 
-There are three supported basic jail types: full, clone and base jail. In addition to these three 
-there are two more which are discussed later (empty and templates).
-Depending on requirements the `create` subcommand can be tweaked to create any of the three types.
-By default iocell will create a fully independent jail of the current host's RELEASE and set the TAG property to todays date.
+``iocell create`` creates a **basejail** using the host's release and a generated
+timestamp tag. Fetch that release first. Its base directories are mounted
+read-only from the shared release when the jail starts; they are not an
+independent copy of the complete OS.
 
-Creating a jail is real simple, just run:
+Prefer a meaningful tag and explicit networking mode:
 
-``iocell create``
+``iocell create release=15.1-RELEASE tag=www01 vnet=off ip4_addr="em0|192.168.1.10/24"``
 
-This will create a fully independent jail.
+Replace ``em0`` with your actual host interface and choose an unused address.
+VNET is enabled automatically on capable hosts unless overridden; its bridge
+and network configuration differ from this shared-IP example.
 
-To create a lightweight jail (clone) run:
-
-``iocell create -e``
-
-To create a base jail:
-
-``iocell create -b``
-
-To create a jail and set its IP address and tag property run:
-
-``iocell create -e tag=myjail ip4_addr="em0|10.1.1.10/24"``
-
-For more information please read iocell(8).
+``iocell create -e tag=empty-test`` creates an empty jail filesystem. It is not
+a lightweight clone and cannot boot a FreeBSD userland until that filesystem
+has been populated appropriately. Use ``iocell clone SOURCE tag=copy`` for a
+clone of an existing jail or template. Legacy ``create -b``, ``-c``, ``-t`` and
+``base=...`` recipes are rejected. See :doc:`jailtypes`.
 
 Installing packages during creation
 +++++++++++++++++++++++++++++++++++
 
 Create a readable text file containing one package name per line, for example
-``pkgconf``. Blank lines and lines beginning with ``#`` are ignored. Pass the
-file to create a normal jail with those packages installed. Relative paths are
-resolved from the directory where iocell was invoked:
+``pkgconf``. Blank lines and lines beginning with ``#`` are ignored:
 
-``iocell create tag=myjail pkglist=/path/to/packages.txt``
+``iocell create tag=www01 vnet=off pkglist=/path/to/packages.txt``
 
-The selected release (or template) is mounted for installation and unmounted
-afterwards. An empty package list is allowed. A missing or unreadable list is
-rejected before creating a jail.
+Relative list paths are resolved from the invocation directory. The selected
+release or template is mounted for installation and unmounted afterwards. An
+empty list is allowed; a missing or unreadable list is rejected before creating
+a jail.
 
 Creation stops on the first package or mount error. The failed jail is retained
-for inspection, but is not started or reported as successfully created. If
-``count`` was specified, remaining jails are not created. Packages installed
-before an error are not rolled back. A failed unmount also causes creation to
-fail; inspect the reported mounts before retrying or removing the failed jail.
+for inspection, but is not started or reported as successfully created. With
+``count``, remaining jails are not created. Packages installed before an error
+are not rolled back. Failed unmounts are also errors: inspect reported mounts
+before retrying or deleting the fixture.
 
-Listing jails
--------------
+Listing and lifecycle
+---------------------
 
-To list all jails run:
+``iocell list`` lists jails, ``iocell list -r`` lists fetched releases and
+``iocell list -t`` lists templates. The ``-s`` option selects a sort field; see
+``iocell help`` for the supported fields.
 
-``iocell list``
-
-To see all downloaded RELEASEs run:
-
-``iocell list -r``
-
-To see available templates run:
-
-``iocell list -t``
-
-Start, stop or restart a jail
------------------------------
-
-To start or stop any jail on the system both the UUID or TAG can be used interchangeably.
-To simplify UUID handling iocell accepts a partial UUID too with any subcommand.
-
-Start
-+++++
-
-To start a jail tagged www01 simply run:
+Start and stop by tag or full UUID:
 
 ``iocell start www01``
 
-To start a jail with a full UUID run:
-
-``iocell start 26e8e027-f00c-11e4-8f7f-3c970e80eb61``
-
-Or to start the jail only with a partial UUID enter the first few characters only:
-
-``iocell start 26e8``
-
-Stop
-++++
-
-To stop a jail just use the ``stop`` subcommand instead of start:
-
 ``iocell stop www01``
 
-Restart
-+++++++
-
-To restart a jail run:
+A normal restart stops and recreates the jail:
 
 ``iocell restart www01``
 
-*Note: Short UUIDs are supported with all operations and subcommands within iocell.*
+For a soft restart that retains the kernel jail and networking, specify ``-s``:
 
-Configure a jail
-----------------
+``iocell restart -s www01``
 
-Any property can be reconfigured with the ``set`` subcommand.
-
-Set property
-++++++++++++
-
-To set the jail's TAG property run:
-
-``iocell set tag=www02 26e8e027``
-
-Get property
-++++++++++++
-
-To verify any property simply run the ``get`` subcommand:
-
-``iocell get tag 26e8e027``
-
-Get all properties:
-+++++++++++++++++++
-
-Or to display all supported properties run:
-
-``iocell get all 26e8e027``
-
-System wide defaults
+Console and commands
 --------------------
 
-Starting with version 1.6.0 system wide defaults can be set. These defaults will be re-applied for all
-newly created jails. To create a system wide default override for a property simply specify the ``default`` keyword instead of a jail UUID or TAG.
+``iocell console www01`` opens a shell in an already running jail.
+``console -f`` has a known stopped-jail startup defect; start the jail explicitly
+first. To run a command without an interactive console:
 
-Example, to turn off VNET capability for all newly created jails run:
+``iocell exec www01 /bin/sh -c 'echo ready'``
 
-``iocell set vnet=off default``
+The historical ``iocell chroot`` subcommand is not dispatched. A manually
+prepared ``chroot(8)`` is not a replacement for jail isolation and requires
+careful mount/dependency handling. For a stopped template, convert it back to
+a jail before normal start/console operations; see :doc:`templates`.
+
+Properties and defaults
+-----------------------
+
+Set and inspect a per-jail property:
+
+``iocell set tag=www02 www01``
+
+``iocell get tag www02``
+
+``iocell get all www02``
+
+``iocell defaults`` displays configured defaults. The documented historical
+``iocell set property=value default`` setter is currently broken, and
+``iocell get all default`` does not dump all defaults. Specify required
+properties on creation or per jail rather than relying on that setter.
+
+Some property values are only partially validated. A benign apostrophe in a
+notes value currently breaks argument parsing; avoid it until the parser is
+fixed. The known-issues chapter records these limitations rather than treating
+unsupported examples as working commands.
 
 Destroy a jail
----------------
+--------------
 
-To destroy a jail, simply run:
+``iocell destroy www02`` asks for confirmation and refuses a running jail.
+Stop the jail first for a deliberate teardown. ``iocell destroy -f www02``
+bypasses confirmation and may stop a running jail before destroying it.
 
-``iocell destroy www02``
+.. warning::
 
-**Warning:** this will irreversibly destroy the jail!
+   Destruction is irreversible. Verify identity, dependent clones and backups.
+   Several unrelated commands still return success for missing operands or
+   invalid requests; never treat a zero exit status alone as proof of the
+   intended state. Explicit template force-cleanup can destroy dependent clones.

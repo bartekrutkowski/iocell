@@ -1,166 +1,119 @@
 iocell
 ======
 
-**A FreeBSD jail manager.**
+**A FreeBSD jail manager using ZFS, VNET and resource limits.**
 
-iocell is a zero dependency, drop in jail/container manager amalgamating some
-of the best features and technologies the FreeBSD operating system has to offer.
-It is geared for ease of use with a simple and easy to understand command syntax.
+iocell continues the classic shell-based iocage interface. Jails can use
+shared-IP networking or a separate VNET stack, shared read-only base files,
+ZFS clones, templates, snapshots, quotas and optional kernel resource limits.
+Configuration is stored in UCL files alongside the ZFS datasets; native ZFS
+properties still control storage settings.
 
-It has been forked from iocage, when iocage has been abandoned, but not released
-by its author. This fork's goal is purely to support 'classic iocage' experience
-and add fixes and features requested by iocage users.
+## Status
 
-iocell is in the FreeBSD ports tree as sysutils/iocell.
-To install using binary packages, simply run: `pkg install iocell`
+The current safety fixes were verified on **FreeBSD 15.1-RELEASE-p6/amd64**,
+including 14.5-RELEASE jail fixtures. This is not a compatibility guarantee for
+all other host releases or architectures. Use a FreeBSD release still receiving
+security support and test upgrades on a disposable host first.
 
-## WARNING:
-The `develop` branch may not be functional at any given point. This is where a lot of experimental work gets done. No guarantees for stability or migrations within the branch are given. Things can and do change rapidly. **_Please don't use it if you require stability._**
+There are remaining command limitations. Read the
+[known issues](doc/source/known-issues.rst),
+[historical command audit](doc/command-audit-2026-10-29.md), and
+[safety-fix verification](doc/safety-fixes-2026-10-30.md) before production use.
+The `develop` branch may contain experimental work and unqualified migrations.
 
-- **Discussions**: Mailing list is available on [Google Groups](https://groups.google.com/forum/#!forum/iocell)
-- **Contributing**: If you would like to submit a pull request, we kindly ask you to open it against the `develop` branch.
+## Requirements and installation
 
-####Raising an issue:
+- FreeBSD with ZFS and jail support, and at least one usable ZFS pool.
+- `uclcmd` (the `devel/uclcmd` port/package); this is not a zero-dependency tool.
+- Root for mutating commands; supported read-only commands can run unprivileged.
+- VNET kernel support for VNET jails. Shared-IP jails do not require it.
+- RACCT/RCTL kernel support and `kern.racct.enable=1` at boot for resource limits.
+- Git for Git-backed workflows; SSH keys for remote operations. `mbuffer` is
+  optional and must be available at both ends when selected by remote send.
 
-We _like_ issues! If you are having trouble with `iocell` please open a GitHub [issue](https://github.com/bartekrutkowski/iocell/issues) and we will ~~run around with our hair on fire~~ look into it. Before doing so, please give us some information about the situation:
-- Tell us what version of FreeBSD you are using with something like `uname -ro`
-- It would also be helpful if you gave us the output of `iocell version`
-- Most importantly, try to be detailed. Simply stating "I tried consoling into a jail and it broke" will not help us very much. However, saying something like this helps much, much more:
+The FreeBSD port is `sysutils/iocell`:
 
-
-"I tried to console into a _template_ jail, but it failed with _this error_ in which _I pasted below:_"
-````
-gasgiant ~ # iocell list -t
-JID  UUID                                  BOOT  STATE  TAG     TYPE
--    XXXXXXXX-XXXX-XXXX-a5be-3417ebb13845  off   down   pepperd  template
-gasgiant ~ # iocell console salted
-cannot open 'zroot/iocell/jails/XXXXXXXX-XXXX-XXXX-a5be-3417ebb13845': dataset does not exist
-cannot open 'zroot/iocell/jails/XXXXXXXX-XXXX-XXXX-a5be-3417ebb13845': dataset does not exist
-[: -ne: unexpected operator
-  ERROR: jail: pepperd is not running!
-````
-- Use the [Markdown Basics](https://help.github.com/articles/markdown-basics/#code-formatting) GitHub page for more information on how to paste lines of code and terminal output.
-
-**FEATURES:**
-- Templates, clones, basejails, fully independent jails
-- Ease of use
-- Zero configuration files
-- Rapid thin provisioning within seconds
-- Automatic package installation
-- Virtual networking stacks (vnet)
-- Shared IP based jails (non vnet)
-- Resource limits (CPU, MEMORY, etc.)
-- Filesystem quotas and reservations
-- Dedicated ZFS datasets inside jails
-- Transparent ZFS snapshot management
-- Binary updates
-- Differential jail packaging
-- Export and import
-- And many more!
-
-**QUICK HOWTO:**
-
-`iocell(8)` requires a zfs pool to store its jails, templates and configuration.
-FreeBSD's installer uses `zroot` as the default name for the system zpool, so
-these examples below do too. If you wish, you may use an alternate zpool,
-whether due to differing install-time choices, or if you have a dedicated zpool
-for iocell to use instead.
-
-`iocell activate zroot`
-
-Fetch the latest *release* of FreeBSD from the public FTP site:
-
-`iocell fetch`
-
-Create a jail:
-
-Make sure that the device name chosen below matches your main network interface,
-as shown by `ifconfig(8)`, and that the IP address doesn't conflict with your
-local network or DHCP address range.
-
-`iocell create tag=myjail ip4_addr="em0|192.168.1.10/24"`
-
-Start the jail:
-
-`iocell start myjail`
-
-Connect to the jail's console:
-
-`iocell console myjail`
-
-You now have root access within your jail -- enjoy!
-
-**USAGE:**
+```sh
+pkg install iocell
 ```
-  iocell activate ZPOOL
-  iocell cap UUID|TAG
-  iocell chroot UUID|TAG [command]
-  iocell clean [-a|-r|-j]
-  iocell clone UUID|TAG [UUID|TAG@snapshot] [property=value]
-  iocell console UUID|TAG
-  iocell create [-b|-c|-e] [release=RELEASE] [pkglist=file] [property=value]
-  iocell deactivate ZPOOL
-  iocell defaults
-  iocell destroy [-f] UUID|TAG
-  iocell df
-  iocell exec [-u username | -U username] UUID|TAG|ALL command [arg ...]
-  iocell export UUID|TAG
-  iocell fetch [release=RELEASE | ftphost=ftp.hostname.org | ftpdir=/dir/ |
-                ftpfiles="base.txz lib32.txz src.txz"]
-  iocell get property|all UUID|TAG
-  iocell help
-  iocell import UUID [property=value]
-  iocell init-host IP ZPOOL
-  iocell inuse UUID|TAG
-  iocell limits [UUID|TAG]
-  iocell list [-b|-t|-r]
-  iocell package UUID|TAG
-  iocell promote UUID|TAG
-  iocell rcboot
-  iocell reboot UUID|TAG
-  iocell rcshutdown
-  iocell record start|stop UUID|TAG
-  iocell reset UUID|TAG|ALL
-  iocell restart UUID|TAG
-  iocell rollback UUID|TAG@snapshotname
-  iocell runtime UUID|TAG
-  iocell set property=value UUID|TAG
-  iocell show property
-  iocell snaplist UUID|TAG
-  iocell snapremove UUID|TAG@snapshotname|ALL
-  iocell snapshot UUID|TAG [UUID|TAG@snapshotname]
-  iocell start UUID|TAG
-  iocell stop UUID|TAG
-  iocell uncap UUID|TAG
-  iocell update UUID|TAG
-  iocell upgrade UUID|TAG [release=RELEASE]
-  iocell version | --version
-  ```
 
-**REQUIREMENTS**
-- FreeBSD 13.2-RELEASE amd64 or newer
-- ZFS file system
-- Optional - Kernel compiled with:
+A packaged release may not include fixes in this checkout. To exercise the
+checkout directly on FreeBSD, install its dependencies and use `sh ./iocell`
+from the repository root in place of the installed `iocell` command.
 
-        # This is optional and only needed if you need VNET and resource
-        # limits
+## Quick start
 
-        options         VIMAGE # VNET/Vimage support
-        options         RACCT  # Resource containers
-        options         RCTL   # same as above
+Use a dedicated test pool initially. The example assumes the installer-created
+pool `zroot`; substitute your actual pool name.
 
-**OTHER CONSIDERATIONS**
-- For resource limiting please read rctl(8)
-- For the explanations on jail properties read jail(8)
-- Create bridge0 and bridge1 interfaces
+```sh
+iocell activate zroot
+iocell fetch release=15.1-RELEASE
+iocell create release=15.1-RELEASE tag=myjail vnet=off \
+    ip4_addr="em0|192.168.1.10/24"
+iocell start myjail
+iocell console myjail
+```
 
-**HINTS**
-- Use iocell set/get to modify properties
-- To understand what most properties do read iocell(8).
-- If using VNET consider adding the following to `/etc/sysctl.conf` on the host:
+Choose an available release compatible with your host. Specify it explicitly:
+the interactive fetch menu is obsolete and can reject its own current-host
+default. Use an appropriate distribution mirror if its default location is no
+longer available; see [basic usage](doc/source/basic-use.rst).
 
-        net.inet.ip.forwarding=1       # Enable IP forwarding between interfaces
-        net.link.bridge.pfil_onlyip=0  # Only pass IP packets when pfil is enabled
-        net.link.bridge.pfil_bridge=0  # Packet filter on the bridge interface
-        net.link.bridge.pfil_member=0  # Packet filter on the member interface
+Replace `em0` with the host interface shown by `ifconfig(8)` and select an unused
+address on your own network. `vnet=off` is explicit because VNET-capable hosts
+otherwise enable VNET automatically. This creates a **basejail**, not a complete
+independent OS copy. Basejails depend on their fetched shared release.
 
+For VNET, configure an appropriate bridge and routing/firewall policy first;
+see [networking](doc/source/networking.rst). Do not bridge jail interfaces onto
+a provider's public link if additional MAC addresses are prohibited. An isolated
+private bridge with host routing/NAT avoids exposing those MACs externally.
+
+## Commands and workflows
+
+Use the canonical command reference rather than old command lists:
+
+```sh
+iocell help
+```
+
+The reference is maintained in [lib/ioc-help](lib/ioc-help); `iocell.8` and
+`iocell.8.txt` are generated from that text. Full UUIDs and tags are supported;
+do not rely on short UUID prefixes except for image selection during import.
+
+- [Basic usage and package installation](doc/source/basic-use.rst)
+- [Jail types](doc/source/jailtypes.rst)
+- [Templates](doc/source/templates.rst)
+- [Snapshots, rollback, updates and resource limits](doc/source/advanced-use.rst)
+- [Operational guidance](doc/source/best-practices.rst)
+- [Tests and destructive-test prerequisites](tests/README.md)
+
+Useful distinctions:
+
+- `create` creates a basejail; `create -e` creates an empty filesystem, not a
+  clone. Legacy `create -b`, `-c`, `-t` and `base=` recipes are not supported.
+- `clone TAG@snapshot tag=newtag` uses an existing root snapshot.
+- `restart TAG` is a hard stop/start; `restart -s TAG` requests a soft restart.
+- Template names must be valid safe ZFS components. Retag generated timestamp
+  names before conversion. Invalid names fail before metadata/alias changes.
+- Full sends take fresh unique snapshots. `send -m` removes only the original
+  source after successful receive and activation. Existing replicas generally
+  need incremental streams, not a forced full replacement.
+- Non-force `clean -t` protects dependent clones; explicit `-f` permits their
+  destruction. All cleanup operations are destructive.
+- Historical `chroot`, `record`, `package` and `show` subcommands are not
+  dispatched. Use the documented current workflows instead.
+
+## Reporting issues and contributing
+
+Open issues at <https://github.com/bartekrutkowski/iocell/issues> with the command,
+complete output, `uname -ro`, jail type, relevant properties, and expected versus
+observed state. The runtime `version` banner is currently stale; also include
+the checkout's `git rev-parse HEAD` or installed package version.
+
+Please open upstream pull requests against `develop` and follow
+[CONTRIBUTING.md](CONTRIBUTING.md). Update `lib/ioc-help` before regenerating the
+manuals. The [test guide](tests/README.md) distinguishes portable tests from
+opt-in FreeBSD/ZFS tests; never run the latter against production data.

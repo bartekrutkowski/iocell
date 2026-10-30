@@ -37,12 +37,14 @@ To create a new jail from this template simply clone it!
 
 Done!
 
-**If you need to make further customization in the template or want to patch it, you have two options.**
+**To customize or patch the template:**
 
-* Stop the template if it was started for maintenance, convert it back with
-  ``iocell set istemplate=no TAG-of-template``, then start the jail as usual.
-* If you do not need network access, run ``iocell chroot TAG-of-template``,
-  make the changes, and exit.
+Stop it if it was started for maintenance, convert it back with
+``iocell set istemplate=no TAG-of-template``, then start the jail as usual.
+After maintenance, stop it and convert it to a template again. The historical
+``iocell chroot`` subcommand is not dispatched. Manually using host
+``chroot(8)`` requires appropriate mounts and is not equivalent to jail
+isolation; it is not an automatic stopped-template maintenance interface.
 
 Conversion back is refused if the stored UUID is invalid, the template is
 running, or its root dataset has dependent clones. A failed ZFS rename (for

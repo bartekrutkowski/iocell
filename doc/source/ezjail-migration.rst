@@ -1,21 +1,29 @@
-Migrating from ezjails to iocell
-#jailname is the jail name on ezjails
-pkg install iocell
-iocell fetch
-#(checked 10.1-RELEASE)
-#re0 is the network adapter. 192.168.1.3/24 the ip of the jailname@ezjail
-iocell create tag=jailname ip4_addr="lo1|127.0.1.1,re0|192.168.1.3/24"
-#iocell list lists the newly created iocell jail and the old ezjail
-iocell set host_hostname=jailname UUID/TAG
-iocell set boot=on UUID/TAG
-#had these options on /usr/local/etc/ezjail/jailname. If you are migrating from one box to another inside the archive there is a #prop* file which includes the jail configuration We can extract it
-tar -xzvf jailname-201507062224.48.tar.gz -C /iocell/jails/UUID/root/ -s /ezjail// --include 'prop*'
-#copying the directories from jailname on ezjail to the jail on iocell
-#we have to stop the jail cause we dont shadow copy
-#an iocell list will give us the UUID which is something like dda0b520-c500-11e4-9bc4-00259094119
+Migration from ezjail
+=====================
 
-#we extract all the directories except the /var/
-pax -rznv -f jailname-201507062224.48.tar.gz -pop -s '=^ezjail/=/iocell/jails/UUID/root/=' ezjail/.profile ezjail/.cshrc ezjail/root ezjail/etc ezjail/tmp ezjail/home ezjail/usr/home ezjail/usr/local
+There is no automatic ezjail conversion command in the current CLI. Earlier
+archive-copy examples were written for FreeBSD 10.1 and a particular 2015
+archive layout; they were not qualified by the current command tests.
 
-#we extract all the contents from the /var/ except the /var/ports/. If you want the distfiles you change the ezjail/var/ports to #ezjail/var/ports/basejail
-pax -rzvn -f jailname-201507062224.48.tar.gz -s '=^ezjail/=/iocell/jails/UUID/root/=' -pop -c ezjail/proc ezjail/basejail ezjail/dev ezjail/media ezjail/mnt ezjail/root ezjail/tmp ezjail/usr ezjail/var/ports ezjail/etc ezjail/libexec ezjail/sys ezjail/bin ezjail/lib ezjail/rescue ezjail/sbin ezjail/boot ezjail/.cshrc ezjail/.profile '*rnd*' ezjail/COPYRIGHT
+Treat migration as a backup/restore and compatibility exercise:
+
+1. Record the old jail's complete configuration, release, installed packages,
+   addresses, storage mounts and application-specific recovery requirements.
+2. Take verified backups and test extraction into a disposable directory.
+   Check archive member paths before extraction; do not assume an ``ezjail/``
+   prefix or copy untrusted absolute/traversal paths into a live jail root.
+3. Fetch an appropriate release and create a stopped, explicitly named target
+   with the desired network mode. Current ``create`` makes a basejail; the old
+   ``-b``/``-c`` flags are not the interface.
+4. Stop the source before the final data copy. Selectively restore application
+   data and configuration into the target's writable directories. Do not
+   overwrite iocell's parent config, identity or shared read-only base mounts.
+5. Reconcile packages, users, permissions, services, mounts and release-specific
+   configuration. An old ezjail archive is not an ``iocell import`` stream.
+6. Test startup, data integrity and networking in isolation. Keep production
+   addresses and automatic boot disabled until validation is complete.
+7. Retain the original data and a rollback plan until the migration is accepted.
+
+Use full UUIDs or tags when operating on the target. Do not rely on short UUID
+lookup, the broken system-wide defaults setter, or an unverified zero exit
+status. See :doc:`basic-use`, :doc:`jailtypes` and :doc:`known-issues`.

@@ -1,42 +1,30 @@
-Create a jail package!
-======================
+Jail images and historical differential packages
+================================================
 
-**What is a jail package?**
-  A jail package is basically a small differential image template which can be
-  deployed on top of vanilla jails.
-  The RELEASE and patch level has to match between the package and a vanilla jail.
+The old differential-package workflow used ``record``/unionfs and ``package``
+to layer application changes over a matching vanilla release. Those command
+names are not dispatched by the current CLI. Old recipes using
+``create -c``, ``record start/stop`` and ``package`` are not working deployment
+instructions for this checkout.
 
-iocell uses the **record** function for this, which is a **unionfs** mount
-under the hood.
+For reusable application configuration, use a stopped basejail template and
+clone it; see :doc:`templates`. For a stopped jail image:
 
-The resulting package can be stored on a web server with a checksum file ready
-to be deployed anywhere.
+``iocell export myjail``
 
-1. create a new jail ``iocell create -c tag=nginx``
-2. start jail ``iocell start UUID | TAG`` 
-3. configure networking to enable internet access for this jail
-4. issue ``iocell record start UUID | TAG``, from now on every change will be recorded
-   under ``/iocell/jails/UUID/recorded``
-5. install nginx with ``pkg install nginx``
-6. install any other software you might require
-7. customize configuration files
-8. once finished, stop recording changes with ``iocell record stop UUID | TAG``
-   optionally stop jail
-9. examine ``/iocell/jails/UUID/recorded``, run ``find
-   /iocell/jails/UUID/recorded -type f``
-10. remove any unnecessary files, make final customization/changes
-11. run ``iocell package UUID | TAG``, this will create a package in
-    ``/iocell/packages`` with a SHA256 checksum file
-12. optionally discard the jail now with ``iocell destroy UUID | TAG``
+Ordinary exports are recursive raw ZFS streams stored under ``/iocell/images``
+with identity/type/date/release in their name. They are not necessarily
+``UUID.tar.xz`` archives and do not automatically get a SHA256 sidecar. A
+basejail image still needs its shared release on the receiving host.
 
-The resulting ``UUID.tar.xz`` can now be deployed on top of any new vanilla
-jail!
+Place a trusted compatible image in the receiver's image directory and fetch
+its required release, then select it by full UUID or a unique image prefix:
 
-1. create new jail ``iocell create -c``
-2. deploy package ``iocell import UUID tag=myjail``
-3. list jail ``iocell list|grep myjail``, grab UUID
-4. start jail ``iocell start UUID | TAG``
-5. examine your changes and packages - they are all there!
+``iocell import FULL_IMAGE_UUID``
 
-Enjoy!
-
+Verify native datasets, properties and content before setting per-jail
+properties or starting it. Extra properties on the import command are ignored;
+use a separate verified ``set`` afterward. Malformed stream input can report a
+receive error followed by success, so exit status alone is not proof of import.
+Legacy thick-jail archives have a separate import/checksum path and were not
+all qualified by the current tests. See :doc:`known-issues`.

@@ -5,9 +5,9 @@ SYNOPSIS
   iocell [-v] activate ZPOOL
   iocell [-v] cap UUID|TAG
   iocell [-v] clean [-f] [-a|-r|-j|-t]
-  iocell [-v] clone UUID|TAG [UUID|TAG@snapshot] [property=value]
+  iocell [-v] clone UUID|TAG[@snapshot] [property=value]
   iocell [-v] console [-f] UUID|TAG
-  iocell [-v] create [-e] [release=[RELEASE|NAME]] [pkglist=file] [property=value] [count=value]
+  iocell [-v] create [-e] [release=RELEASE] [pkglist=file] [property=value] [count=value]
   iocell [-v] deactivate ZPOOL
   iocell [-v] defaults
   iocell [-v] destroy [-f] UUID|TAG
@@ -17,29 +17,31 @@ SYNOPSIS
   iocell [-v] fetch [-p|-P] [release=RELEASE | ftphost=ftp.hostname.org |
                     ftpdir=/dir/ | ftpfiles="base.txz lib32.txz src.txz"]
                     [ ftplocaldir=/dir/ ] [ compression=ALGO ]
-  iocell [-v] get [-r] property|all UUID|TAG
+  iocell [-v] get property|all UUID|TAG
+  iocell [-v] get -r property|all
   iocell [-v] help
-  iocell [-v] import UUID [property=value]
+  iocell [-v] import IMAGE_UUID_PREFIX
   iocell [-v] init-host IP ZPOOL
-  iocell [-v] inuse UUID|TAG
-  iocell [-v] pkg TAG pkg_cmd
+  iocell [-v] inuse [UUID|TAG]
+  iocell [-v] pkg UUID|TAG pkg_command [arg ...]
   iocell [-v] limits [UUID|TAG]
-  iocell [-v] list [-t|-r|-s jid|uuid|boot|state|tag|type|ip4]
+  iocell [-v] list [-t|-r|-s jid|uuid|boot|state|tag|type|ip4|release]
   iocell [-v] promote UUID|TAG
   iocell [-v] rcboot
-  iocell [-v] reboot|restart [-s] UUID|TAG
+  iocell [-v] reboot|restart [-s] UUID|TAG|ALL
   iocell [-v] rcshutdown
   iocell [-v] reset UUID|TAG|ALL
   iocell [-v] rollback UUID|TAG@snapshotname
   iocell [-v] runtime UUID|TAG
-  iocell [-v] send [-c|-i|-I|-h|-u|-m] POOL
+  iocell [-v] send [-c] [-m] [-r -h HOST -u USER]
+      [-i SNAP1 -i SNAP2 | -I SNAP1 -I SNAP2] POOL
   iocell [-v] set property=value [property=value] UUID|TAG
   iocell [-v] snaplist UUID|TAG
   iocell [-v] snapmount UUID|TAG@snapshotname DESTINATION
   iocell [-v] snapremove UUID|TAG@snapshotname|ALL
-  iocell [-v] snapshot|snap [-f|-r] UUID|TAG [UUID|TAG@snapshotname]
+  iocell [-v] snapshot|snap [-f] [-r] UUID|TAG[@snapshotname]
   iocell [-v] snapumount UUID|TAG@snapshotname
-  iocell [-v] start [-f] UUID|TAG
+  iocell [-v] start [-f] UUID|TAG|ALL
   iocell [-v] stop UUID|TAG|ALL
   iocell [-v] uncap UUID|TAG
   iocell [-v] update [-p|-P] UUID|TAG|RELEASE
@@ -60,28 +62,35 @@ DESCRIPTION
   potential naming clashes on large scale deployments and helps reduce
   operator error.
 
-  You can use either the full UUID or a jail's TAG with every operation.
+  Use full UUIDs or tags for jail operations. Short UUID prefixes are currently
+  unreliable. Import separately accepts a unique image UUID prefix.
 
   To ease jail identification a TAG field is included in list mode which can
   be set to any string (hostname, label, note, etc.). By default if unset the
   TAG field contains the creation date and time stamp.
 
-  Properties are stored inside ZFS custom fields. This eliminates the need for
-  any configuration files and jails can be easily moved with ZFS send and
-  receive preserving all of their properties automatically.
+  Jail configuration is stored in UCL files alongside datasets, with storage
+  properties managed by ZFS. uclcmd is a required dependency. Replication
+  transfers the selected filesystem tree; basejail images still need their
+  shared release files on the receiving host.
 
   iocell relies on ZFS and at least one ZFS pool must be present on the host
   system. To enable all the features iocell supports, consider the following
   optional kernel options and system requirements:
-    o   FreeBSD 9.3-RELEASE amd64 or higher
+    o  A supported FreeBSD release with ZFS and jail support
     o  Kernel compiled with:
 
         options         VIMAGE
         options         RACCT
         options         RCTL
 
-  Calling iocell with the -v switch before a command will allow you to see the
-  how the shell is running each of the commands. It's very verbose.
+  Current verification used FreeBSD 15.1-RELEASE-p6/amd64, including 14.5 jail
+  fixtures. The historical 9.3 kernel-version check is not a support guarantee.
+  Enable RACCT at boot (kern.racct.enable=1) before using resource limits.
+
+  The -v switch before a command enables verbose shell tracing. Some legacy
+  command paths still have misleading exit statuses; inspect resulting state.
+  Historical chroot, record, package and show commands are not dispatched.
 
 SUBCOMMANDS
 
@@ -102,8 +111,10 @@ SUBCOMMANDS
     so be sure you don't use this flag if you have any. The -j flag will
     destroy the jails dataset. The -t flag will destroy the templates dataset.
     Same warning applies here as with cleaning the RELEASE dataset.
+    Without -f, template cleanup refuses dependent clones, including root
+    clones outside the jails dataset. Explicit -f permits their destruction.
 
-  clone UUID|TAG [UUID|TAG@snapshot] [property=value]
+  clone UUID|TAG[@snapshot] [property=value]
 
     Clone jail identified by UUID (ZFS clone). All properties will be reset on
     the clone, defaults can be overridden by specifying properties on the fly.
@@ -121,20 +132,19 @@ SUBCOMMANDS
   console [-f] UUID|TAG
 
     Execute login to have a shell inside the jail. If the -f flag is specified,
-    and the jail is not running it will be started for the console command.
+    its stopped-jail startup path currently fails. Start the jail explicitly
+    before using the normal console command.
 
-  create [-e] [base=[RELEASE|NAME]] [property=value] [property=value] [count=value]
+  create [-e] [release=RELEASE] [pkglist=file] [property=value] [count=value]
 
-    By default create will deploy a new jail based on the host operating
-    system's release. This can be changed by specifying the base option.
-    By default a basejail is created that has a common shared base.
-    The -e switch will create an empty jail which can be used for unsupported
-    or custom jails.
+    Create a basejail using a fetched shared release. Without release=, the
+    host release is selected. Shared base directories are mounted read-only;
+    this is not an independent copy of the complete OS. The -e switch creates
+    an empty filesystem, not a clone or populated guest userland. Old -b, -c,
+    -t and base= recipes are not supported. Use clone for an existing source.
 
     Example: iocell create tag=www01 pkglist=$HOME/my-pkgs.txt
-             iocell create tag=mybasejail
-             iocell create tag=mybasejail base=10.2-RELEASE
-             iocell create tag=mycustombasejail base=nginx_postgres
+             iocell create release=15.1-RELEASE tag=mybasejail vnet=off
 
     By default only one jail will be created, but if you specify count=NUMBER,
     then that many jails will be created.
@@ -146,18 +156,20 @@ SUBCOMMANDS
 
   deactivate ZPOOL
 
-    Remove the comment that iocell uses to locate a usable pool.
+    Currently prints manual dataset-removal guidance. It does not clear the
+    pool discovery comment or disable jails. Do not treat it as deactivation;
+    manually destroying data is a separate, irreversible operator decision.
 
   defaults
 
-    Display all defaults set in the default dataset.
+    Display defaults stored in the selected pool's UCL configuration. The
+    historical set ... default setter currently fails; specify per-jail values.
 
   destroy [-f] UUID|TAG
 
-    Destroy given jail. This is irreversible, use with caution. If the jail is
-    running destroy action will fail.
-
-    With -f the jail will be destroyed without confirmation.
+    Destroy the given jail irreversibly. Without -f, confirmation is required
+    and a running jail is refused. With -f, confirmation is bypassed and a
+    running jail can be stopped before destruction. Verify identity/backups.
 
   df
 
@@ -177,8 +189,10 @@ SUBCOMMANDS
 
   export UUID|TAG
 
-    Export a complete jail. An archive file is created in /iocell/images with
-    SHA256 checksum. Jail must be in stopped state before exporting.
+    Export a stopped jail as a recursive raw ZFS stream under /iocell/images.
+    Ordinary exports do not necessarily produce a tar.xz archive or SHA256
+    sidecar. Basejail shared release files are not part of the jail image.
+    Verify output and content; not all legacy image formats were qualified.
 
   fetch [-p|-P] [release=RELEASE | ftphost=ftp.hostname.org |
         ftpdir=/dir/ | ftpfiles="base.txz lib32.txz src.txz"]
@@ -186,36 +200,37 @@ SUBCOMMANDS
 
     Used for downloading and updating/patching releases.
 
-    fetch must be executed as the first command on a pristine system. By
-    default fetch will download the host node's RELEASE for deployment. If
-    other releases are required, this can be changed by supplying the
-    required release property or just selecting the appropriate RELEASE from
-    the menu list.
+    Activate a pool first, then fetch an available release. Specify release=
+    explicitly: the interactive menu is obsolete and can reject its own
+    current-host default. Supply a suitable mirror/path if the default no
+    longer provides that distribution. Use trusted distribution files.
 
-    Example: iocell fetch release=10.1-RELEASE
+    Example: iocell fetch release=15.1-RELEASE
 
     fetch can also used to update already downloaded releases. To update a local
     release already present in iocell (iocell list -r) run:
 
-             iocell fetch release=10.1-RELEASE
+             iocell fetch release=15.1-RELEASE
 
-    This example will apply latest patches to 10.1-RELEASE base.
+    This example requests patching of the fetched 15.1-RELEASE base.
     Newly created jails or basejails will automatically have the latest
     updates applied.
 
-    Specifying -p or -P to fetch will have it also fetch a ports tree
-    that all basejails will share with that base.
+    Legacy -p/-P ports options rely on tooling unavailable on the verified
+    modern platform and can report success without installing a ports tree.
+    They are not a working modern ports installation procedure.
 
     compression: Compression is lz4 by default; see zfs(8) for the list of
     compression algorithms available.
 
-    ftplocaldir: Specifying ftplocaldir=/dev/ will fetch release tar files from a
+    ftplocaldir: Specifying ftplocaldir=/path/to/distributions fetches files from a
     local system directory. This is useful when a user wants to use a custom build
     release or use iocell offline.
 
-    Example: fetch release=10.2-RELEASE ftplocaldir=/fakeftp/release/10.2-RELEASE
+    Example: iocell fetch release=15.1-RELEASE ftplocaldir=/path/to/distributions
 
-  get [-r] property|all UUID|TAG
+  get property|all UUID|TAG
+  get -r property|all
 
     Get named property or if "all" keyword is specified dump all properties
     known to iocell.
@@ -226,16 +241,22 @@ SUBCOMMANDS
     iocell get -r rlimits
     iocell get all UUID|TAG
 
+    Use defaults rather than get all default. Some invalid-option paths still
+    return success; verify the requested value and reported errors.
+
   help
 
     This help file you are reading.
 
-  import UUID [property=value]
+  import IMAGE_UUID_PREFIX
 
-    Import full jail images or differential packages. Images need to be
-    present in /iocell/images along with checksum files. You can use short
-    UUIDs - do not specify the full filename only the UUID. These jails
-    become what we call "thickjails" and are not supported for all operations.
+    Select a trusted compatible image under /iocell/images by full UUID or
+    unique image prefix, not its complete filename. Fetch its required release
+    first. Ordinary ZFS-stream import differs from legacy thick-jail archive
+    import and does not universally verify SHA256 sidecars. Extra property
+    operands are ignored: verify the import, then use a separate set command.
+    Malformed streams can print a receive error followed by success. Inspect
+    actual datasets, configuration and content before starting the jail.
 
   init-host IP ZPOOL
 
@@ -248,26 +269,29 @@ SUBCOMMANDS
     Display consumed resources for a jail. Without UUID or TAG dump all
     resources for all running jails in a comma delimited form.
 
-  pkg TAG pkg_cmd
+  pkg UUID|TAG pkg_command [arg ...]
 
-    A convinience wrapper for pkg to manage your jails. Converts the given tag
-    to the JID of a running jail and executes `pkg -j JID pkg_cmd`.
+    Run pkg for an already running jail selected by tag or full UUID. A quoted
+    multi-word argument can currently be split; avoid such wrapper forms or
+    use an explicitly controlled command inside the running jail.
 
   limits [UUID|TAG]
 
     Display active resource limits for a jail or all jails. With no UUID
-    supplied display all limits active for all jails.
+    supplied display all limits active for all jails. An empty result can
+    currently return a nonzero status; inspect actual kernel rules.
 
-  list [-t|-r]
+  list [-t|-r|-s FIELD]
 
-    List all jails, if -t is specified list only templates,
-    with -r list downloaded releases.
-    Non iocell jails will be listed only if the jail is running.
+    List jails, templates (-t), fetched releases (-r), or sort the jail table
+    (-s) by jid, uuid, boot, state, tag, type, ip4 or release. Non-iocell jails
+    are listed only when running. Nested backup/delegated datasets are not
+    separate identities and cannot regenerate an existing parent config.
 
   promote UUID|TAG
 
-    Promote a cloned jail to a fully independent copy. For more details please
-    read zfs(8).
+    Reverse the native ZFS clone/source relationship. This does not turn
+    shared basejail release mounts into private copies. See zfs(8).
 
   rcboot
 
@@ -275,7 +299,7 @@ SUBCOMMANDS
     execution. Jails will be started in an ordered fashion based on their
     "priority" property.
 
-  reboot UUID|TAG
+  reboot [-s] UUID|TAG|ALL
 
     Fully stops the jail with `iocell stop` and, upon success, restarts it with
     `iocell start`. If `-s` is specified it will instead do a soft restart
@@ -302,34 +326,49 @@ SUBCOMMANDS
     You can also reset every jail to the default properties by using the
     keyword "ALL".
 
-  restart UUID|TAG
+  restart [-s] UUID|TAG|ALL
 
-    Soft restart jail. Soft method will restart the jail without destroying
-    the jail's networking and the jail process itself. All processes are
-    gracefully restarted inside the jail. Useful for quick and graceful
-    restarts.
+    Alias for reboot: default is hard stop/start. Specify -s for a soft restart
+    retaining the kernel jail and networking. It does not guarantee application
+    consistency; use the application's shutdown/recovery procedure.
 
   rollback UUID|TAG@snapshotname
 
-    Rollback to an existing snapshot. Any intermediate snapshots will be
-    destroyed. For more information on this functionality please read zfs(8).
+    Stop the jail before rolling back to an existing snapshot. A normal
+    snapshot restores only the jail's root dataset. A recursive snapshot
+    restores the jail dataset and its descendants. Every target must have
+    the requested snapshot; otherwise no rollback is performed.
+
+    WARNING: Changes and newer snapshots on the affected datasets will be
+    lost. Shared basejail release datasets are not restored. Multi-dataset
+    rollback is not atomic: a ZFS error stops further rollbacks, but earlier
+    datasets may already have been restored. For more information read zfs(8).
 
   runtime UUID|TAG
 
     Show runtime configuration of a jail. Useful for debugging.
 
-  send [-c|-i|-I|-h|-u|-m] POOL
+  send [-c] [-m] [-r -h HOST -u USER]
+       [-i SNAP1 -i SNAP2 | -I SNAP1 -I SNAP2] POOL
 
     Will take a recursive snapshot of the POOL/iocell dataset and send it to
     the specified pool. Supports remote, incremental and movement operations.
-    Moving (-m) is only available for local operations. Remote (-r) requires a
-    user (-u) and a host (-h) to be specified. It also requires publickey
+    Every full send creates a unique fresh snapshot; snapshot or pipeline
+    failures are returned as errors. Existing snapshot-bearing replicas may
+    require incremental streams rather than another full receive.
+    Moving (-m) removes the original source only after successful transfer,
+    destination activation and mounting. It is only available locally.
+    A failed activation retains source data but may have relocated its
+    mountpoint; inspect state and explicitly reactivate it before use.
+    Remote (-r) requires a user (-u), host (-h), and publickey
     authentication. If using incremental (-i) or Incremental (-I) be sure to
     supply the flag for each snapshot.
 
-    If clean (-c) is provided, it will remove all snapshots from both the
-    source and destination pools. This cannot be used in combination with
-    incremental (-i) or Incremental (-i).
+    Legacy clean (-c) selects snapshot paths containing ioc-; it does not
+    guarantee removal of all snapshots. Remote cleanup is not a complete
+    retention policy. Do not combine clean with incremental streams.
+    Remote destination validation still incorrectly requires a matching local
+    pool name. Identical names on different hosts are valid, not self-send.
 
     Local Example: iocell send newpool
     Incremental Example: iocell send -i oldpool/iocell@snap1 -i oldpool/iocell@snap2 newpool
@@ -340,7 +379,10 @@ SUBCOMMANDS
 
   set property=value [property=value] UUID|TAG
 
-    Set one or more properties to the supplied value.
+    Set one or more per-jail properties. The default target setter currently
+    fails. Names and some values are validated, not every kernel combination.
+    A benign apostrophe in notes can break argument parsing; avoid it until
+    fixed. Inspect resulting configuration and kernel state.
 
   snaplist UUID|TAG
 
@@ -360,7 +402,7 @@ SUBCOMMANDS
     Destroy specified jail snapshot. If the keyword ALL is specified all
     snapshots will be destroyed for the jail.
 
-  snapshot|snap [-f|-r] UUID|TAG [UUID|TAG@snapshotname]
+  snapshot|snap [-f] [-r] UUID|TAG[@snapshotname]
 
     Create a ZFS snapshot for jail. If the -r flag is specified it will by
     recursively snapshot POOL/iocell/jails/UUID. Otherwise it will only snapshot
@@ -377,7 +419,7 @@ SUBCOMMANDS
 
     Will unmount the specified jail's snapshot.
 
-  start [-f] UUID|TAG
+  start [-f] UUID|TAG|ALL
 
     Start jail identified by UUID or TAG. If the -f switch is supplied, it will
     force start a template for editing. This flag does not apply to normal
@@ -390,16 +432,16 @@ SUBCOMMANDS
 
   uncap UUID|TAG
 
-    Release all resource limits, disable limits on the fly.
+    Release resource limits on the fly. This can return a nonzero status after
+    rules have been cleared; inspect the kernel rule set.
 
   update [-p|-P] UUID|TAG|RELEASE
 
-    Will reclone the jail if it is a basejail, otherwise it updates the jail
-    to the latest patch level. A back-out snapshot is created to allow
-    safe update/rollback.
-
-    If -p or -P along with a RELEASE are specified instead of a jail, it will
-    update that RELEASEs shared ports tree.
+    Patch the selected userland with freebsd-update where supported. Basejail
+    updates affect the shared release used by other jails too. Non-basejail
+    updates take a jail-root back-out snapshot; it does not back up a shared
+    release. Use a maintenance window and separate release/application backups.
+    Legacy -p/-P shared ports paths are not working modern ports procedures.
 
   upgrade UUID|TAG [release=RELEASE]
 
@@ -410,18 +452,20 @@ SUBCOMMANDS
     "release" property to the required new RELEASE and then merging /etc.
     If you wish to do this yourself without having /etc merged do:
 
-    iocell set release=10.1-RELEASE UUID|TAG
+    iocell set release=15.1-RELEASE UUID|TAG
 
     For this the RELEASE must be locally available. The basejail
     will re-clone its filesystems from the new release at next jail start.
 
-    WARNING: Cloned jails (deprecated) [-c] are not supported for upgrades.
-    Please use thick (deprecated) [-t] or our standard basejails for
-    this feature.
+    Fetch the target release and stop the jail first. Inspect etcupdate merges
+    and test the result; no zero-downtime application guarantee is made. Full
+    independent-userland upgrades may need interactive confirmations and
+    multiple install passes. Old create -c/-t recipes are not supported.
 
   version | --version
 
-    List version number.
+    Print the runtime version banner, currently stale at 2.1.2. Include the
+    installed package version or checkout commit when reporting problems.
 
 PROPERTIES
   For more information on properties please check the relevant man page which
@@ -430,9 +474,16 @@ PROPERTIES
 
   pkglist=none | path-to-file
 
-    A text file containing one package per line. These will be auto installed
-    when a jail is created. Works only in combination with the create
-    subcommand.
+    A readable text file containing one package name per line. Blank lines
+    and lines beginning with # are ignored. Packages are installed during
+    jail creation. Relative paths are resolved from the calling directory.
+    Works only in combination with the create subcommand.
+
+    Creation stops at the first package or mount error. The failed jail is
+    retained for inspection, is not started, and is not reported as successfully
+    created. Further jails requested with count are not created. Packages
+    already installed are not rolled back. Installation mounts are cleaned up;
+    a cleanup failure also makes creation fail.
 
     Default: none
     Source: local
@@ -486,15 +537,9 @@ PROPERTIES
     to the first available based upon the given range and already created
     jails.
 
-    Example:
-      # iocell set ip4_autostart="100" default
-      # iocell set ip4_autoend="150" default
-      # iocell set ip4_autosubnet="24" default
-
-    This will result in the automatic IPv4 address being assigned in the
-    base range of the default network interface. I.E. if the local default
-    NIC is set to 192.168.0.XXX, then the new address will be
-    192.168.0.[100-150]/24
+    The historical system-wide setter for these ranges is currently broken.
+    AUTOIP4 was not qualified by the current verification; use explicit
+    addresses or a deliberately configured/tested DHCP setup instead.
 
     For VNET jails the interface will be configured with the IP addresses
     listed.
@@ -530,6 +575,20 @@ PROPERTIES
     Default: new
     Source: jail(8)
 
+  createbridge=on | off
+
+    Controls whether default bridge0 and bridge1 will be created
+    on jails's start.
+
+    Default: on
+
+  keepbridge=on | off
+
+    Controls whether bridges bridge0 and bridge1 will be destroyed
+    on jail's shutdown.
+
+    Default: off
+
   defaultrouter=none | ipaddress
 
     Setting this property to anything other than none will try to configure a
@@ -556,7 +615,7 @@ PROPERTIES
   interfaces=vnet0:bridge0,vnet1:bridge1 | vnet0:bridge0
 
     By default there are two interfaces specified with their bridge
-    association. Up to ten interfaces are supported. Interface configurations
+    association. Up to four interfaces are supported. Interface configurations
     are separated by commas. Format is interface:bridge, where left value is
     the virtual VNET interface name, right value is the bridge name where the
     virtual interface should be attached.
@@ -857,7 +916,7 @@ PROPERTIES
     jail cannot perform any sysvmsg-related system calls.
     Ignored in FreeBSD 10.3 and earlier.
 
-    Default: disable
+    Default: new
     Source: jail(8)
 
   sysvsem=disable | inherit | new
@@ -865,7 +924,7 @@ PROPERTIES
     Allow access to SYSV IPC semaphore primitives in the same
     manner as sysvmsg.  Ignored in FreeBSD 10.3 and earlier.
 
-    Default: disable
+    Default: new
     Source: jail(8)
 
   sysvshm=disable | inherit | new
@@ -874,7 +933,7 @@ PROPERTIES
     same manner as sysvmsg.  Ignored in FreeBSD 10.3 and
     earlier.
 
-    Default: disable
+    Default: new
     Source: jail(8)
 
   allow_raw_sockets=0 | 1
@@ -1006,9 +1065,18 @@ PROPERTIES
   istemplate=yes | no
 
     This property controls whether the jail is a template. Templates are not
-    started by iocell. Set to yes if you wish to convert the jail into
-    a template.
-    (See EXAMPLES section)
+    started automatically. Set to yes to convert a stopped basejail into
+    a template. Set to no to convert it back, preserving its stored UUID,
+    tag, snapshots and child datasets.
+
+    Stop the template first. Invalid stored UUIDs and dependent root clones
+    prevent conversion back. A failed ZFS rename leaves the template flags
+    unchanged and is reported as an error. Conversion in either direction
+    preserves the previous jailed state of a legacy data child. A template
+    tag must start with a letter, digit or underscore and contain only letters,
+    digits, underscores, periods, colons or hyphens. Retag generated timestamp
+    names before conversion, e.g. set tag=mytemplate UUID. Invalid tags are
+    rejected before any rename, metadata or alias changes. (See EXAMPLES section)
 
     Default: no
     Source: local
@@ -1068,34 +1136,22 @@ PROPERTIES
     Default: UUID of the host (taken from /etc/hostid)
     Source: local
 
-  release=10.0-RELEASE | 9.2-RELEASE
+  release=RELEASE
 
-    The RELEASE used at creation time. Can be set to any string if needed.
+    Select a compatible fetched release, for example 15.1-RELEASE. Changing
+    this value alone does not fetch the release or merge /etc for an upgrade.
 
     Default: the host's RELEASE
     Source: local
 
-  compression=on | off | lzjb | gzip | gzip-N | zle | lz4
+  compression=on | off | lz4 | zstd | gzip | gzip-N | zle | lzjb
 
-    Controls the compression algorithm used for this dataset. The lzjb
-    compression algorithm is optimized for performance while providing
-    decent data compression. Setting compression to on uses the lzjb
-    compression algorithm. The gzip compression algorithm uses the same
-    compression as the gzip(1) command. You can specify the gzip level by using
-    the value gzip-N where N is an integer from 1 (fastest) to 9 (best
-    compression ratio). Currently, gzip is equivalent to gzip-6 (which is also
-    the default for gzip(1)).  The zle compression algorithm compresses runs of
-    zeros.
-
-    The lz4 compression algorithm is a high-performance replacement for
-    the lzjb algorithm. It features significantly faster compression and
-    decompression, as well as a moderately higher compression ratio than
-    lzjb, but can only be used on pools with the lz4_compress feature set
-    to enabled.  See zpool-features(7) for details on ZFS feature flags
-    and the lz4_compress feature.
-
-    This property can also be referred to by its shortened column name
-    compress.  Changing this property affects only newly-written data.
+    Select a compression algorithm supported by the host's ZFS version and
+    pool features. The meaning of on depends on ZFS defaults/features; do not
+    assume it always means lzjb. Modern OpenZFS also provides zstd levels and
+    fast variants; consult zfsprops(7) and zpool-features(7) on the actual host.
+    The native shortened property name is compress. Changes affect newly
+    written data, not existing blocks.
 
     Default: lz4
     Source: zfs(8)
@@ -1396,11 +1452,12 @@ RESOURCE LIMITS
 EXAMPLES
   Set up iocell from scratch:
 
-    iocell fetch
+    iocell activate ZPOOL
+    iocell fetch release=15.1-RELEASE
 
   Create first jail:
 
-    iocell create tag=myjail
+    iocell create release=15.1-RELEASE tag=myjail vnet=off
 
   List jails:
 
@@ -1429,9 +1486,9 @@ EXAMPLES
 
   Clone jail from template:
 
-    iocell clone UUID-of-template tag=myjail
+    iocell clone TAG-of-template tag=myjail
 
-  Import package on another host
+  Import a compatible trusted image on another host
 
     iocell import UUID
 
@@ -1440,20 +1497,20 @@ EXAMPLES
     iocell get -r last_started
 
 HINTS
-  iocell marks a ZFS pool in the pool's comment field and identifies the
-  active pool for use based on this string.
+  The active pool is recorded in UCL defaults; legacy discovery can also use
+  a pool comment. Do not assume deactivate clears either selection mechanism.
 
-  If using VNET don't forget to add the node's physical NIC into one
-  of the bridges if you need an outside connection. Also read bridge(4)
-  to see how traffic is handled if you are not familiar with this concept
-  (in a nutshell: bridge behaves like a network switch).
+  VNET requires an appropriate bridge, routing and firewall policy. A physical
+  bridge member can expose jail MACs upstream. If a provider prohibits extra
+  MACs, use a private bridge with host routing/NAT instead; iocell does not
+  automatically configure that NAT. Preserve management access while testing.
 
-  PF firewall is not supported inside VNET jails as of July 2014. PF can be
-  enabled for the host however. IPFW is fully supported inside a VNET jail.
+  Per-jail firewall support depends on the host kernel, permissions and device
+  exposure. Historical FreeBSD 10 PF/ALTQ reports are not current guarantees.
+  Do not blindly disable bridge filtering or IPv6 duplicate-address detection.
 
-  Property validation is not handled by iocell (to keep it simple) so please
-  make sure your property values are supported before configuring any
-  properties.
+  Validate actual properties and kernel behavior for your host release.
+  Remaining command defects are documented in the repository's known issues.
 
   The actual jail name in the jls(8) output is set to ioc-UUID. This is a
   required workaround as jails will refuse to start with jail(8) when name
@@ -1463,16 +1520,13 @@ HINTS
 
     security.bsd.unprivileged_read_msgbuf=0
 
-  If using VNET consider applying these sysctl's as well:
-
-    net.inet.ip.forwarding=1
-    net.link.bridge.pfil_onlyip=0
-    net.link.bridge.pfil_bridge=0
-    net.link.bridge.pfil_member=0
+  Enable forwarding only when the host is intentionally routing jail traffic,
+  and configure bridge filtering and NAT for your security boundary. There is
+  no universally safe set of pfil sysctls to copy into every host.
 
   For more information please visit:
 
-    https://github.com/bartekrutkowski/iocell
+    https://github.com/iocell/iocell
 
 SEE ALSO
   jail(8), ifconfig(8), epair(4), bridge(4), jexec(8), zfs(8), zpool(8),
@@ -1480,13 +1534,12 @@ SEE ALSO
 
 BUGS
   In case of bugs/issues/feature requests, please open an issue at
-  https://github.com/bartekrutkowski/iocell/issues
+  https://github.com/iocell/iocell/issues
 
 AUTHORS
 
     Peter Toth <peter.toth198@gmail.com>
     Brandon Schneider <brandonschneider89@gmail.com>
-    Bartek Rutkowski <contracting+github@pixeware.com>
 
 SPECIAL THANKS
   Sichendra Bista - for his ever willing attitude and ideas.

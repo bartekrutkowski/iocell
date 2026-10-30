@@ -40,25 +40,30 @@ Basically the clone will become the source and the source jail will be demoted t
 Updating jails
 --------------
 
-Updates are handled with the freebsd-update(8) utility. Jails can be updated
-while they are stopped or running.
+Updates use ``freebsd-update(8)`` where supported by the selected userland.
+Use a maintenance window and stop affected services/jails for predictable
+results. A basejail update changes its shared release and can affect every
+jail using that release; it is not isolated to the named jail.
 
 To update a jail to latest patch level run:
 
 ``iocell update UUID | TAG``
 
-This will create a back-out snapshot of the jail automatically.
+Non-basejail updates create a jail-root back-out snapshot. That snapshot
+does not back up a shared basejail release. Back up the shared release and
+application data separately before updating basejails.
 
 When finished with updating and the jail is working OK, simply remove the snapshot:
 
 ``iocell snapremove UUID|TAG@snapshotname``
 
-In case the update breaks the jail, simply revert back to the snapshot:
+If a suitable jail snapshot exists, stop the jail before restoring it:
 
 ``iocell rollback UUID|TAG@snapshotname``
 
-If you'd like to test updating without affecting a jail, create a clone and
-update the clone the same way as outlined above.
+A clone is useful for testing writable jail data, but it can still use the
+same shared release as its source. Do not assume updating a basejail clone
+isolates shared base updates; use a separate test release/host when necessary.
 
 To clone run:
 
@@ -85,7 +90,7 @@ This will upgrade the jail to the same RELEASE as the host.
 
 To upgrade to a specific release run:
 
-``iocell upgrade UUID|TAG release=10.1-RELEASE``
+``iocell upgrade UUID|TAG release=15.1-RELEASE``
 
 Upgrade basejail
 ++++++++++++++++
@@ -98,15 +103,18 @@ Verify whether the jail is a basejail:
 
 Should return type "basejail".
 
-The upgrade can be forced while the jail is online with executing:
+Fetch the target release, stop the jail, and run:
 
-  ``iocell upgrade UUID|TAG``
+``iocell upgrade UUID|TAG release=15.1-RELEASE``
 
-This will forcibly re-clone the basejail filesystems while the jail is running (no downtime) and update the jails /etc with the changes from the new RELEASE.
+This selects the new shared base and merges ``/etc`` using etcupdate. Inspect
+merge output and test the jail before returning it to service. There is no
+application-level zero-downtime guarantee. Independent full-userland upgrades
+may require interactive confirmations and several installation passes.
 
-``iocell set release=10.1-RELEASE UUID|TAG``
-
-This will cause the jail to re-clone its filesystems from 10.1-RELEASE on next jail start. This will not update the jails /etc files with changes from the next RELEASE.
+Setting ``release=15.1-RELEASE`` alone changes the selected base on the next
+start, but does not merge ``/etc``. It is not equivalent to completing an
+upgrade.
 
 Auto boot
 ---------
@@ -173,8 +181,10 @@ it automatically. Shared basejail release datasets are not restored.
 Resource limits
 ---------------
 
-iocell can enable optional resource limits for a jail. The outlined procedure should provide enough for
-a decent starting point.
+Resource limits require kernel RACCT/RCTL support and RACCT enabled at boot
+(``kern.racct.enable=1`` in the loader configuration). Check
+``sysctl kern.racct.enable`` before using these examples. Verify actual kernel
+rules, not just stored property values.
 
 Limit core or thread
 ++++++++++++++++++++
@@ -244,7 +254,36 @@ You can also reset every jail to the default properties:
 
 ``iocell reset ALL``
 
-Resetting a jail will retain the jails UUID and TAG. Everything else will be lost. Make sure to set any custom properties back that you need. If you have set anything via ``iocell set PROPERTY default`` You have nothing left to do!
+Reset retains the jail's UUID, tag and generated VNET MAC addresses while
+reapplying defaults for other properties. Record and restore your custom
+settings as needed. The historical ``set PROPERTY=value default`` setter is
+currently broken, so do not rely on it to prepare reset behavior.
+
+Replication and moves
+---------------------
+
+``iocell send backup-pool`` creates a fresh unique recursive snapshot of the
+active pool's ``iocell`` tree and sends it to the destination. Existing
+snapshot-bearing replicas may need incremental streams rather than another
+full receive:
+
+``iocell send -i source-pool/iocell@before -i source-pool/iocell@after backup-pool``
+
+Use ``-I`` on both endpoints to include intermediate snapshots. Remote mode
+requires ``-r -u USER -h HOST`` and public-key SSH. A pre-existing bug still
+requires the remote destination pool name to exist locally too; do not
+mistake that workaround for remote-only pool validation working correctly.
+
+``iocell send -m new-pool`` is local only and requires stopped jails. The
+original source is removed only after successful transfer, destination
+activation and mounting. Snapshot, sender, receiver and optional buffer
+failures are errors. A failed activation retains data but may have relocated
+the source mountpoint; inspect state and explicitly reactivate the source
+before resuming operations.
+
+Legacy ``-c`` cleanup selects snapshot paths containing ``ioc-`` rather than
+guaranteeing all snapshots are removed. Inspect its scope and do not use
+remote cleanup as a complete retention policy.
 
 Automatic package installation
 ------------------------------

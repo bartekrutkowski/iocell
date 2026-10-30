@@ -1,48 +1,22 @@
-Create a Debian Squeeze jail (GNU/kFreeBSD)
-===========================================
+Historical Debian GNU/kFreeBSD recipe
+=====================================
 
-**In this howto we will set up a Debian (GNU/kFreeBSD) jail. GNrUkFreeBSD is a
-Debian userland tailored for the FreeBSD kernel.**
+.. warning::
 
-Don't forget to replace UUID with your jail's full UUID!
+   The former Squeeze/Wheezy debootstrap recipe is historical and was not
+   qualified on the current FreeBSD test host. Those distributions are obsolete;
+   it is not a supported contemporary Linux-jail installation guide.
 
-**Create an empty jail with linux specifics:**
+GNU/kFreeBSD combined a GNU/Debian userland with a FreeBSD kernel. It must not
+be confused with a Linux userland using FreeBSD's Linux compatibility layer.
+Their ABI, mounts, startup services and kernel requirements differ.
 
-``iocell create -e tag=debian exec_start="/etc/init.d/rc 3"
-exec_stop="/etc/init.d/rc 0"``
+``iocell create -e tag=custom-test`` can create an empty filesystem/metadata
+structure for experiments. It supplies neither a userland nor the compatibility
+configuration needed to boot an arbitrary operating system. A stored type or
+startup-command property does not validate that setup.
 
-**Install debootstrap on the host:**
-
-``pkg install debootstrap``
-
-**Grab the mountpoint for our empty jail, append /root/ to it and run
-debootstrap:**
-
-``iocell get mountpoint UUID | TAG``
-
-``debootstrap squeeze /iocell/jails/UUID/root/`` (you can replace squeeze with wheezy if that is what you need)
-
-**Edit the jail's fstab and add these lines:**
-
-``/iocell/jails/UUID/fstab``
-
-     ::
-
-        linsys   /iocell/jails/UUID/root/sys         linsysfs  rw          0 0
-        linproc  /iocell/jails/UUID/root/proc        linprocfs rw          0 0
-        tmpfs    /iocell/jails/UUID/root/lib/init/rw tmpfs     rw,mode=777 0 0
-
-**Start the jail and attach to it:**
-
-``iocell start UUID | TAG``
-
-``iocell console UUID | TAG``
-
-What you gain is a 64bit Debian Linux userland. Please note this is not
-recommended for production use. The intention was to show that iocell will let
-you do almost anything you want with your jails.
-
-If you wish to install a Linux only Debian jail you can follow this tutorial:
-`debian-linux-freebsd-jail-zfs
-<http://devil-detail.blogspot.co.nz/2013/08/debian-linux-freebsd-jail-zfs.html>`_
-
+Use a disposable host, a currently maintained guest userland and the matching
+FreeBSD compatibility documentation before attempting such a configuration.
+Do not reuse old Squeeze/Wheezy mount lists, permissive filesystem modes or
+unsupported distribution repositories as a production recipe.

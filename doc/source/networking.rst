@@ -2,200 +2,120 @@
 Networking
 ==========
 
-Intro
-------
+Jails can share selected host IP addresses or have a separate VNET stack.
+IOC functions configure jail interfaces, not an entire upstream routing,
+firewall or NAT policy. Use addresses and interface names appropriate to your
+host; examples below are private test networks.
 
-Jails have multiple networking options based on what features are desired. Traditionally jails
-only supported IP alias based networking where an IP address is assigned to the host's interface
-which is then utilized by the jail for network communication. This is known as "shared IP" based jails.
-
-Anoter option emerged in recent years, called VNET or sometimes referred to as VIMAGE.
-VNET is a fully virtualized, isolated per jail networking stack.
-VNET abstracts virtual network interfaces to jails, which behave the same way as physical interfaces.
-
-iocell will try to guess whether VNET support is available in the system and if it is will enable it by
-default for newly created jails.
+VNET-capable hosts enable VNET automatically for newly created jails unless
+``vnet=off`` is specified. Set the mode explicitly to avoid confusing host
+interfaces such as ``em0`` with jail interfaces such as ``vnet0``.
 
 Shared IP
 ---------
 
-Stability: It is rock solid and battle tested well over a decade.
+For an existing stopped jail:
 
-System requirements
-+++++++++++++++++++
+``iocell set vnet=off ip4_addr="em0|192.168.1.10/24" myjail``
 
-None, everything is built into the default GENERIC kernel.
+Replace ``em0`` with the actual host interface. Choose an unused address, not
+an address already assigned to another machine or reserved by DHCP. Multiple
+addresses can be comma-separated:
 
-Usage
-+++++
+``iocell set ip4_addr="em0|192.168.1.10/24,em0|192.168.1.11/24" myjail``
 
-**Make sure VNET is disabled**
+IPv6 uses the analogous property, for example an appropriate private ULA on
+an interface that supports it:
 
-``iocell get vnet UUID | TAG``
+``iocell set ip6=new ip6_addr="em0|fd77::10/64" myjail``
 
-**If set to "on" disable it**
+Start and inspect the jail:
 
-``iocell set vnet=off UUID | TAG``
+``iocell start myjail``
 
-A system wide default can be configured if required. This will take effect for newly created jails only.
+``iocell exec myjail ifconfig``
 
-``iocell set vnet=off default``
+Shared-IP addresses are assigned through the host interface; this does not
+create a separately routed VNET stack. A jail does not need its own default
+router in this mode. Stop removes managed aliases, so do not reuse the host's
+management address as a jail alias.
 
-**Configure an IP address**
+``allow_raw_sockets=1`` permits operations such as ping when appropriate to
+your security policy. It is not a substitute for routes or firewall rules.
+The system-wide ``set ... default`` setter is currently broken: specify
+network properties on creation or per jail.
 
-``iocell set ip4_addr="em0|10.1.1.10/24" UUID| TAG``
+VNET
+----
 
-If multiple addresses are desired just separate the configuration directives with a comma.
+Use a kernel with VNET support. Current GENERIC kernels commonly include it;
+check your host rather than rebuilding from a historical FreeBSD 10 recipe.
+RACCT/RCTL are resource-limit features, not prerequisites for VNET itself.
 
-Example:
+An isolated private bridge example on the host is:
 
-``iocell set ip4_addr="em0|10.1.1.10/24,em0|10.1.1.11/24" UUID| TAG``
+.. code-block:: sh
 
-**Allow raw sockets**
+   ifconfig bridge0 create
+   ifconfig bridge0 inet 10.77.0.1/24 up
 
-``iocell set allow_raw_sockets=1 UUID | TAG``
+Then configure a stopped jail:
 
-This allows the prison root to create raw sockets, which allows utilites like ping and tracroute to operate.
+``iocell set vnet=on interfaces=vnet0:bridge0 createbridge=off keepbridge=on ip4_addr="vnet0|10.77.0.2/24" defaultrouter=10.77.0.1 myjail``
 
-**Start jail:**
+``iocell start myjail``
 
-``iocell start UUID | TAG``
+``iocell exec myjail ifconfig vnet0``
 
-**Verify visible IP configuration in the jail**
+This bridge has no physical member. It provides a private host/jail link, not
+automatic Internet connectivity. For outside access, configure host forwarding,
+routes and, if required, NAT and firewall rules for this subnet. The upstream
+must have a return route unless NAT supplies it. Persist the host bridge and
+address in ``rc.conf`` using your existing networking conventions.
 
-*(jail must be running for this to work)*
+.. warning::
 
-``iocell exec UUID | TAG ifconfig``
+   Do not add a provider-facing physical NIC to this bridge if extra MAC
+   addresses are prohibited. A physical-member bridge is an L2 network and
+   can expose jail MACs upstream. Use a private bridge with routing/NAT instead.
+   Retain private management access while testing firewall/routing changes.
 
+A physical-member bridge is an alternative only where the upstream network
+explicitly permits that topology. Its configuration is site-specific; blindly
+copying ``addm em0`` or VLAN-parent instructions can disrupt host connectivity.
 
-VIMAGE/VNET
------------
+IPv6 VNET configuration uses the jail interface, not the host NIC:
 
-Stability: VIMAGE is considered experimental, unexpected system crashes can occur (for details please see known issues section)
+``iocell set ip6_addr="vnet0|fd77::2/64" defaultrouter6="fd77::1" myjail``
 
-System requirements
-+++++++++++++++++++
+The gateway must exist on the attached network, and IPv6 forwarding and firewall
+policy must be configured on the router. No public/global IPv6 address is
+required for an isolated test network.
 
-**Kernel**
+Inspecting and maintaining networks
+-----------------------------------
 
-Rebuild the kernel with the following options:
+Use ``iocell get vnet myjail``, ``iocell exec myjail ifconfig`` and host
+``ifconfig(8)``, ``netstat(1)`` and firewall tools to verify actual state.
+Only running jails accept ``exec`` or normal ``console`` operations.
 
-*(also disable SCTP if not required)*
+``iocell restart myjail`` destroys and recreates the jail/networking;
+``iocell restart -s myjail`` requests a soft restart retaining them.
 
-::
+Bridge filtering sysctls and packet-filter rules depend on the intended
+security boundary. Do not universally disable ``pfil`` to obtain connectivity.
+Likewise, disabling IPv6 duplicate-address detection globally is not a default
+workaround: it affects the host as well as jail addresses.
 
-  nooptions       SCTP   # Stream Control Transmission Protocol
-  options         VIMAGE # VNET/Vimage support
-  options         RACCT  # Resource containers
-  options         RCTL   # same as above
+To request no addresses or gateways:
 
-**/etc/rc.conf**
+``iocell set ip4_addr=none ip6_addr=none defaultrouter=none defaultrouter6=none myjail``
 
-Add bridge configuration to /etc/rc.conf:
-
-*(on the host node)*
-
-::
-
-  # set up two bridge interfaces for iocell
-  cloned_interfaces="bridge0 bridge1"
-
-  # plumb interface em0 into bridge0
-  ifconfig_bridge0="addm em0 up"
-  ifconfig_em0="up"
-
-**/etc/sysctl.conf**
-
-Add these tunables to /etc/sysctl.conf:
-
-::
-
-  net.inet.ip.forwarding=1       # Enable IP forwarding between interfaces
-  net.link.bridge.pfil_onlyip=0  # Only pass IP packets when pfil is enabled
-  net.link.bridge.pfil_bridge=0  # Packet filter on the bridge interface
-  net.link.bridge.pfil_member=0  # Packet filter on the member interface
-
-**Configure default GW for jail**
-
-Example: ``iocell set defaultrouter=10.1.1.254 UUID | TAG``
-
-**Configure an IP address**
-
-``iocell set ip4_addr="vnet0|10.1.1.10/24" UUID | TAG``
-
-**Start jail and ping default gateway**
-
-Start the jail:
-
-``iocell start UUID | TAG``
-
-Drop into jail:
-
-``iocell console UUID | TAG``
-
-Ping default gateway, example:
-
-``ping 10.1.1.254``
-
-Gotchas
-+++++++
-
-**Routes**
-
-Make sure default gateway knows the route back to the VNET subnets.
-
-**If using VLANs**
-
-If you are using VLAN interfaces for the jail host you not only have
-to add the vlan interface as bridge member but the parent interface
-of the VLAN as bridge member as well.
-
-Configuring Network Interfaces
-------------------------------
-
-iocell handles network configuration for both, shared IP and VNET jails transparently.
-
-Configuring a shared IP jail
-++++++++++++++++++++++++++++
-
-**IPv4**
-
-``iocell set ip4_addr="em0|192.168.0.10/24" UUID|TAG``
-
-**IPv6**
-
-``iocell set ip6_addr="em0|2001:123:456:242::5/64" UUID|TAG``
-
-This will add an IP alias 192.168.0.10/24 to interface em0 for the shared IP jail at start time, as well as 2001:123:456::5/64.
-
-Configuring a VNET jail
-+++++++++++++++++++++++
-
-To configure both IPv4 and IPv6:
-
-``iocell set ip4_addr="vnet0|192.168.0.10/24" UUID|TAG``
-
-``iocell set ip6_addr="vnet0|2001:123:456:242::5/64" UUID|TAG``
-
-``iocell set defaultrouter6="2001:123:456:242::1" UUID|TAG``
-
-*NOTE: For VNET jails a default route has to be specified too.*
-
-Hints
-+++++
-
-To start a jail with no IPv4/6 address whatsoever set these properties:
-
-``iocell set ip4_addr=none ip6_addr=none UUID|TAG``
-
-``iocell set defaultrouter=none defaultrouter6=none UUID|TAG``
-
-To not create bridge interfaces on jail start set this property:
-
-``iocell set createbridge=off UUID|TAG``
-
-To keep bridge interfaces on jail shutdown set this property:
-
-``iocell set keepbridge=on UUID|TAG``
-
-*NOTE: You can set these to or on off according to the use case*
+This alone does not configure an otherwise missing bridge or give a shared-IP
+jail a VNET stack. ``createbridge=off`` leaves bridge creation to the operator;
+``keepbridge=on`` requests retaining a bridge during jail shutdown. Review other
+jails using a bridge before changing or deleting it.
+
+Private shared IPv4/IPv6, isolated VNET IPv4/IPv6, multiple VNET interfaces and
+MACs, DHCP and alias cleanup were exercised in the command audit. Arbitrary
+provider, VLAN, per-jail firewall and routing configurations were not qualified.

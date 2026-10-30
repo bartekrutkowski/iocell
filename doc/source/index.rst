@@ -1,37 +1,22 @@
-.. iocell documentation master file, created by
-   sphinx-quickstart on Wed Jul  9 10:19:09 2014.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
 ===============================
 iocell - A FreeBSD jail manager
 ===============================
 
-iocell is a zero dependency drop in jail/container manager amalgamating some
-of the best features and technologies FreeBSD operating system has to offer.
-It is geared for ease of use with a simple and easy to understand command
-syntax.
+iocell manages FreeBSD jails using ZFS, shared-IP or VNET networking, templates,
+clones, snapshots and optional kernel resource limits. It requires ``uclcmd``
+and stores UCL configuration alongside native ZFS properties.
 
-**FEATURES:**
+Start with :doc:`basic-use` and :doc:`known-issues`. Current verification covers
+FreeBSD 15.1-RELEASE-p6/amd64, including 14.5 jail fixtures; it is not a blanket
+compatibility or production-readiness guarantee. The default jail is a basejail
+using shared read-only release files, not a complete independent OS copy.
 
-- Templates, clones, basejails, fully independent jails
-- Ease of use
-- Zero configuration files
-- Rapid thin provisioning within seconds
-- Automatic package installation
-- Virtual networking stacks (vnet)
-- Shared IP based jails (non vnet)
-- Resource limits (CPU, MEMORY, etc.)
-- Filesystem quotas and reservations
-- Dedicated ZFS datasets inside jails
-- Transparent ZFS snapshot management
-- Binary updates
-- Differential jail packaging
-- Export and import
-- And many more!
+The five high-risk safety paths have targeted regression coverage. Other
+command defects and historical recipes are identified explicitly in these
+docs rather than advertised as working current interfaces.
 
-Documentation:
---------------
+Documentation
+=============
 
 .. toctree::
    :maxdepth: 2
@@ -42,16 +27,19 @@ Documentation:
    best-practices
    advanced-use
    templates
-   automatic-package-installation
    jail-package
+   ezjail-migration
    debian
    known-issues
    faq
 
-Indices and tables
-==================
+Reference
+=========
 
- * :ref:`genindex`
- * :ref:`modindex`
- * :ref:`search`
+``iocell help`` and the generated ``iocell(8)`` manual describe the current
+command interface. The source of that reference is ``lib/ioc-help``. The
+repository's test guide distinguishes portable tests from opt-in destructive
+FreeBSD/ZFS tests. Never run those integration tests on production data.
 
+* :ref:`genindex`
+* :ref:`search`

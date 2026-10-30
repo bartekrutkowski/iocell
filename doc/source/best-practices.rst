@@ -1,56 +1,67 @@
 Best practices
---------------
+==============
 
-These are some generic guidelines for working with iocell managed jails.
+Use a disposable environment before applying changes to production. The
+current verification covers FreeBSD 15.1-RELEASE-p6/amd64, not every kernel,
+architecture or combination of properties. Read :doc:`known-issues` first.
 
-**Use PF as a module**
+Identify and back up jails
+--------------------------
 
-  This is the default setting in the ``GENERIC`` kernel. There seems to be a VNET bug which is only
-  triggered when PF is directly compiled into the kernel.
+Use meaningful tags and record full UUIDs. Do not rely on partial UUID prefixes
+for jail operations. Template tags must be safe ZFS components, not generated
+timestamp names containing ``@``. Notes are useful, but the current argument
+parser does not handle apostrophes safely in notes values.
 
-**Always tag your jails and templates!**
+Take application-consistent backups before updates or destructive operations.
+A normal snapshot covers the jail's root only. Use ``snapshot -r`` when you need
+configuration and descendants, and back up shared release datasets separately.
+Stop the jail before rollback. Multi-dataset rollback is not atomic.
 
-  This will help you avoid mistakes and easily identify jails.
+Restart deliberately
+--------------------
 
-**Set the notes property**
+``iocell restart TAG`` is a hard stop/start. Use ``iocell restart -s TAG`` when
+you want a soft restart retaining the kernel jail and network stack. Neither
+choice guarantees application consistency; follow the application's shutdown
+and recovery requirements.
 
-  Set the ``notes`` property to something meaningful, especially for templates
-  and jails you might use only once in a while.
+Isolate networking and firewall changes
+---------------------------------------
 
-**VNET**
+Set ``vnet=off`` explicitly for shared-IP examples. For VNET, prepare the bridge,
+addresses, routes and firewall policy before starting the jail. An isolated
+private bridge with host routing/NAT is appropriate when extra MAC addresses
+must not reach a provider uplink. iocell does not configure that NAT policy for
+you. Do not blindly bridge a public NIC or disable bridge filtering globally.
 
-  ``VNET`` will give you more control and isolation. Also allows to run per jail firewalls.
-  See known issues about VNET.
+Per-jail firewall availability depends on the host kernel, permissions and
+device exposure. Keep a working host firewall and management access while
+testing changes. Historical FreeBSD 10 VNET/PF/ALTQ reports are not a current
+kernel compatibility guarantee.
 
-**Don't overuse resource limiting!**
+Resource limits and templates
+-----------------------------
 
-  Unless really needed, let the OS decide how to do it best. Set limits with
-  the "log action" before enforcing "deny". This way you can check the logs
-  before creating any performance bottlenecks.
+Enable RACCT at boot before using RCTL limits. Begin with observation/logging
+and enforce limits only after measuring the workload. Empty limit queries and
+``uncap`` have known exit-status quirks; inspect actual kernel rules.
 
-**Discover templates!**
+Templates are useful for repeatable deployment. Stop a template and convert it
+back with ``istemplate=no`` for normal start/console maintenance. The historical
+``iocell chroot`` command is not dispatched. Do not casually substitute a host
+``chroot(8)`` without understanding mounts and its lack of jail isolation.
 
-  Templates will make your life easy, try them!
+Clean up explicitly
+-------------------
 
-**Use the restart command instead of start/stop**
+Remove snapshots only after checking their clone dependencies. Non-force
+``clean -t`` protects dependent clones, including racing clones. Explicit
+``clean -f -t`` permits their destruction. Other cleanup modes remove complete
+namespaces and must never be used as generic housekeeping without reviewing
+what is stored there.
 
-  If you wish to restart a jail use the ``restart`` command which performs a
-  soft restart and it leaves the ``VNET`` stack alone, less stressful for the
-  kernel and you.
-
-**Check your firewall rules**
-
-  When using ``IPFW`` inside a ``VNET`` jail put ``firewall_enable="YES"``
-  ``firewall_type="open"`` into ``/etc/rc.conf`` for a start. This way you can exclude
-  the firewall from blocking you right from the beginning! Lock it down once you've tested
-  everything. Also check PF firewall rules on the host if you happen to mix both.
-
-**Get rid of old snapshots**
-
-  Remove snapshots you don't need, especially from jails where data is changing a lot!
-
-**Use the chroot sub-command**
- 
-  In case you need to access or modify files in a template or a jail which is in a
-  stopped state, use ``iocell chroot UUID | TAG``. This way you don't need to spin up the
-  jail or convert the template.
+For replication, use incremental streams for existing replicas. Full sends
+create fresh unique snapshots and fail rather than silently reusing stale data.
+Keep the source until receive and activation have succeeded; even after a
+successful move, verify your applications and backups before retiring storage.

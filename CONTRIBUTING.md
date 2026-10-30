@@ -29,8 +29,18 @@ if [ "$(command | test)" ] ; then
     fi
 fi
 ```
-- Update ioc-help (**_not iocell.8/iocell.8.txt_**) if new/changed docs are needed for your change. Requires `txt2man`.
-<p>(`iocell help | txt2man -t iocell -s 8 -v "FreeBSD System Manager's Manual" > iocell.8`, followed by `iocell help > iocell.8.txt`)</p>
+- Edit `lib/ioc-help`, not generated `iocell.8`/`iocell.8.txt`, when changing
+  the command reference. On the prepared FreeBSD test host, install `txt2man`
+  and regenerate both files from the checkout:
+```
+sh ./iocell help > iocell.8.txt
+txt2man -d "$(date '+%Y-%m-%d')" -t iocell -s 8 \
+    -v "FreeBSD System Manager's Manual" iocell.8.txt > iocell.8
+mandoc -Tlint -Wwarning iocell.8
+```
+  The explicit ISO date avoids a default `txt2man` date that `mandoc` cannot
+  parse. Commit generated artifacts together with their help source; do not
+  hand-edit the generated roff.
 - Pull request description should clearly show what the change is including output if relevant.
 - Squash commits before opening a pull request.
 - Test and then test again! Make sure it works with the latest changes in `develop`.
@@ -103,4 +113,17 @@ _var2="bar"
 
 ####Documentation for Read The Docs
 -----
-If you wish to update some of our [documentation] (http://iocell.readthedocs.org), you only need to submit a PR for the files you change in iocell/doc/source. They will automatically be updated when the changes are merged into our `Master` branch.
+The Sphinx source is `doc/source`. Update working examples and known limitations
+alongside the command reference; do not present historical recipes as verified
+current interfaces. The documentation version identifies the upstream baseline,
+not a new release or a guarantee that the runtime banner is accurate.
+
+Install Sphinx in a separate Python environment and validate every page and
+internal reference before committing:
+```
+sphinx-build -E -a -n -W --keep-going -b html doc/source /tmp/iocell-doc-html
+```
+Build output should stay outside the source tree. See [tests/README.md](tests/README.md)
+for portable and opt-in native regression commands. Website publication depends
+on the documentation service's configuration; local validation is required even
+when an upstream hosting service builds automatically.

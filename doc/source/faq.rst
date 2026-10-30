@@ -2,59 +2,74 @@ FAQ
 ===
 
 **What is iocell?**
-    iocell is jail management script aiming to simplify jail administration
-    tasks as much as possible.
+    A shell-based FreeBSD jail manager using ZFS, optional VNET networking and
+    optional kernel resource limits. It needs ``uclcmd``; it is not a
+    zero-dependency tool.
 
 **What is a jail?**
-    Jail is a FreeBSD **OS virtualization** technology allowing to run multiple
-    copies of the operating system. Some operating systems use the term
-    **Zones** or **Containers** for OS virtualization.
+    FreeBSD OS-level virtualization: isolated userlands share the host kernel.
+    A jail is not a VM with an independent guest kernel.
 
 **What is VNET?**
-    VNET is an independent per jail virtual networking stack.
+    A separate per-jail networking stack. Shared-IP jails instead use selected
+    addresses on host interfaces. Set the mode explicitly when following an
+    example because capable hosts enable VNET automatically.
 
-**How do I configure network interfaces in a VNET or shared IPjail?**
-    You configure both the same way: ``iocell set
-    ip4_add="interface|IP/netmask" UUID | TAG``. For more info please refer to the
-    documentation.
+**How do I configure addresses?**
+    Use ``ip4_addr`` or ``ip6_addr`` with ``interface|address/prefix``. The
+    interface is a host interface for shared IP and a jail interface for VNET.
+    See :doc:`networking`.
 
-**Do I need to set my default gateway?**
-    Only if VNET is enabled. You need to assign an IP address to the **bridge**
-    where the jail interface is attached to. This IP essentially becomes your default
-    gateway for your jail.
- 
-**Can I run a firewall inside a jail?**
-    Yes in a VNET jail **IPFW is supported**. PF is not supported inside the
-    jail - though you can still enable PF for the host itself. If you plan on
-    using **IPFW** inside a jail make sure **securelevel** is set to **2**
+**Do I need a default gateway?**
+    VNET jails need appropriate routes for destinations off their attached
+    network. The gateway may be the host's private bridge address when the
+    host is configured as a router/NAT gateway, or another router. Shared-IP
+    jails use the host network stack rather than a separate jail gateway.
 
-**Can I enable both IPFW and PF at the same time?**
-    Yes, make sure you allow traffic on both in/out for your jails.
+**Does iocell configure NAT?**
+    No complete host NAT policy is set up automatically. Configure FreeBSD
+    routing and firewall/NAT rules for your topology. Do not expose additional
+    MAC addresses on a provider link that prohibits them.
 
-**Can I create custom jail templates?**
-    Yes, and thin provision them too! Starting with version 1.3 there is also a
-    package option for jail packaging.
+**Can I run a firewall in a jail?**
+    Availability depends on VNET, the host kernel, jail permissions and device
+    exposure. Do not apply an old blanket PF/IPFW or securelevel recipe to all
+    host versions. Keep host filtering and management access while testing;
+    per-jail firewall policy was not qualified by the command audit.
 
-**What is a jail clone?**
-    **Clones** are ZFS clones, these are fully writable copies of the
-    source jail.
+**Can I use templates and clones?**
+    Yes. Use ``istemplate=yes/no`` for conversion and ``clone`` for deployment.
+    Template tags must be safe ZFS components. See :doc:`templates` and
+    :doc:`jailtypes`. The historical differential ``record``/``package`` commands
+    are not available.
 
-**Can I limit the CPU and Memory use?**
-    Yes. (refer to manual page)
+**Are clones independent?**
+    A ZFS clone depends on its source snapshot. Promotion reverses that
+    relationship. Shared basejail release mounts remain shared; promotion alone
+    does not turn them into a private full OS installation.
 
-**Is there a way to display resource consumption?**
-    Yes, ``iocell inuse UUID | TAG``
+**Can I limit CPU and memory?**
+    Yes, with appropriate kernel support and RACCT enabled at boot. Configure
+    ``rlimits=on`` and desired properties, then inspect actual rules with
+    ``limits`` and resource use with ``inuse``. See :doc:`advanced-use`.
 
-**Is NAT supported for the jails?**
-    Yes. This is built into FreeBSD. Treat your server as a core
-    router/firewall. Check documentation section on NAT.
+**Can I use short UUIDs?**
+    Use tags or full UUIDs for jail commands. Short UUID lookup is currently
+    unreliable. Import's unique image-prefix selector is a separate mechanism.
 
-**Will iocell work on a generic system with no ZFS pools?**
-    No. ZFS is a must, if you run a FreeBSD server you should be using ZFS!
+**Where is configuration stored?**
+    In UCL files under the selected iocell dataset, plus native ZFS properties.
+    ``defaults`` displays defaults; the system-wide setter is currently broken.
 
-**Is ZFS jailing supported?**
-    Yes, please refer to man page.
+**Can I run without a ZFS pool?**
+    No. The host OS itself need not be installed on ZFS, but iocell requires a
+    usable pool for jail storage.
 
-**How can I prevent from bridge interfaces manipulation on start/stop?**
-    See man page (``iocell set createbridge=off UUID | TAG`` and/or
-    ``iocell set keepbridge=on UUID | TAG``)
+**How do I keep iocell from managing my bridges?**
+    Prepare the bridge yourself and use ``createbridge=off`` and
+    ``keepbridge=on`` as appropriate. See :doc:`networking`.
+
+**Is every documented workflow qualified?**
+    No. Current verification targets FreeBSD 15.1-RELEASE-p6/amd64, including
+    14.5 jail fixtures. Historical recipes and remaining command defects are
+    identified in :doc:`known-issues`; do not assume success text proves state.
