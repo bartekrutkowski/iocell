@@ -34,6 +34,8 @@ configuration/alias publication. It verifies saved versus live bytes. The rollba
 test covers target selection, snapshot preflight, running jails, and error
 propagation. Package tests cover list parsing, first-error propagation, release
 and template selection, partial mount failures, cleanup, and cleanup failures.
+Child stdin is isolated from the package list. Failure coverage includes each
+template release/lower, template overlay and writable jail overlay mount.
 Template tests cover stored UUID selection, delegated state, validation, clone
 and running-jail guards, rename errors, and propagation through the CLI.
 Safety tests additionally cover fresh full-send snapshots, every pipeline stage
@@ -205,8 +207,9 @@ IOC_TEST_POOL=YOUR_TEST_POOL IOC_TEST_RELEASE=15.1-RELEASE \
     sh tests/create-pkg-zfs.sh
 ```
 
-It verifies relative package-list paths, successful installation, partial-mount
-failure cleanup, first-error propagation,
+It verifies relative package-list paths, successful installation, three real
+package invocations despite a stdin-reading child, real failures at each template
+mount layer with source diagnostics, partial-mount cleanup, first-error propagation,
 no automatic start or further `count` iterations after failure, missing/empty
 lists, and package installation through existing template overlays without
 changing the source template. No jail is intentionally started. All newly

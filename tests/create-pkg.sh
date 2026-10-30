@@ -51,7 +51,9 @@ mount () {
         *) return 44 ;;
     esac
 
-    if [ "${_target}" = "${mount_failure}" ] ; then
+    if [ "${_target}" = "${mount_failure}" ] || \
+        [ "${_source}" = "${mount_source_failure}" ] ; then
+        echo "fixture mount failure: ${_source} -> ${_target}" >&2
         return 43
     fi
 
@@ -95,13 +97,17 @@ run_case () {
     : > "${trace}"
     echo example-package > "${pkglist}"
     mount_failure=''
+    mount_source_failure=''
     umount_failure=''
     pkg_status=0
 
     case "${_label}" in
         pkg-failure) pkg_status=42 ;;
         mount-failure) mount_failure="${root}/usr/lib" ;;
-        legacy-mounts) mount_failure="${root}/bin" ;;
+        legacy-best-effort) mount_failure="${root}/bin" ;;
+        template-lower-failure) mount_failure="${root}/usr/lib" ;;
+        template-base-overlay-failure) mount_source_failure="${iocroot}/templates/base/root/var" ;;
+        template-jail-overlay-failure) mount_source_failure="${iocroot}/jails/short-id/_/var" ;;
         tmpfs-failure) mount_failure="${root}/tmp" ;;
         devfs-failure) mount_failure="${root}/dev" ;;
         umount-failure) umount_failure="${root}/bin" ;;
@@ -118,7 +124,7 @@ run_case () {
     cp "${mounts}" "${mounts}.initial"
     _status=0
     (
-        if [ "${_label}" = legacy-mounts ] ; then
+        if [ "${_label}" = legacy-best-effort ] ; then
             __mount_basejail short-id 15.1-RELEASE
             _result=$?
             umount "${root}/tmp"
@@ -135,6 +141,12 @@ run_case () {
         return 1
     fi
 
+    if [ "${_want_status}" -eq 43 ] ; then
+        grep -q 'fixture mount failure:' "${workdir}/${_label}.log" || {
+            echo "FAIL: ${_label} lost the mount diagnostic" >&2; return 1;
+        }
+    fi
+
     case "${_label}" in
         umount-failure|pkg-and-umount-failure) ;;
         *) diff -u "${mounts}.initial" "${mounts}" || return 1 ;;
@@ -145,9 +157,12 @@ run_case () {
             echo 'FAIL: preexisting mounts were changed' >&2
             return 1
         fi
-    elif [ "${_label}" = mount-failure -o \
-        "${_label}" = tmpfs-failure -o "${_label}" = devfs-failure -o \
-        "${_label}" = legacy-mounts ] ; then
+    elif [ "${_label}" = legacy-best-effort ] ; then
+        # This calls only the mount helper, not package orchestration.
+        grep -q 'fixture mount failure:' "${workdir}/${_label}.log" || {
+            echo 'FAIL: legacy mount failure was not diagnosed' >&2; return 1;
+        }
+    elif [ "${_want_status}" -eq 43 ] ; then
         if grep -q '^pkg$' "${trace}" ; then
             echo 'FAIL: pkg ran after a mount failure' >&2
             return 1
@@ -169,7 +184,10 @@ run_case devfs-failure 43 || failed=1
 run_case umount-failure 1 || failed=1
 run_case pkg-and-umount-failure 42 || failed=1
 run_case preexisting-mount 1 || failed=1
-run_case legacy-mounts 0 || failed=1
+run_case legacy-best-effort 0 || failed=1
 template=base
 run_case template-mounts 0 || failed=1
+run_case template-lower-failure 43 || failed=1
+run_case template-base-overlay-failure 43 || failed=1
+run_case template-jail-overlay-failure 43 || failed=1
 exit "${failed}"

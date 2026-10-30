@@ -15,6 +15,9 @@ jailroot=/fake/jail
 
 pkg () {
     printf '%s\n' "$*" >> "${trace}"
+    if [ "${drain_stdin:-no}" = yes ] ; then
+        while IFS= read -r ignored ; do :; done
+    fi
 
     if [ "$#" -ne 5 -o "$2" != "${jailroot}" ] ; then
         return 43
@@ -78,5 +81,13 @@ pkglist="${workdir}/missing"
 run_case missing-list 1 '' || failed=1
 pkglist="${workdir}"
 run_case directory-list 1 '' || failed=1
+
+pkglist="${workdir}/stdin-packages"
+jailroot=/fake/jail
+drain_stdin=yes
+printf 'first-package\nsecond-package\nthird-package\n' > "${pkglist}"
+run_case script-stdin-isolated 0 '-c /fake/jail install -qy first-package
+-c /fake/jail install -qy second-package
+-c /fake/jail install -qy third-package' || failed=1
 
 exit "${failed}"

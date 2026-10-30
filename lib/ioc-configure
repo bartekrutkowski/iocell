@@ -213,7 +213,8 @@ __pkg_install () {
         esac
 
         __info "installing: ${_package}"
-        pkg -c "${_chrootdir}" install -qy "${_package}" || return $?
+        pkg -c "${_chrootdir}" install -qy "${_package}" </dev/null \
+            || return $?
     done < "${pkglist}"
 }
 

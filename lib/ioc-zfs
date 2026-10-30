@@ -1159,7 +1159,7 @@ __mount_basejail () {
         # Mount the nullfs needed for basejails
         mount -t nullfs -o ro \
             ${iocroot}/releases/${_release}/root/${_bdir} \
-            ${iocroot}/jails/${_fulluuid}/root/${_bdir} 2> /dev/null || {
+            ${iocroot}/jails/${_fulluuid}/root/${_bdir} || {
                 _status=$?
 
                 if [ "${_strict}" = "1" ] ; then
