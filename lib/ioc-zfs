@@ -1608,13 +1608,23 @@ __dump_config () {
     local _fulluuid _dataset _config _mountpoint
 
     _fulluuid="$1"
+    if ! printf '%s\n' "${_fulluuid}" | grep -Eq \
+        '^[[:xdigit:]]{8}(-[[:xdigit:]]{4}){3}-[[:xdigit:]]{12}$' ; then
+        __die "invalid jail UUID for configuration migration"
+    fi
     _dataset="${pool}/iocell/jails/${_fulluuid}"
+    _mountpoint=$(zfs get -H -o value mountpoint "${_dataset}") || return $?
+    case "${_mountpoint}" in
+        ''|/|none|legacy|-) __die "invalid jail mountpoint for migration" ;;
+    esac
+    [ -d "${_mountpoint}" ] || return 1
+    # Only missing legacy configuration is eligible for generation.
+    [ ! -e "${_mountpoint}/config" ] || return 0
     # shellcheck disable=SC1004
     _config=$(zfs get -H -o property,value all \
         "${_dataset}" | awk -v dq='"' '/org.freebsd.iocell/ \
         { $2=dq$2; sub(" "," VALUE ",$0); \
         sub("org.freebsd.iocell:","PROP ",$1); print $0dq }')
-    _mountpoint=$(zfs get -H -o value mountpoint "${_dataset}")
     _v="no"
     _p="no"
 

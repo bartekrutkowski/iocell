@@ -57,28 +57,39 @@ __get_default_prop () {
 
 # Find and return the jail's top level ZFS dataset
 __find_jail () {
-    local _name _jlist _jail _tag _found _mountpoint _juuid _otag
+    local _name _jlist _jail _tag _found _mountpoint _juuid _otag _candidates
 
     _name="$1"
     _found="0"
 
     # shellcheck disable=SC2154,SC2155
-    export jail_datasets="$(zfs list -d3 -rH -o name "${pool}/iocell" \
-        | egrep -v "jails$|base|releases|templates$|download|${pool}/iocell$|/root$|/data$")"
+    _candidates=$(zfs list -d1 -rH -o name \
+        "${pool}/iocell/jails" "${pool}/iocell/templates") || return $?
+    # Only direct jail/template children are identities. Backup, root and
+    # delegated descendants must never trigger migration of their parent.
+    export jail_datasets="$(printf '%s\n' "${_candidates}" | \
+        awk -F/ 'NF == 4')"
 
     if [ "${_name}" = "ALL" ] ; then
         for _jail in ${jail_datasets} ; do
             _mountpoint="$(zfs get -H -o value mountpoint ${_jail})"
 
             if [ ! -e "${_mountpoint}/config" ] ; then
-                _juuid="$(echo ${_jail} | cut -d / -f 4)"
+                _juuid="${_jail##*/}"
+                case "${_jail}" in
+                    "${pool}/iocell/jails/"*) ;;
+                    *) continue ;;
+                esac
+                printf '%s\n' "${_juuid}" | grep -Eq \
+                    '^[[:xdigit:]]{8}(-[[:xdigit:]]{4}){3}-[[:xdigit:]]{12}$' \
+                    || continue
 
                 if [ "$(id -un)" != "root" ] ; then
                     _otag="$(zfs get -H -o value org.freebsd.iocell:tag ${_jail})"
                     echo "  ERROR: please run as root to migrate ${_otag} to ucl." >&2
                     continue
                 elif [ "$(id -un)" = "root" ] ; then
-                    __dump_config "${_juuid}"
+                    __dump_config "${_juuid}" || return $?
                     _clone_check=$(zfs get -H origin "${_jail}" | \
                         awk '{print $3}')
                     _jail_type=$(__get_jail_prop type "${_juuid}" "${_jail}")
@@ -113,8 +124,19 @@ __find_jail () {
                 _mountpoint="$(zfs get -H -o value mountpoint ${_jail})"
 
                 if [ ! -e "${_mountpoint}/config" ] ; then
-                    _juuid="$(echo ${_jail} | cut -d / -f 4)"
-                    __dump_config ${_juuid}
+                    _juuid="${_jail##*/}"
+                    case "${_jail}" in
+                        "${pool}/iocell/jails/"*) ;;
+                        *) continue ;;
+                    esac
+                    printf '%s\n' "${_juuid}" | grep -Eq \
+                        '^[[:xdigit:]]{8}(-[[:xdigit:]]{4}){3}-[[:xdigit:]]{12}$' \
+                        || continue
+                    if [ "$(id -un)" != root ] ; then
+                        __error "please run as root to migrate ${_juuid}"
+                        continue
+                    fi
+                    __dump_config "${_juuid}" || return $?
                 fi
 
                 _tag="$(uclcmd get -qf ${_mountpoint}/config tag 2> /dev/null)"
