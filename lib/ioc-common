@@ -7,18 +7,19 @@ __is_jail_uuid () {
 
 # Export every property specified on command line ----------------------
 __export_props () {
-    local _pname
-
-    for i in "$@" ; do
-        if [ "$(echo $i | grep -e ".*=.*")" ] ; then
-            _pname="$(echo $i | awk 'BEGIN { FS = "=" } ; { print $1 }')"
-            __validate_pname $_pname
-            export "$i"
-            export "iocset_${i}"
-        fi
+    local _pname _property
+    for _property in "$@" ; do
+        case "${_property}" in
+            *=*)
+                _pname="${_property%%=*}"
+                __validate_pname "${_pname}" ""
+                export "${_property}"
+                export "iocset_${_property}"
+                ;;
+        esac
     done
-
-    if [ "$tag" = 'default' ] && ([ "$1" != 'set' ] || [ "$1" != 'get' ]); then
+    if [ "${tag:-}" = default ] && [ "${1:-}" != set ] &&
+        [ "${1:-}" != get ] ; then
         tag=$(date "+%F@%T")
         echo "  WARNING: tag value \"default\" is a reserved keyword" >&2
         echo "           tag was changed to: $tag" >&2
@@ -115,6 +116,10 @@ __set_jail_prop () {
         __die "missing property or UUID!"
     fi
 
+    case "${_property}" in
+        *=*) ;;
+        *) __error "set failed, incorrect property syntax!"; return 1 ;;
+    esac
     if [ "${_name}" = default ] ; then
         __set_default_prop "${_property}"
         return $?
@@ -128,8 +133,8 @@ __set_jail_prop () {
 
     _fulluuid="$(__check_name ${_name} ${_dataset})"
 
-    _pname="$(echo ${_property} | awk 'BEGIN { FS = "=" } ; { print $1 }')"
-    _pval="$(echo ${_property} | awk 'BEGIN { FS = "=" } ; { print $2 }')"
+    _pname="${_property%%=*}"
+    _pval="${_property#*=}"
     _jail_type="$(__get_jail_prop type ${_fulluuid} ${_dataset})"
 
     if [ -z "${_pname}" -o -z "${_pval}" ] ; then
@@ -175,10 +180,6 @@ __set_jail_prop () {
                 __bpf_devfs >> /etc/devfs.rules
                 service devfs restart 1> /dev/null
             fi
-            ;;
-        notes)
-            # Needed for notes="aaa=bbb" issue #243
-            _pval="$(echo ${notes})"
             ;;
         jail_zfs_mountpoint)
             _state="$(__is_running ${_fulluuid})"

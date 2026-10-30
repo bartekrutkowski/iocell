@@ -45,8 +45,8 @@ Current command limitations
   ``/iocell/images``, not necessarily a compressed archive plus checksum file.
   Legacy thick-jail archive import has a separate checksum path. Do not
   assume all export/import paths create or verify SHA256 sidecars.
-* **Arguments:** a multi-word ``pkg`` argument can be split; a benign apostrophe
-  in a notes value breaks shell parsing. Avoid these forms until fixed.
+* **Arguments:** a multi-word ``pkg`` argument can be split. Property values
+  passed to ``create`` and ``set`` preserve spaces, quotes and equals signs.
 * **Exit status:** malformed command syntax, unknown commands/options and
   missing required operands now fail before pool/filesystem setup or dispatch.
   The full argument list is checked before lifecycle targets or cleanup flags

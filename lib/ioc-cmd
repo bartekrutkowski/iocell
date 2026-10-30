@@ -403,62 +403,22 @@ __parse_cmd () {
                 ;;
             set)        __export_props "$@"
                         shift
-                        # Big thanks to john@ix for his huge help with this
-                        local _nprops _props _njails _jails _var _pair _i \
-                              _jail _fulluuid _j _prop _pname _pval _dataset
-
-                        _nprops=0
-                        _njails=0
-
-                        for _jset in "$@" ; do
-                            _var="$(echo ${_jset} | cut -f1 -d'=' -s)"
-
-                            if [ -n "${_var}" ] ; then
-                                _pair="_prop_${_nprops}='${_jset}'"
-                                eval "${_pair}"
-                                _nprops=$((_nprops + 1))
-                                continue
-                            fi
-
-                            eval "_jail_${_njails}=${_jset}"
-                            _njails=$((_njails + 1))
-                        done
-
-                        if [ "${_njails}" = "0" ] ; then
-                            __die "please specify a jail!"
-                        fi
-
-                        _i=0
-                        while [ "${_i}" -lt "${_njails}" ] ; do
-                            _var=\$$(printf "_jail_${_i}")
-                            _jail=$(eval "echo ${_var}")
+                        local _jail _fulluuid _prop _dataset
+                        for _jail in "$@" ; do
+                            case "${_jail}" in *=*) continue ;; esac
                             if [ "${_jail}" = default ] ; then
-                                if [ "${_nprops}" -eq 0 ] ; then
-                                    __die "please specify a property!"
-                                fi
                                 _fulluuid=default
                             else
-                                _dataset=$(__find_jail ${_jail}) || exit $?
-                                _fulluuid="$(__check_name ${_jail} ${_dataset})"
+                                _dataset=$(__find_jail "${_jail}") || exit $?
+                                _fulluuid=$(__check_name "${_jail}" "${_dataset}") \
+                                    || exit $?
                             fi
-                            _j=0
-
-                            while [ "${_j}" -lt "${_nprops}" ] ; do
-                                _var=\$$(printf "_prop_${_j}")
-                                _prop=$(eval "echo ${_var}")
-                                _pname=$(echo "${_prop}" | cut -f1 -d'=' -s)
-                                _pval=$(echo "${_prop}" | cut -f2 -d'=' -s)
-
-                                if [ "${_jail}" = default ] ; then
-                                    __set_jail_prop "${_prop}" default || exit $?
-                                else
-                                    __set_jail_prop "${_pname}=${_pval}" \
-                                        "${_fulluuid}" || exit $?
-                                fi
-                                _j=$((_j + 1))
+                            for _prop in "$@" ; do
+                                case "${_prop}" in
+                                    *=*) __set_jail_prop "${_prop}" \
+                                        "${_fulluuid}" || exit $? ;;
+                                esac
                             done
-
-                            _i=$((_i + 1))
                         done
                         exit
                 ;;

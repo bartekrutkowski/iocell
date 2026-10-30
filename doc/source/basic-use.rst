@@ -146,9 +146,9 @@ aliases and ``-v help``/``-v version`` still succeed.
 
 This is syntax checking, not a transaction or complete property validation.
 A command with valid syntax can still fail during execution after an earlier
-target has changed. Some property values are only partially validated. A benign apostrophe in a
-notes value currently breaks argument parsing; avoid it until the parser is
-fixed. The known-issues chapter records these limitations rather than treating
+target has changed. Some property values are only partially validated.
+Quote values for your invoking shell; spaces, apostrophes and equals signs
+within property values are preserved literally. The known-issues chapter records these limitations rather than treating
 unsupported examples as working commands.
 
 Destroy a jail

@@ -413,8 +413,8 @@ SUBCOMMANDS
     Defaults are replaced only after a successful UCL write. Multiple settings
     are applied individually, stopping on the first failure; this is not a
     batch transaction. Reset-to-saved-defaults behavior is not restored here.
-    A benign apostrophe in notes can break argument parsing; avoid it until
-    fixed. Inspect resulting configuration and kernel state.
+    Quote values for your invoking shell. Spaces, apostrophes and equals
+    signs within a property value are preserved literally.
 
   snaplist UUID|TAG
 

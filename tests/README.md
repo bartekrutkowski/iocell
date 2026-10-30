@@ -18,6 +18,7 @@ sh tests/import.sh
 sh tests/defaults.sh
 sh tests/cli-args.sh
 sh tests/native-test-guard.sh
+sh tests/set-values.sh
 ```
 
 These execute the real shell functions with mocked ZFS/system calls. They do
@@ -91,6 +92,21 @@ cleanup stops its jail if a test fails. Existing jails/datasets are not deleted.
 
 This is CLI syntax coverage, not full property/kernel validation or a promise
 of atomic multi-target commands. Real SSH/send data-path tests are below.
+
+## Literal property-value tests
+
+`set-values.sh` exercises the real dispatcher and property setter with a
+configuration writer boundary: equals signs, apostrophes, repeated spaces,
+newlines and literal shell text must reach storage unchanged. It also tests
+the reserved-tag command predicate and malformed direct setter calls.
+
+```sh
+IOC_TEST_POOL=YOUR_TEST_POOL sh tests/set-values-zfs.sh
+```
+
+The native counterpart uses new empty-jail fixtures and real UCL storage. A
+write failure must stop later properties and later jails; earlier successful
+properties remain applied, so the test does not imply batch transactions.
 
 ## Real-ZFS discovery and bulk lifecycle test
 
