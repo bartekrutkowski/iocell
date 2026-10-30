@@ -106,6 +106,8 @@ SUBCOMMANDS
     so be sure you don't use this flag if you have any. The -j flag will
     destroy the jails dataset. The -t flag will destroy the templates dataset.
     Same warning applies here as with cleaning the RELEASE dataset.
+    Without -f, template cleanup refuses dependent clones, including root
+    clones outside the jails dataset. Explicit -f permits their destruction.
 
   clone UUID|TAG [UUID|TAG@snapshot] [property=value]
 
@@ -333,7 +335,12 @@ SUBCOMMANDS
 
     Will take a recursive snapshot of the POOL/iocell dataset and send it to
     the specified pool. Supports remote, incremental and movement operations.
-    Moving (-m) is only available for local operations. Remote (-r) requires a
+    Every full send creates a unique fresh snapshot; snapshot or pipeline
+    failures are returned as errors. Existing snapshot-bearing replicas may
+    require incremental streams rather than another full receive.
+    Moving (-m) removes the original source only after successful transfer,
+    destination activation and mounting. It is only available locally.
+    Remote (-r) requires a
     user (-u) and a host (-h) to be specified. It also requires publickey
     authentication. If using incremental (-i) or Incremental (-I) be sure to
     supply the flag for each snapshot.
@@ -1038,9 +1045,18 @@ PROPERTIES
   istemplate=yes | no
 
     This property controls whether the jail is a template. Templates are not
-    started by iocell. Set to yes if you wish to convert the jail into
-    a template.
-    (See EXAMPLES section)
+    started automatically. Set to yes to convert a stopped basejail into
+    a template. Set to no to convert it back, preserving its stored UUID,
+    tag, snapshots and child datasets.
+
+    Stop the template first. Invalid stored UUIDs and dependent root clones
+    prevent conversion back. A failed ZFS rename leaves the template flags
+    unchanged and is reported as an error. Conversion in either direction
+    preserves the previous jailed state of a legacy data child. A template
+    tag must start with a letter, digit or underscore and contain only letters,
+    digits, underscores, periods, colons or hyphens. Retag generated timestamp
+    names before conversion, e.g. set tag=mytemplate UUID. Invalid tags are
+    rejected before any rename, metadata or alias changes. (See EXAMPLES section)
 
     Default: no
     Source: local
@@ -1461,7 +1477,7 @@ EXAMPLES
 
   Clone jail from template:
 
-    iocell clone UUID-of-template tag=myjail
+    iocell clone TAG-of-template tag=myjail
 
   Import package on another host
 

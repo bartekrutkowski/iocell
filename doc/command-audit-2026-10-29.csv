@@ -1,0 +1,336 @@
+status,case,command,expected_exit,observed_exit,assertion,log
+PASS,help-help,i help,0,0,"help text, not an error",help-help.log
+PASS,help-xxhelp,i --help,0,0,"help text, not an error",help-xxhelp.log
+PASS,help-xh,i -h,0,0,"help text, not an error",help-xh.log
+FAIL,version-version,i version,0,0,"reports packaged upstream version 2.2.0, not stale 2.1.2",version-version.log
+FAIL,version-xxversion,i --version,0,0,"reports packaged upstream version 2.2.0, not stale 2.1.2",version-xxversion.log
+PASS,usage-no-command,i,0,0,prints command usage,usage-no-command.log
+FAIL,invalid-command,i definitely-not-a-command,nonzero,0,unknown command fails,invalid-command.log
+PASS,defaults,i defaults,0,0,default property listing,defaults.log
+PASS,defaults-get,i get boot default,0,0,reads saved defaults,defaults-get.log
+FAIL,defaults-set,i set notes=audit-default default,0,1,writes the documented system-wide default,defaults-set.log
+PASS,list-empty,i list,0,0,valid empty jail table,list-empty.log
+PASS,list-releases,i list -r,0,0,fetched release is listed,list-releases.log
+PASS,list-templates-empty,i list -t,0,0,valid empty template table,list-templates-empty.log
+PASS,create-normal,i create release=15.1-RELEASE tag=audit-a vnet=off ip4_addr=none ip6_addr=none ,0,0,a new configured jail exists,create-normal.log
+PASS,create-second,i create release=15.1-RELEASE tag=audit-b vnet=off ip4_addr=none ip6_addr=none ,0,0,a new configured jail exists,create-second.log
+PASS,create-empty,i create -e tag=audit-empty,0,0,empty jail dataset exists,create-empty.log
+PASS,create-count,i create -e tag=audit-count count=2,0,0,creates two independently identified jails,create-count.log
+FAIL,documented-create-b,i create -b tag=mode-b release=15.1-RELEASE,0,1,historically documented create mode is accepted,documented-create-b.log
+FAIL,documented-create-c,i create -c tag=mode-c release=15.1-RELEASE,0,1,historically documented create mode is accepted,documented-create-c.log
+FAIL,documented-create-t,i create -t tag=mode-t release=15.1-RELEASE,0,1,historically documented create mode is accepted,documented-create-t.log
+FAIL,documented-base-property,i create base=15.1-RELEASE tag=audit-base-property,0,1,documented base property is accepted,documented-base-property.log
+FAIL,basic-doc-default-type,i get type d3b43698-d3d1-11f1-9baa-13579810bfd8,0,0,basic-use.rst claims a fully independent jail by default; help instead says basejail,basic-doc-default-type.log
+PASS,list-sort-jid,i list -s jid,0,0,documented sorting mode returns jail table,list-sort-jid.log
+PASS,list-sort-uuid,i list -s uuid,0,0,documented sorting mode returns jail table,list-sort-uuid.log
+PASS,list-sort-boot,i list -s boot,0,0,documented sorting mode returns jail table,list-sort-boot.log
+PASS,list-sort-state,i list -s state,0,0,documented sorting mode returns jail table,list-sort-state.log
+PASS,list-sort-tag,i list -s tag,0,0,documented sorting mode returns jail table,list-sort-tag.log
+PASS,list-sort-type,i list -s type,0,0,documented sorting mode returns jail table,list-sort-type.log
+PASS,list-sort-ip4,i list -s ip4,0,0,documented sorting mode returns jail table,list-sort-ip4.log
+PASS,list-sort-release,i list -s release,0,0,documented sorting mode returns jail table,list-sort-release.log
+PASS,list-sort-default,i list -s,0,0,missing sort column defaults to jid,list-sort-default.log
+PASS,list-bad-option,i list -z,nonzero,1,invalid list option fails,list-bad-option.log
+PASS,get-tag,i get tag d3b43698-d3d1-11f1-9baa-13579810bfd8,0,0,full UUID resolves,get-tag.log
+PASS,get-alias,i get host_hostuuid audit-a,0,0,tag resolves to original UUID,get-alias.log
+FAIL,get-short-uuid,i get tag d3b43698,0,1,short UUID resolves uniquely,get-short-uuid.log
+PASS,get-all,i get all d3b43698-d3d1-11f1-9baa-13579810bfd8,0,0,all properties are returned,get-all.log
+PASS,get-r-property,i get -r rlimits,0,0,recursive property display shows each jail and value,get-r-property.log
+PASS,get-unknown,i get nonexistent_property d3b43698-d3d1-11f1-9baa-13579810bfd8,nonzero,1,unknown property fails,get-unknown.log
+PASS,set-multiple,i set notes=changed boot=on d3b43698-d3d1-11f1-9baa-13579810bfd8,0,0,multiple properties persist,set-multiple.log
+PASS,set-multiple-jails,i set owner=root d3b43698-d3d1-11f1-9baa-13579810bfd8 d46f12fe-d3d1-11f1-9baa-13579810bfd8,0,0,both targets updated,set-multiple-jails.log
+PASS,set-live-no-jail,i set allow_raw_sockets=1 d3b43698-d3d1-11f1-9baa-13579810bfd8,0,0,stopped-jail runtime property persists,set-live-no-jail.log
+PASS,set-invalid,i set invalid_property=foo d3b43698-d3d1-11f1-9baa-13579810bfd8,nonzero,1,unsupported property rejected,set-invalid.log
+PASS,df,i df,0,0,space table includes jail tag,df.log
+PASS,verbose-global,i -v get tag d3b43698-d3d1-11f1-9baa-13579810bfd8,0,0,global -v produces trace and normal result,verbose-global.log
+PASS,missing-args-cap,i cap,nonzero,1,required operands are checked,missing-args-cap.log
+PASS,missing-args-clone,i clone,nonzero,1,required operands are checked,missing-args-clone.log
+PASS,missing-args-console,i console,nonzero,1,required operands are checked,missing-args-console.log
+FAIL,missing-args-destroy,i destroy,nonzero,0,required operands are checked,missing-args-destroy.log
+PASS,missing-args-exec,i exec,nonzero,1,required operands are checked,missing-args-exec.log
+PASS,missing-args-export,i export,nonzero,1,required operands are checked,missing-args-export.log
+PASS,missing-args-get,i get,nonzero,1,required operands are checked,missing-args-get.log
+PASS,missing-args-import,i import,nonzero,1,required operands are checked,missing-args-import.log
+PASS,missing-args-init-host,i init-host,nonzero,1,required operands are checked,missing-args-init-host.log
+PASS,missing-args-pkg,i pkg,nonzero,1,required operands are checked,missing-args-pkg.log
+PASS,missing-args-promote,i promote,nonzero,1,required operands are checked,missing-args-promote.log
+PASS,missing-args-reset,i reset,nonzero,1,required operands are checked,missing-args-reset.log
+PASS,missing-args-rollback,i rollback,nonzero,1,required operands are checked,missing-args-rollback.log
+PASS,missing-args-runtime,i runtime,nonzero,1,required operands are checked,missing-args-runtime.log
+PASS,missing-args-set,i set,nonzero,1,required operands are checked,missing-args-set.log
+PASS,missing-args-snaplist,i snaplist,nonzero,1,required operands are checked,missing-args-snaplist.log
+PASS,missing-args-snapmount,i snapmount,nonzero,1,required operands are checked,missing-args-snapmount.log
+PASS,missing-args-snapremove,i snapremove,nonzero,1,required operands are checked,missing-args-snapremove.log
+PASS,missing-args-snapumount,i snapumount,nonzero,1,required operands are checked,missing-args-snapumount.log
+FAIL,missing-args-start,i start,nonzero,0,required operands are checked,missing-args-start.log
+FAIL,missing-args-stop,i stop,nonzero,0,required operands are checked,missing-args-stop.log
+PASS,missing-args-uncap,i uncap,nonzero,1,required operands are checked,missing-args-uncap.log
+PASS,missing-args-update,i update,nonzero,1,required operands are checked,missing-args-update.log
+PASS,missing-args-upgrade,i upgrade,nonzero,1,required operands are checked,missing-args-upgrade.log
+FAIL,legacy-command-chroot,i chroot d3b43698-d3d1-11f1-9baa-13579810bfd8 /bin/true,0,0,"README/documentation command is dispatched, not silently replaced with usage",legacy-command-chroot.log
+FAIL,legacy-command-package,i package d3b43698-d3d1-11f1-9baa-13579810bfd8,0,0,"README/documentation command is dispatched, not silently replaced with usage",legacy-command-package.log
+FAIL,legacy-command-record,i record start d3b43698-d3d1-11f1-9baa-13579810bfd8,0,0,"README/documentation command is dispatched, not silently replaced with usage",legacy-command-record.log
+FAIL,legacy-command-show,i show boot,0,0,"README/documentation command is dispatched, not silently replaced with usage",legacy-command-show.log
+FAIL,undocumented-pull,i pull d3b43698-d3d1-11f1-9baa-13579810bfd8,0,0,dispatched git operation is evaluated on non-git fixture,undocumented-pull.log
+PASS,undocumented-push,i push d3b43698-d3d1-11f1-9baa-13579810bfd8,0,128,dispatched git operation is evaluated on non-git fixture,undocumented-push.log
+PASS,destroy-decline,"printf ""n\n"" | i destroy d52e0d73-d3d1-11f1-9baa-13579810bfd8",nonzero,0,declining destruction preserves dataset,destroy-decline.log
+PASS,destroy-confirm,"printf ""y\n"" | i destroy d52e0d73-d3d1-11f1-9baa-13579810bfd8",0,0,confirmed stopped jail is removed,destroy-confirm.log
+PASS,destroy-force-audit-count_1,i destroy -f d5cd6740-d3d1-11f1-9baa-13579810bfd8,0,0,force removes only selected stopped jail,destroy-force-audit-count_1.log
+PASS,destroy-force-audit-count_2,i destroy -f d65276c7-d3d1-11f1-9baa-13579810bfd8,0,0,force removes only selected stopped jail,destroy-force-audit-count_2.log
+PASS,exec-stopped,i exec d3b43698-d3d1-11f1-9baa-13579810bfd8 /bin/true,nonzero,1,stopped jail execution fails,exec-stopped.log
+PASS,start,i start d3b43698-d3d1-11f1-9baa-13579810bfd8,0,0,kernel jail exists,start.log
+PASS,state-running,i get state d3b43698-d3d1-11f1-9baa-13579810bfd8,0,0,state matches kernel,state-running.log
+PASS,start-again,i start d3b43698-d3d1-11f1-9baa-13579810bfd8,nonzero,1,already-running start is rejected without harm,start-again.log
+PASS,exec,i exec d3b43698-d3d1-11f1-9baa-13579810bfd8 /bin/echo audit-exec,0,0,command executes inside jail,exec.log
+PASS,exec-arguments,"i exec d3b43698-d3d1-11f1-9baa-13579810bfd8 /bin/sh -c 'printf ""%s\n"" ""two words""'",0,0,argument boundaries preserved,exec-arguments.log
+PASS,exec-u,i exec -u root d3b43698-d3d1-11f1-9baa-13579810bfd8 /usr/bin/id -u,0,0,host username option works,exec-u.log
+PASS,exec-U,i exec -U root d3b43698-d3d1-11f1-9baa-13579810bfd8 /usr/bin/id -u,0,0,jail username option works,exec-U.log
+PASS,exec-failed-command,"i exec d3b43698-d3d1-11f1-9baa-13579810bfd8 /bin/sh -c ""exit 17""",17,17,exit status is preserved,exec-failed-command.log
+PASS,exec-quoted-single-string,"i exec d3b43698-d3d1-11f1-9baa-13579810bfd8 ""ls -l""",nonzero,1,exec is argv-based; quoted shell expressions require explicit sh -c,exec-quoted-single-string.log
+PASS,runtime,i runtime d3b43698-d3d1-11f1-9baa-13579810bfd8,0,0,kernel runtime parameters returned,runtime.log
+PASS,destroy-running-refuse,"printf ""y\n"" | i destroy d3b43698-d3d1-11f1-9baa-13579810bfd8",nonzero,1,running jail cannot be destroyed without force,destroy-running-refuse.log
+FAIL,restart-as-documented,i restart d3b43698-d3d1-11f1-9baa-13579810bfd8,0,0,restart section documents a soft restart retaining JID,restart-as-documented.log
+PASS,reboot,i reboot d3b43698-d3d1-11f1-9baa-13579810bfd8,0,0,hard reboot replaces kernel jail,reboot.log
+PASS,restart-soft,i restart -s d3b43698-d3d1-11f1-9baa-13579810bfd8,0,0,-s retains kernel jail,restart-soft.log
+PASS,reboot-soft,i reboot -s d3b43698-d3d1-11f1-9baa-13579810bfd8,0,0,soft reboot leaves jail running,reboot-soft.log
+PASS,stop,i stop d3b43698-d3d1-11f1-9baa-13579810bfd8,0,0,kernel jail is removed,stop.log
+PASS,state-stopped,i get state d3b43698-d3d1-11f1-9baa-13579810bfd8,0,0,state agrees with kernel,state-stopped.log
+PASS,console-stopped,i console d3b43698-d3d1-11f1-9baa-13579810bfd8,nonzero,1,normal console requires a running jail,console-stopped.log
+FAIL,console-force,"printf 'printf ""force-%s\\n"" verified\nexit\n' | script -q /dev/null sh ./iocell console -f d3b43698-d3d1-11f1-9baa-13579810bfd8",0,1,-f starts a stopped jail and provides a shell,console-force.log
+PASS,start-all,i start ALL,0,0,all bootable fixtures start,start-all.log
+PASS,exec-all,i exec ALL /bin/echo all-exec,0,0,command runs in both normal jails,exec-all.log
+PASS,reboot-all,i reboot ALL,0,0,all running fixtures are rebooted,reboot-all.log
+PASS,stop-all,i stop ALL,0,0,all kernel jails stopped,stop-all.log
+PASS,boot-properties,i set boot=on priority=10 d3b43698-d3d1-11f1-9baa-13579810bfd8,0,0,boot fixture configured,boot-properties.log
+PASS,rcboot,i rcboot,0,0,boot=on fixture actually starts,rcboot.log
+PASS,rcshutdown,i rcshutdown,0,0,boot=on fixture actually stops,rcshutdown.log
+PASS,reset-one-setup,i set notes=reset-me boot=on d46f12fe-d3d1-11f1-9baa-13579810bfd8,0,0,non-default value persisted,reset-one-setup.log
+PASS,reset-one,i reset d46f12fe-d3d1-11f1-9baa-13579810bfd8,0,0,"defaults restored, UUID and tag retained",reset-one.log
+PASS,reset-all,"printf ""y\n"" | i reset ALL",0,0,all defaults reset without changing jail identity,reset-all.log
+PASS,pkg-network-setup,"i set vnet=off ip4_addr=""vtnet0|192.168.254.240/24"" d3b43698-d3d1-11f1-9baa-13579810bfd8; i start d3b43698-d3d1-11f1-9baa-13579810bfd8",0,0,private shared-IP fixture has a real routable address,pkg-network-setup.log
+PASS,console-pty,/usr/local/bin/python3.11 /root/command-audit/console.py d3b43698-d3d1-11f1-9baa-13579810bfd8,0,0,prompt-synchronised PTY proves shell execution,console-pty.log
+PASS,pkg-networked,i pkg audit-a install -y pkgconf,0,0,networked jail receives real package,pkg-networked.log
+PASS,pkg-networked-info,i pkg audit-a info pkgconf,0,0,installed package queried through wrapper,pkg-networked-info.log
+PASS,pkg-stopped-prep,i stop d3b43698-d3d1-11f1-9baa-13579810bfd8,0,0,stop networked fixture,pkg-stopped-prep.log
+PASS,pkg-stopped,i pkg audit-a info,nonzero,1,pkg requires running jail,pkg-stopped.log
+FAIL,console-force-pty,/usr/local/bin/python3.11 /root/command-audit/console.py d3b43698-d3d1-11f1-9baa-13579810bfd8 -f,0,1,-f really starts stopped jail and supplies shell,console-force-pty.log
+PASS,racct-enabled,sysctl kern.racct.enable,0,0,RACCT enabled for positive resource tests,racct-enabled.log
+PASS,rctl-configure,i set vnet=off ip4_addr=none rlimits=on memoryuse=256M:deny maxproc=128:deny d3b43698-d3d1-11f1-9baa-13579810bfd8; i start d3b43698-d3d1-11f1-9baa-13579810bfd8,0,0,running jail configured with non-disruptive limits,rctl-configure.log
+PASS,cap,i cap d3b43698-d3d1-11f1-9baa-13579810bfd8,0,0,kernel resource limits actually installed,cap.log
+PASS,limits-one,i limits d3b43698-d3d1-11f1-9baa-13579810bfd8,0,0,specific limit listing reflects kernel rules,limits-one.log
+PASS,limits-all,i limits,0,0,all active jail rules listed,limits-all.log
+PASS,inuse-one,i inuse d3b43698-d3d1-11f1-9baa-13579810bfd8,0,0,kernel resource usage is returned,inuse-one.log
+PASS,inuse-all,i inuse,0,0,CSV includes running jail,inuse-all.log
+PASS,rlimits-property,i get rlimits d3b43698-d3d1-11f1-9baa-13579810bfd8,0,0,limit enforcement property readable,rlimits-property.log
+FAIL,uncap,i uncap d3b43698-d3d1-11f1-9baa-13579810bfd8,0,1,rules removed and successful command should return zero,uncap.log
+PASS,resource-stop,i stop d3b43698-d3d1-11f1-9baa-13579810bfd8,0,0,resource-limited jail stops,resource-stop.log
+FAIL,limits-empty,i limits,0,1,empty global limit table is not an error,limits-empty.log
+PASS,snapshot-named,i snapshot d3b43698-d3d1-11f1-9baa-13579810bfd8@audit-one,0,0,ordinary snapshot is on root only,snapshot-named.log
+PASS,snapshot-auto,i snapshot d3b43698-d3d1-11f1-9baa-13579810bfd8,0,0,timestamp-named snapshot created,snapshot-auto.log
+PASS,snapshot-recursive,i snapshot -r d3b43698-d3d1-11f1-9baa-13579810bfd8@audit-rec,0,0,parent and root both snapshotted,snapshot-recursive.log
+PASS,snap-alias-force,i snap -f d3b43698-d3d1-11f1-9baa-13579810bfd8@audit-force,0,0,snap alias and -f accepted,snap-alias-force.log
+PASS,snap-force-recursive,i snapshot -f -r d3b43698-d3d1-11f1-9baa-13579810bfd8@audit-force-rec,0,0,combined -f -r performs recursive snapshot,snap-force-recursive.log
+PASS,snaplist,i snaplist d3b43698-d3d1-11f1-9baa-13579810bfd8,0,0,snapshot list shows actual snapshot,snaplist.log
+PASS,snapmount-normal,i snapmount d3b43698-d3d1-11f1-9baa-13579810bfd8@audit-one /var/tmp/audit-snap-normal,0,0,normal snapshot content is visible at destination,snapmount-normal.log
+PASS,snapumount-normal,i snapumount d3b43698-d3d1-11f1-9baa-13579810bfd8@audit-one,0,0,snapshot view is unmounted,snapumount-normal.log
+PASS,snapmount-recursive,i snapmount d3b43698-d3d1-11f1-9baa-13579810bfd8@audit-rec /var/tmp/audit-snap-rec,0,0,recursive root snapshot content is visible,snapmount-recursive.log
+PASS,snapumount-recursive,i snapumount d3b43698-d3d1-11f1-9baa-13579810bfd8@audit-rec,0,0,both recursive view mounts removed,snapumount-recursive.log
+PASS,rollback-recursive,i rollback d3b43698-d3d1-11f1-9baa-13579810bfd8@audit-rec,0,0,recursive rollback restores content,rollback-recursive.log
+PASS,rollback-normal,i rollback d3b43698-d3d1-11f1-9baa-13579810bfd8@audit-one,0,0,ordinary root rollback restores content,rollback-normal.log
+PASS,rollback-missing,i rollback d3b43698-d3d1-11f1-9baa-13579810bfd8@missing,nonzero,1,nonexistent snapshot rejected,rollback-missing.log
+PASS,snapremove-single,i snapremove d3b43698-d3d1-11f1-9baa-13579810bfd8@audit-one,0,0,ordinary snapshot is actually removed,snapremove-single.log
+PASS,snapremove-all,i snapremove d3b43698-d3d1-11f1-9baa-13579810bfd8@ALL,0,0,ALL removes all jail snapshots,snapremove-all.log
+PASS,snapshot-clone-source,i snapshot d3b43698-d3d1-11f1-9baa-13579810bfd8@clone-source,0,0,clone fixture prepared,snapshot-clone-source.log
+PASS,clone-explicit,i clone audit-a@clone-source tag=audit-clone notes=clone-note,0,0,explicit snapshot cloned with new tag,clone-explicit.log
+PASS,clone-origin,zfs get -H -o value origin iocelltest/iocell/jails/0f8c9c56-d3d3-11f1-9baa-13579810bfd8/root,0,0,clone depends on requested snapshot,clone-origin.log
+PASS,promote,i promote 0f8c9c56-d3d3-11f1-9baa-13579810bfd8,0,0,promoted root no longer has a clone origin,promote.log
+PASS,clone-default,i clone audit-b tag=audit-auto-clone,0,0,UUID-named automatic snapshot cloned,clone-default.log
+PASS,destroy-dependent-refuse,i destroy -f d46f12fe-d3d1-11f1-9baa-13579810bfd8,nonzero,1,dependent clone protects its source jail,destroy-dependent-refuse.log
+PASS,create-template-source,i create release=15.1-RELEASE tag=audit-template vnet=off ip4_addr=none ip6_addr=none ,0,0,a new configured jail exists,create-template-source.log
+PASS,template-enable,i set istemplate=yes 10d805fa-d3d3-11f1-9baa-13579810bfd8,0,0,template dataset moved to tag namespace,template-enable.log
+PASS,list-templates,i list -t,0,0,template table shows converted jail,list-templates.log
+PASS,template-start-skipped,i start audit-template,0,0,unforced template start is skipped,template-start-skipped.log
+PASS,template-start-force,i start -f audit-template,0,0,-f starts a template for maintenance,template-start-force.log
+PASS,template-stop,i stop audit-template,0,0,template maintenance jail stops,template-stop.log
+PASS,template-disable,i set istemplate=no audit-template,0,0,original UUID and identity restored,template-disable.log
+PASS,create-export-source,i create release=15.1-RELEASE tag=audit-export vnet=off ip4_addr=none ip6_addr=none ,0,0,a new configured jail exists,create-export-source.log
+PASS,export,i export audit-export,0,0,stopped jail produces an image,export.log
+FAIL,export-documented-format,"find /iocell/images -name ""12b091b3-d3d3-11f1-9baa-13579810bfd8*""",0,0,documentation promises archive plus SHA256 sidecar,export-documented-format.log
+PASS,import-existing,i import 12b091b3-d3d3-11f1-9baa-13579810bfd8,nonzero,1,existing jail cannot be overwritten,import-existing.log
+PASS,export-remove-source,i destroy -f 12b091b3-d3d3-11f1-9baa-13579810bfd8,0,0,exported stopped fixture removed before restore,export-remove-source.log
+PASS,import,i import 12b091b3-d3d3-11f1-9baa-13579810bfd8,0,0,image restores dataset and configuration,import.log
+FAIL,import-invalid-stream,i import aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa,nonzero,0,"corrupt stream is rejected, not reported as success",import-invalid-stream.log
+PASS,create-running-destroy,i create release=15.1-RELEASE tag=audit-force-running vnet=off ip4_addr=none ip6_addr=none ,0,0,a new configured jail exists,create-running-destroy.log
+FAIL,destroy-force-running-doc,i destroy -f 146fc4df-d3d3-11f1-9baa-13579810bfd8,nonzero,0,help says destroying a running jail fails; -f is described only as confirmation bypass,destroy-force-running-doc.log
+PASS,install-source-for-nonroot,mkdir -p /usr/local/lib/iocell; install -m 644 lib/* /usr/local/lib/iocell/; install -m 755 iocell /usr/local/sbin/iocell-audit,0,0,installed copy has normal share/script permissions,install-source-for-nonroot.log
+PASS,nonroot-help,su -m nobody -c 'cd /tmp; /usr/local/sbin/iocell-audit help',0,0,documented read-only command works without root,nonroot-help.log
+PASS,nonroot-version,su -m nobody -c 'cd /tmp; /usr/local/sbin/iocell-audit version',0,0,documented read-only command works without root,nonroot-version.log
+PASS,nonroot-defaults,su -m nobody -c 'cd /tmp; /usr/local/sbin/iocell-audit defaults',0,0,documented read-only command works without root,nonroot-defaults.log
+PASS,nonroot-df,su -m nobody -c 'cd /tmp; /usr/local/sbin/iocell-audit df',0,0,documented read-only command works without root,nonroot-df.log
+PASS,nonroot-list,su -m nobody -c 'cd /tmp; /usr/local/sbin/iocell-audit list',0,0,documented read-only command works without root,nonroot-list.log
+PASS,nonroot-get,su -m nobody -c 'cd /tmp; /usr/local/sbin/iocell-audit get tag d3b43698-d3d1-11f1-9baa-13579810bfd8',0,0,documented read-only command works without root,nonroot-get.log
+PASS,nonroot-snaplist,su -m nobody -c 'cd /tmp; /usr/local/sbin/iocell-audit snaplist d3b43698-d3d1-11f1-9baa-13579810bfd8',0,0,documented read-only command works without root,nonroot-snaplist.log
+PASS,nonroot-create,su -m nobody -c 'cd /tmp; /usr/local/sbin/iocell-audit create -e tag=unauthorized',nonzero,1,mutation rejected for unprivileged user,nonroot-create.log
+PASS,nonroot-start,su -m nobody -c 'cd /tmp; /usr/local/sbin/iocell-audit start d3b43698-d3d1-11f1-9baa-13579810bfd8',nonzero,1,start needs root,nonroot-start.log
+PASS,network-isolated-bridge-setup,"ifconfig bridge0 create; ifconfig bridge1 create; ifconfig bridge0 inet 10.77.0.1/24 up; ifconfig bridge0 inet6 fd77::1/64; cp /etc/pf.conf /root/command-audit/pf-before-network; printf ""\npass quick on bridge0 all\n"" >> /etc/pf.conf; pfctl -f /etc/pf.conf; sysctl net.link.bridge.pfil_member=0 net.link.bridge.pfil_bridge=1",0,0,guest-only bridge has no uplink to host/public network,network-isolated-bridge-setup.log
+PASS,create-vnet,"i create release=15.1-RELEASE tag=audit-vnet vnet=off ip4_addr=none ip6_addr=none vnet=on interfaces=vnet0:bridge0 ip4_addr=""vnet0|10.77.0.2/24"" ip6_addr=""vnet0|fd77::2/64"" defaultrouter=10.77.0.1 defaultrouter6=fd77::1 createbridge=off keepbridge=on",0,0,a new configured jail exists,create-vnet.log
+PASS,start-vnet,i start 6fba3153-d3d4-11f1-9033-589cfc10de8c,0,0,VNET jail is actually created,start-vnet.log
+PASS,vnet-ipv4,i exec 6fba3153-d3d4-11f1-9033-589cfc10de8c ifconfig vnet0,0,0,configured IPv4 is applied,vnet-ipv4.log
+PASS,vnet-ipv6,i exec 6fba3153-d3d4-11f1-9033-589cfc10de8c ifconfig vnet0 inet6,0,0,configured ULA IPv6 is applied,vnet-ipv6.log
+PASS,vnet-connectivity,ping -c 1 -t 3 10.77.0.2,0,0,host reaches isolated VNET address,vnet-connectivity.log
+PASS,vnet-stop,i stop 6fba3153-d3d4-11f1-9033-589cfc10de8c,0,0,jail and epairs removed; persistent bridges retained,vnet-stop.log
+PASS,create-multi-vnet,"i create release=15.1-RELEASE tag=audit-multi-vnet vnet=off ip4_addr=none ip6_addr=none vnet=on interfaces=vnet0:bridge0,vnet1:bridge1 ip4_addr=none createbridge=off keepbridge=on",0,0,a new configured jail exists,create-multi-vnet.log
+PASS,start-multi-vnet,i start 7138a481-d3d4-11f1-9033-589cfc10de8c,0,0,multiple virtual interfaces start,start-multi-vnet.log
+PASS,multi-vnet-macs,i exec 7138a481-d3d4-11f1-9033-589cfc10de8c ifconfig -a,0,0,two interfaces have distinct MAC addresses,multi-vnet-macs.log
+PASS,dhcp-server,"/usr/local/sbin/dnsmasq --user=root --port=0 --interface=bridge0 --bind-interfaces --dhcp-range=10.77.0.100,10.77.0.120,255.255.255.0,1h --pid-file=/var/run/iocell-audit-dnsmasq.pid --dhcp-leasefile=/var/tmp/iocell-audit-dhcp.leases --log-facility=/var/tmp/iocell-audit-dnsmasq.log",0,0,DHCP server bound only to isolated guest bridge,dhcp-server.log
+PASS,create-dhcp-vnet,i create release=15.1-RELEASE tag=audit-dhcp vnet=off ip4_addr=none ip6_addr=none vnet=on interfaces=vnet0:bridge0 ip4_addr=none dhcp=on bpf=on createbridge=off keepbridge=on,0,0,a new configured jail exists,create-dhcp-vnet.log
+PASS,start-dhcp-vnet,i start 72d70e9a-d3d4-11f1-9033-589cfc10de8c,0,0,DHCP-capable VNET jail starts,start-dhcp-vnet.log
+PASS,dhcp-lease,i exec 72d70e9a-d3d4-11f1-9033-589cfc10de8c ifconfig vnet0,0,0,real DHCP exchange supplies a lease,dhcp-lease.log
+PASS,shared-ip-alias-setup,"i set vnet=off ip4_addr=""vtnet0|192.168.254.240/24"" d3b43698-d3d1-11f1-9baa-13579810bfd8; i start d3b43698-d3d1-11f1-9baa-13579810bfd8",0,0,private shared-IP jail starts,shared-ip-alias-setup.log
+PASS,shared-ip-kernel,jls -j ioc-d3b43698-d3d1-11f1-9baa-13579810bfd8 ip4.addr,0,0,kernel enforces configured private jail address,shared-ip-kernel.log
+FAIL,pkg-query-quoted-format,i pkg audit-a query '%n %v',0,1,pkg wrapper preserves a format argument containing spaces,pkg-query-quoted-format.log
+PASS,shared-ip-stop,i stop d3b43698-d3d1-11f1-9baa-13579810bfd8,0,0,stop removes alias without touching management IP,shared-ip-stop.log
+PASS,host-management-address,ifconfig vtnet0,0,0,private management IP remains and public/global IPv6 absent,host-management-address.log
+PASS,fetch-invalid-selection,"printf ""not-a-release\n"" | i fetch",nonzero,1,invalid interactive release rejected,fetch-invalid-selection.log
+FAIL,fetch-current-selection,"printf ""15.1-RELEASE\n"" | i fetch",0,1,supported host RELEASE can be selected from menu,fetch-current-selection.log
+PASS,fetch-local,i fetch release=15.1-RELEASE ftplocaldir=/var/tmp/iocell-audit-dist,0,0,"local archives copied, extracted and etcupdate archive built",fetch-local.log
+PASS,fetch-home-layout,ls -ld /iocell/releases/15.1-RELEASE/root/home /iocell/releases/15.1-RELEASE/root/home/home,any,1,FreeBSD 14+ home-directory layout is not given a broken nested home symlink,fetch-home-layout.log
+FAIL,fetch-ports-p,i fetch -p release=15.1-RELEASE ftplocaldir=/var/tmp/iocell-audit-dist,0,0,documented option really installs the ports tree,fetch-ports-p.log
+FAIL,fetch-ports-P,i fetch -P release=15.1-RELEASE ftplocaldir=/var/tmp/iocell-audit-dist,0,0,documented option really installs the ports tree,fetch-ports-P.log
+PASS,fetch-network,i fetch release=14.5-RELEASE ftphost=download.freebsd.org ftpdir=/releases/amd64/amd64/14.5-RELEASE compression=zstd,0,0,official network distribution fetch and patching finish without hidden errors,fetch-network.log
+PASS,fetch-compression,zfs get -H -o value compression iocelltest/iocell/releases/14.5-RELEASE/root,0,0,compression option applies to a newly fetched release,fetch-compression.log
+PASS,fetch-list-new-release,i list -r,0,0,new fetched release is advertised,fetch-list-new-release.log
+PASS,update-basejail,i update d3b43698-d3d1-11f1-9baa-13579810bfd8,0,0,basejail update reaches and completes update path,update-basejail.log
+FAIL,update-ports-p,i update -p 15.1-RELEASE,0,0,ports update is functional on supported FreeBSD,update-ports-p.log
+FAIL,update-ports-P,i update -P 15.1-RELEASE,0,0,ports update is functional on supported FreeBSD,update-ports-P.log
+PASS,create-old-release,i create release=14.5-RELEASE tag=audit-upgrade vnet=off ip4_addr=none ip6_addr=none ,0,0,a new configured jail exists,create-old-release.log
+PASS,upgrade-basejail,i upgrade b0ea367c-d3d6-11f1-9033-589cfc10de8c release=15.1-RELEASE,0,0,14.5 to 15.1 basejail upgrade finishes /etc merge,upgrade-basejail.log
+PASS,upgrade-start,i start b0ea367c-d3d6-11f1-9033-589cfc10de8c,0,0,upgraded jail starts,upgrade-start.log
+PASS,upgrade-userland,i exec b0ea367c-d3d6-11f1-9033-589cfc10de8c /bin/freebsd-version -u,0,0,upgraded running jail actually uses target userland,upgrade-userland.log
+PASS,upgrade-missing-release,i upgrade b0ea367c-d3d6-11f1-9033-589cfc10de8c release=99.9-RELEASE,nonzero,1,unfetched target rejected without changing release,upgrade-missing-release.log
+PASS,thick-fixture,i create -e type=thickjail tag=audit-thick release=14.5-RELEASE,0,0,documented thick type can be represented by a full jail fixture,thick-fixture.log
+PASS,thick-extract,tar -xpf /iocell/download/14.5-RELEASE/base.txz -C /iocell/jails/b28701e0-d3d6-11f1-9033-589cfc10de8c/root,0,0,"full distribution, not an empty shell fixture",thick-extract.log
+PASS,update-thick,i update b28701e0-d3d6-11f1-9033-589cfc10de8c,0,0,independent-jail update works,update-thick.log
+PASS,nonroot-snaplist-populated,su -m nobody -c 'cd /tmp; /usr/local/sbin/iocell-audit snaplist d3b43698-d3d1-11f1-9baa-13579810bfd8',0,0,unprivileged snapshot listing works with actual snapshots,nonroot-snaplist-populated.log
+PASS,missing-args-snapshot,i snapshot,nonzero,1,required target is validated,missing-args-snapshot.log
+PASS,missing-args-snap,i snap,nonzero,1,required target is validated,missing-args-snap.log
+FAIL,missing-args-reboot,i reboot,nonzero,0,required target is validated,missing-args-reboot.log
+FAIL,missing-args-restart,i restart,nonzero,0,required target is validated,missing-args-restart.log
+PASS,activate-same-pool,i activate iocelltest,nonzero,1,already-active rejection does not destroy data,activate-same-pool.log
+PASS,activate-invalid,i activate audit-no-such-pool,nonzero,1,nonexistent pool rejected without destroying current data,activate-invalid.log
+PASS,export-running-setup,i start d3b43698-d3d1-11f1-9baa-13579810bfd8,0,0,running export rejection fixture,export-running-setup.log
+PASS,export-running-refuse,i export d3b43698-d3d1-11f1-9baa-13579810bfd8,nonzero,1,running jail cannot be exported,export-running-refuse.log
+PASS,create-delegated-zfs,i create release=15.1-RELEASE tag=audit-delegated vnet=off ip4_addr=none ip6_addr=none jail_zfs=on,0,0,a new configured jail exists,create-delegated-zfs.log
+PASS,delegated-start,i start 7efaf469-d3d8-11f1-9033-589cfc10de8c,0,0,ZFS-enabled jail starts,delegated-start.log
+PASS,delegated-options,jls -j ioc-7efaf469-d3d8-11f1-9033-589cfc10de8c allow.mount allow.mount.zfs enforce_statfs,0,0,dependent kernel permissions applied,delegated-options.log
+PASS,delegated-list,i exec 7efaf469-d3d8-11f1-9033-589cfc10de8c /sbin/zfs list -H -o name,0,0,jail sees its assigned ZFS dataset,delegated-list.log
+PASS,delegated-mount,i exec 7efaf469-d3d8-11f1-9033-589cfc10de8c /sbin/zfs set mountpoint=/data iocelltest/iocell/jails/7efaf469-d3d8-11f1-9033-589cfc10de8c/data; i exec 7efaf469-d3d8-11f1-9033-589cfc10de8c /sbin/zfs mount -a,0,0,jail can set mountpoint and mount assigned dataset,delegated-mount.log
+PASS,delegated-stop,i stop 7efaf469-d3d8-11f1-9033-589cfc10de8c,0,0,delegated jail stops and unjails dataset,delegated-stop.log
+PASS,git-repository-fixture,git init --bare -b 15.1-amd64 /root/command-audit/plugins/audit/minimal; git clone /root/command-audit/plugins/audit/minimal /root/command-audit/plugins/work; git -C /root/command-audit/plugins/work config user.name IOCELL-AUDIT; git -C /root/command-audit/plugins/work config user.email audit@example.invalid; echo plugin-v1 > /root/command-audit/plugins/work/audit-plugin; git -C /root/command-audit/plugins/work add audit-plugin; git -C /root/command-audit/plugins/work commit -m initial; git -C /root/command-audit/plugins/work push origin 15.1-amd64,0,0,local bare Git remote with matching FreeBSD branch,git-repository-fixture.log
+PASS,fetch-git-plugin,i fetch audit/minimal gitlocation=/root/command-audit/plugins tag=audit-plugin release=15.1-RELEASE,0,0,Git plugin fetch creates configured jail,fetch-git-plugin.log
+PASS,fetch-git-content,cat /iocell/jails/806d1c7f-d3d8-11f1-9033-589cfc10de8c/root/audit-plugin,0,0,requested Git branch content was installed,fetch-git-content.log
+FAIL,pull-plugin,i pull 806d1c7f-d3d8-11f1-9033-589cfc10de8c,0,0,pull updates a jail created by normal Git plugin fetch,pull-plugin.log
+PASS,pull-with-tracking-branch,i pull 806d1c7f-d3d8-11f1-9033-589cfc10de8c,0,0,pull works with explicit upstream tracking branch,pull-with-tracking-branch.log
+FAIL,push-plugin,i push 806d1c7f-d3d8-11f1-9033-589cfc10de8c,0,128,dispatched push works for an actual Git-backed jail,push-plugin.log
+PASS,create-discovery-fixture,i create -e tag=audit-discovery,0,0,isolated metadata probe created,create-discovery-fixture.log
+FAIL,readonly-list-preserves-config,i list,0,0,read-only listing must not rewrite parent jail metadata because a child lacks config,readonly-list-preserves-config.log
+PASS,upgrade-thick-interactive,yes y | i upgrade b28701e0-d3d6-11f1-9033-589cfc10de8c release=15.1-RELEASE,0,0,full independent userland really upgrades with confirmations and larger budget,upgrade-thick-interactive.log
+PASS,deactivate-marker-setup,zpool set comment=iocell iocelltest,0,0,native pool discovery marker really exists before test,deactivate-marker-setup.log
+FAIL,deactivate-native-pool-marker,i deactivate iocelltest,0,0,deactivate removes a real pool marker without removing data,deactivate-native-pool-marker.log
+PASS,git-complete-os-fixture,tar -xpf /var/tmp/iocell-audit-dist/base.txz -C /root/command-audit/plugins/work; git -C /root/command-audit/plugins/work config pack.threads 1; git -C /root/command-audit/plugins/work config pack.windowMemory 32m; git -C /root/command-audit/plugins/work add -A; git -C /root/command-audit/plugins/work commit -m complete-os; git -C /root/command-audit/plugins/work push,0,0,"Git remote contains a real FreeBSD distribution, not just an application marker",git-complete-os-fixture.log
+PASS,git-os-mtree,"printf '.git\n./.git\n.mtree\n./.mtree\n' > /root/command-audit/mtree-exclude; mtree -c -k type,uid,gid,mode,flags -X /root/command-audit/mtree-exclude -p /root/command-audit/plugins/work > /root/command-audit/os.mtree; cp /root/command-audit/os.mtree /root/command-audit/plugins/work/.mtree; git -C /root/command-audit/plugins/work add .mtree; git -C /root/command-audit/plugins/work commit -m filesystem-metadata; git -C /root/command-audit/plugins/work push",0,0,OS Git fixture includes directory and permission metadata missing from Git itself,git-os-mtree.log
+PASS,fetch-os-git-adequate-space,i fetch -t audit/minimal gitlocation=/root/command-audit/plugins tag=audit-os-git-roomy release=15.1-RELEASE vnet=off ip4_addr=none ip6_addr=none,0,0,complete OS Git checkout with sufficient capacity and mtree,fetch-os-git-adequate-space.log
+PASS,start-os-git-valid-fixture,i start c16ca6eb-d3dc-11f1-9033-589cfc10de8c,0,0,full Git OS jail boots with empty directories restored,start-os-git-valid-fixture.log
+PASS,exec-os-git-valid-fixture,i exec c16ca6eb-d3dc-11f1-9033-589cfc10de8c /bin/freebsd-version -u,0,0,running full Git jail uses supplied OS,exec-os-git-valid-fixture.log
+PASS,list-order-uuid,i list -s uuid,0,0,table rows are actually sorted by uuid,list-order-uuid.log
+PASS,list-order-boot,i list -s boot,0,0,table rows are actually sorted by boot,list-order-boot.log
+PASS,list-order-state,i list -s state,0,0,table rows are actually sorted by state,list-order-state.log
+PASS,list-order-tag,i list -s tag,0,0,table rows are actually sorted by tag,list-order-tag.log
+PASS,list-order-type,i list -s type,0,0,table rows are actually sorted by type,list-order-type.log
+PASS,list-order-release,i list -s release,0,0,table rows are actually sorted by release,list-order-release.log
+PASS,list-order-jid,i list -s jid,0,0,numeric JID ordering is correct,list-order-jid.log
+PASS,list-order-ip4,i list -s ip4,0,0,"IPv4 addresses sort numerically, including empty addresses",list-order-ip4.log
+PASS,soft-restart-all,i restart -s ALL,0,0,soft ALL variant keeps original kernel jail,soft-restart-all.log
+PASS,get-recursive-all,i get -r all,0,0,synopsis permits recursive all-properties form,get-recursive-all.log
+FAIL,get-all-default,i get all default,0,0,all-properties form includes defaults,get-all-default.log
+PASS,import-short-prep,i destroy -f 12b091b3-d3d3-11f1-9baa-13579810bfd8,0,0,remove only exported fixture before short import,import-short-prep.log
+PASS,import-short-prefix,i import 12b091b3,0,0,documented short image prefix restores full UUID,import-short-prefix.log
+FAIL,import-property-override,i import 12b091b3-d3d3-11f1-9baa-13579810bfd8 tag=audit-import-overridden,0,0,documented import property arguments are applied,import-property-override.log
+PASS,create-default-upgrade,i create release=14.5-RELEASE tag=audit-default-upgrade vnet=off ip4_addr=none ip6_addr=none ,0,0,a new configured jail exists,create-default-upgrade.log
+PASS,upgrade-default-target,i upgrade 5a011e2c-d3dd-11f1-9033-589cfc10de8c,0,0,omitted target defaults to host release,upgrade-default-target.log
+PASS,activate-new-pool,i activate auditsrc,0,0,new pool becomes active and gets all iocell containers,activate-new-pool.log
+PASS,activate-old-pool-retained,zfs list -H iocelltest/iocell,0,0,activation did not destroy previous pool data,activate-old-pool-retained.log
+PASS,create-send-fixture,i create -e tag=audit-send,0,0,small isolated source for destructive replication tests,create-send-fixture.log
+PASS,send-local,i send auditdst,0,0,local full stream restores content and leaves receive unmounted,send-local.log
+PASS,send-local-incremental,i send -i auditsrc/iocell@inc1 -i auditsrc/iocell@inc2 auditdst,0,0,incremental -i updates received content,send-local-incremental.log
+PASS,send-local-inclusive,i send -I auditsrc/iocell@inc2 -I auditsrc/iocell@inc4 auditdst,0,0,-I transfers intermediate snapshots and final content,send-local-inclusive.log
+FAIL,send-same-day-repeat,i send auditrepeat,0,0,"a second same-day full send includes current data, not a stale daily snapshot",send-same-day-repeat.log
+PASS,send-invalid-pool,i send no-such-audit-pool,nonzero,1,invalid local target is rejected,send-invalid-pool.log
+FAIL,send-missing-args,i send,nonzero,0,missing destination fails,send-missing-args.log
+PASS,send-i-missing-endpoint,i send -i auditsrc/iocell@inc1 auditdst,nonzero,1,incremental send requires two snapshot endpoints,send-i-missing-endpoint.log
+PASS,send-conflicting-increments,i send -i auditsrc/iocell@inc1 -I auditsrc/iocell@inc2 auditdst,nonzero,1,-i and -I cannot be mixed,send-conflicting-increments.log
+PASS,send-clean-increment-conflict,i send -c -i auditsrc/iocell@inc1 -i auditsrc/iocell@inc2 auditdst,nonzero,1,clean plus incremental rejected,send-clean-increment-conflict.log
+PASS,send-remote-options-without-r,i send -h 192.168.254.52 -u root auditdst,nonzero,1,remote host/user require -r as described in help text,send-remote-options-without-r.log
+PASS,send-remote-missing-user,i send -r -h 192.168.254.52 auditdst,nonzero,1,remote mode requires a username,send-remote-missing-user.log
+PASS,send-remote-missing-host,i send -r -u root auditdst,nonzero,1,remote mode requires a host,send-remote-missing-host.log
+PASS,peer-ssh,ssh root@192.168.254.52 hostname,0,0,real independent receiver VM authenticated over private network,peer-ssh.log
+PASS,init-host,i init-host 192.168.254.52 auditinit,0,0,remote host receives all documented iocell subtrees,init-host.log
+PASS,init-host-invalid-pool,i init-host 192.168.254.52 absentpool,nonzero,1,missing remote pool rejected,init-host-invalid-pool.log
+FAIL,send-remote-only-pool,i send -r -h 192.168.254.52 -u root auditremote,0,1,"remote destination is validated on receiver, not required locally",send-remote-only-pool.log
+PASS,send-remote-matching-local-name,i send -r -h 192.168.254.52 -u root auditremote,0,0,real remote stream works with local-name workaround,send-remote-matching-local-name.log
+PASS,send-remote-incremental,i send -r -h 192.168.254.52 -u root -i auditsrc/iocell@inc4 -i auditsrc/iocell@remote5 auditremote,0,0,remote -i changes actual receiver content,send-remote-incremental.log
+PASS,send-remote-inclusive,i send -r -h 192.168.254.52 -u root -I auditsrc/iocell@remote5 -I auditsrc/iocell@remote6 auditremote,0,0,remote -I works,send-remote-inclusive.log
+PASS,send-remote-invalid-auth,i send -r -h 192.168.254.52 -u nobody auditremote,nonzero,1,invalid public-key login rejected,send-remote-invalid-auth.log
+FAIL,send-remote-short-increment,i send -r -h 192.168.254.52 -u root -i auditsrc/iocell@remote5 auditremote,nonzero,0,remote malformed increment must not silently report success,send-remote-short-increment.log
+FAIL,send-clean,i send -c auditclean,0,0,-c documentation says all source and destination snapshots are cleaned,send-clean.log
+PASS,send-move-running,i send -m auditmove,nonzero,1,move rejected while an iocell jail is running,send-move-running.log
+PASS,send-move-remote,i send -r -m -h 192.168.254.52 -u root auditremote,nonzero,1,remote move disallowed,send-move-remote.log
+FAIL,send-move,i send -m auditmove,0,0,move retains destination and removes only the source,send-move.log
+PASS,clean-no-selection,i clean,0,0,no selection does not erase data,clean-no-selection.log
+PASS,clean-force-no-selection,i clean -f,0,0,force without selection does not erase data,clean-force-no-selection.log
+PASS,clean-invalid-flag,i clean -z,nonzero,1,invalid clean option rejected without data loss,clean-invalid-flag.log
+PASS,clean-j-cancel,"printf ""n\n"" | i clean -j",any,1,declined jail cleanup leaves dataset intact,clean-j-cancel.log
+PASS,clean-j-confirm,"printf ""y\n"" | i clean -j",0,0,confirmed cleanup removes jails but retains releases,clean-j-confirm.log
+PASS,clean-j-fixture-0,i create -e tag=clean-j-0,0,0,nonempty jail cleanup fixture,clean-j-fixture-0.log
+PASS,clean-j-force-0,i clean -f -j,0,0,forced jail cleanup works with separate/combined flags,clean-j-force-0.log
+PASS,clean-j-fixture-1,i create -e tag=clean-j-1,0,0,nonempty jail cleanup fixture,clean-j-fixture-1.log
+PASS,clean-j-force-1,i clean -jf,0,0,forced jail cleanup works with separate/combined flags,clean-j-force-1.log
+PASS,clean-template-fixture,i create release=15.1-RELEASE tag=audit-clean-template vnet=off ip4_addr=none ip6_addr=none ,0,0,a new configured jail exists,clean-template-fixture.log
+PASS,clean-t-cancel,"printf ""n\n"" | i clean -t",any,1,declined template cleanup preserves template,clean-t-cancel.log
+PASS,clean-template-clone-fixture,i clone audit-clean-template tag=audit-clean-dependent,0,0,dependent clone fixture exists,clean-template-clone-fixture.log
+FAIL,clean-t-dependent-guard,"printf ""y\n"" | i clean -t",nonzero,0,non-force template cleanup guard preserves dependent jail clones,clean-t-dependent-guard.log
+PASS,clean-force-template-fixture-0,i create release=15.1-RELEASE tag=audit-clean-force-template-0 vnet=off ip4_addr=none ip6_addr=none ,0,0,a new configured jail exists,clean-force-template-fixture-0.log
+PASS,clean-t-force-0,i clean -f -t,0,0,forced template cleanup handles separate/combined flags,clean-t-force-0.log
+PASS,clean-force-template-fixture-1,i create release=15.1-RELEASE tag=audit-clean-force-template-1 vnet=off ip4_addr=none ip6_addr=none ,0,0,a new configured jail exists,clean-force-template-fixture-1.log
+PASS,clean-t-force-1,i clean -tf,0,0,forced template cleanup handles separate/combined flags,clean-t-force-1.log
+PASS,clean-r-cancel,"printf ""n\n"" | i clean -r",any,1,declined release cleanup preserves release,clean-r-cancel.log
+PASS,clean-r-confirm,"printf ""y\n"" | i clean -r",0,0,confirmed release cleanup removes release/download trees only,clean-r-confirm.log
+PASS,clean-r-force-0,i clean -r -f,0,0,forced release cleanup works in both flag forms,clean-r-force-0.log
+PASS,clean-r-force-1,i clean -fr,0,0,forced release cleanup works in both flag forms,clean-r-force-1.log
+PASS,clean-a-cancel,"printf ""n\n"" | i clean -a",any,1,declined total cleanup preserves namespace and fixture,clean-a-cancel.log
+PASS,clean-a-confirm,"printf ""y\n"" | i clean -a",0,0,confirmed total cleanup removes complete iocell namespace,clean-a-confirm.log
+PASS,activate-pristine-0,i activate iocelltest,0,0,activation rebuilds pristine namespace without manual state fixes,activate-pristine-0.log
+PASS,clean-a-force-0,i clean -f -a,0,0,force total cleanup handles both flag orders,clean-a-force-0.log
+PASS,activate-pristine-1,i activate iocelltest,0,0,activation rebuilds pristine namespace without manual state fixes,activate-pristine-1.log
+PASS,clean-a-force-1,i clean -af,0,0,force total cleanup handles both flag orders,clean-a-force-1.log
+FAIL,record-stop-undispatched,i record stop d3b43698-d3d1-11f1-9baa-13579810bfd8,0,0,documented record stop command is implemented,record-stop-undispatched.log
+PASS,set-notes-spaces,i set 'notes=two words' d3b43698-d3d1-11f1-9baa-13579810bfd8,0,0,free-form notes round-trip spaces,set-notes-spaces.log
+PASS,set-notes-equals,i set notes=left=right d3b43698-d3d1-11f1-9baa-13579810bfd8,0,0,free-form notes round-trip equals,set-notes-equals.log
+FAIL,set-notes-apostrophe,"i set 'notes=owner'""'""'s note' d3b43698-d3d1-11f1-9baa-13579810bfd8",0,2,free-form notes round-trip apostrophe,set-notes-apostrophe.log
+PASS,create-bare,i create,0,0,literal no-options create uses host release and generated tag,create-bare.log
+FAIL,template-generated-tag,i set istemplate=yes a2f30bf9-d3e0-11f1-b805-ed78c31d8c98,0,0,a jail with the program-generated default tag can be converted to a template,template-generated-tag.log
+FAIL,template-scope-integrity,true,0,0,failed template rename must never modify unrelated /config,template-scope-integrity.log
+FAIL,invalid-get-option,i get -z d3b43698-d3d1-11f1-9baa-13579810bfd8,nonzero,0,unknown get option/property fails,invalid-get-option.log
+PASS,clone-note-property,i get notes 0f8c9c56-d3d3-11f1-9baa-13579810bfd8,0,0,"clone property operands persist, not just its tag",clone-note-property.log
+PASS,create-shared-ipv6,"i create release=15.1-RELEASE tag=audit-shared-ipv6 vnet=off ip4_addr=none ip6_addr=none ip6=new ip6_addr=""lo0|fd78::240/128""",0,0,a new configured jail exists,create-shared-ipv6.log
+PASS,shared-ipv6-start,i start a6ebb363-d3e0-11f1-b805-ed78c31d8c98,0,0,private shared IPv6 jail starts,shared-ipv6-start.log
+PASS,shared-ipv6-address,jls -j ioc-a6ebb363-d3e0-11f1-b805-ed78c31d8c98 ip6.addr,0,0,ULA IPv6 is assigned to kernel jail,shared-ipv6-address.log
+PASS,shared-ipv6-stop,i stop a6ebb363-d3e0-11f1-b805-ed78c31d8c98,0,0,shared IPv6 alias is removed without public addressing,shared-ipv6-stop.log
+PASS,regression-clone-snapshot,sh tests/clone-snapshot.sh,0,0,retained portable regression suite passes,regression-clone-snapshot.log
+PASS,regression-rollback,sh tests/rollback.sh,0,0,retained portable regression suite passes,regression-rollback.log
+PASS,regression-pkg-install,sh tests/pkg-install.sh,0,0,retained portable regression suite passes,regression-pkg-install.log
+PASS,regression-create-pkg,sh tests/create-pkg.sh,0,0,retained portable regression suite passes,regression-create-pkg.log
+PASS,regression-template-toggle,sh tests/template-toggle.sh,0,0,retained portable regression suite passes,regression-template-toggle.log
+PASS,regression-create-pkg-zfs,IOC_TEST_POOL=iocelltest IOC_TEST_RELEASE=15.1-RELEASE sh tests/create-pkg-zfs.sh,0,0,retained real-ZFS regression suite passes,regression-create-pkg-zfs.log
+PASS,regression-rollback-zfs,IOC_TEST_POOL=iocelltest IOC_TEST_RELEASE=15.1-RELEASE sh tests/rollback-zfs.sh,0,0,retained real-ZFS regression suite passes,regression-rollback-zfs.log
+PASS,regression-template-toggle-zfs-corrected,IOC_TEST_POOL=iocelltest IOC_TEST_RELEASE=15.1-RELEASE sh tests/template-toggle-zfs.sh,0,0,real template regression passes with valid unchanged-link assertion,regression-template-toggle-zfs-corrected.log

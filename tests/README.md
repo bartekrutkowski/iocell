@@ -7,6 +7,12 @@ sh tests/clone-snapshot.sh
 sh tests/rollback.sh
 sh tests/pkg-install.sh
 sh tests/create-pkg.sh
+sh tests/template-toggle.sh
+sh tests/send-safety.sh
+sh tests/discovery-safety.sh
+sh tests/template-forward-safety.sh
+sh tests/clean-template-safety.sh
+sh tests/destroy-guard-safety.sh
 ```
 
 These execute the real shell functions with mocked ZFS/system calls. They do
@@ -15,6 +21,12 @@ automatic snapshot names and rejects source snapshot renaming. The rollback
 test covers target selection, snapshot preflight, running jails, and error
 propagation. Package tests cover list parsing, first-error propagation, release
 and template selection, partial mount failures, cleanup, and cleanup failures.
+Template tests cover stored UUID selection, delegated state, validation, clone
+and running-jail guards, rename errors, and propagation through the CLI.
+Safety tests additionally cover fresh full-send snapshots, every pipeline stage
+(including both buffers), activation failures, source identity across moves,
+read-only discovery, legacy-config preservation, forward conversion failures,
+invalid config paths, cleanup races and propagation of dependency-query errors.
 
 ## Real-ZFS rollback integration test
 
@@ -64,3 +76,59 @@ lists, and package installation through existing template overlays without
 changing the source template. No jail is intentionally started. All newly
 created datasets, templates, and logs are retained for inspection. Log paths
 are printed at the start of each run; existing fixtures are not modified.
+
+## Real template round-trip integration test
+
+With the same disposable FreeBSD VM, activated pool and fetched release:
+
+```sh
+IOC_TEST_POOL=YOUR_TEST_POOL IOC_TEST_RELEASE=15.1-RELEASE \
+    sh tests/template-toggle-zfs.sh
+```
+
+This creates its own basejail, snapshots and delegated-data fixture. It checks
+repeated jail/template round trips, UUID/tag preservation, GUIDs and snapshots,
+then starts the returned jail, verifies state reporting and command execution,
+and stops it. It also checks invalid UUIDs, an occupied rename destination,
+running templates, and dependent root clones. The temporary collision fixture
+is renamed back afterwards, not deleted.
+
+The running-jail guard also uses a network-disabled persistent kernel jail.
+Cleanup stops test jail instances; datasets, templates, clones and logs are
+retained. The template under test is left with a dependent clone for inspection.
+
+## Five high-risk safety fixes: native tests
+
+Use only a disposable FreeBSD VM with no running jails. These tests create
+small **file-backed scratch pools**, temporarily switch activation away from
+`IOC_TEST_POOL`, and restore the original pool on exit. Logs, file vdevs and
+scratch pools are retained; production pools must never be used.
+
+```sh
+IOC_TEST_POOL=YOUR_TEST_POOL sh tests/safety-zfs.sh
+```
+
+Checks include parent config/data preservation with an unexpected child,
+invalid generated template tags and an unrelated `/config` sentinel, failed
+rename state restoration, successful template conversion, dependent and racing
+clones, explicit force, fresh repeated full sends, `-i`/`-I`, clean-send ordering,
+snapshot/send/receive/activation failures, and a successful move with verified
+destination content and activation. Native full-stream fixtures use fresh
+receivers; existing snapshot-bearing replicas use incremental streams.
+
+For real remote and buffered pipelines, prepare a second disposable FreeBSD
+host with root public-key SSH authentication and `mbuffer` installed on both
+hosts. Allow sufficient RAM for the existing 1 GiB buffer at each end (the
+verification VMs used 2 GiB each temporarily):
+
+```sh
+IOC_TEST_POOL=YOUR_TEST_POOL IOC_TEST_REMOTE=root@PRIVATE_TEST_RECEIVER \
+    sh tests/send-remote-zfs.sh
+```
+
+This checks actual plain/buffered full and incremental streams, intermediate
+snapshots, identical pool names across different hosts, and real local/remote
+buffer failures after a completed stream. It creates a matching local receiver
+pool name because the separate, pre-existing remote-pool validation bug has
+not been changed. Only the test's own receiver namespaces are reset between
+full-stream cases; existing user data and VM disks are not deleted.
