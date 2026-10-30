@@ -84,7 +84,7 @@ __clean () {
                 __clean_jails
             ;;
             t)
-                __clean_templates
+                __clean_templates || return $?
             ;;
             ?)
                 __die "-${OPTARG} is not a valid switch!"
@@ -177,11 +177,9 @@ __clean_jails () {
 }
 
 __clean_templates () {
-    local _answer _jail_datasets _jail_fs _origin _tag _uuid _count
+    local _answer _origins _clones _flags
 
-    _count=0
-    _jail_datasets=$(zfs list -d3 -rH -o name "${pool}/iocell/jails" | \
-        awk '!/jails$/ && !/\/root/')
+    _flags=-rf
 
     if [ "${_force}" != "1" ] ; then
         echo " "
@@ -192,20 +190,16 @@ __clean_templates () {
 
         if [ "${_answer}" = "Y" ] || [ "${_answer}" = "y" ] ; then
             echo " "
-            for _fs in ${_jail_datasets} ; do
-                # _fs is actually a dataset, so fulluuid needs to be faked.
-                _uuid=$(__check_name "name" "${_fs}" 2> /dev/null)
-                _origin=$(__get_jail_prop origin "${_uuid}" "${_fs}" | \
-                    cut -f1 -d@)
-                _tag=$(__get_jail_prop tag "${_uuid}" "${_jail_fs}")
+            # A clone's origin is on its root (or delegated) dataset, not
+            # its jail parent. Include clones outside the jails namespace.
+            _origins=$(zfs get -rH -o name,value origin "${pool}") \
+                || return $?
+            _clones=$(printf '%s\n' "${_origins}" | awk \
+                -v prefix="${pool}/iocell/templates/" \
+                'index($2, prefix) == 1 { print $1 }')
 
-                if [ "${_origin}" != "-" ] ; then
-                    echo "  WARNING: ${_uuid} (${_tag}) is a clone." >&2
-                    _count=$((_count + 1))
-                fi
-            done
-
-            if [ ${_count} -ne 0 ] ; then
+            if [ -n "${_clones}" ] ; then
+                printf '  WARNING: dependent clones:\n%s\n' "${_clones}" >&2
                 echo " "
                 echo "  please destroy these first or use -f"
                 return 1
@@ -215,9 +209,13 @@ __clean_templates () {
         fi
     fi
 
-    __spinner "  INFO: cleaning templatess at ${pool}/iocell/templates:  " \
-              "zfs destroy -rRf ${pool}/iocell/templates"
-    return 0
+    if [ "${_force}" = 1 ] ; then
+        _flags=-rRf
+    fi
+    __info "cleaning templates at ${pool}/iocell/templates"
+    # Without explicit force, ZFS itself must also refuse external clones,
+    # including any created between the preflight check and destruction.
+    zfs destroy "${_flags}" "${pool}/iocell/templates"
 }
 
 __clean_snapshots () {
