@@ -47,9 +47,13 @@ Current command limitations
   assume all export/import paths create or verify SHA256 sidecars.
 * **Arguments:** a multi-word ``pkg`` argument can be split; a benign apostrophe
   in a notes value breaks shell parsing. Avoid these forms until fixed.
-* **Exit status:** several missing-operand/unknown-command paths return success.
-  Empty ``limits`` and ``uncap`` can instead return failure despite an empty or
-  cleared rule set. Verify intended state, not only the exit code.
+* **Exit status:** malformed command syntax, unknown commands/options and
+  missing required operands now fail before pool/filesystem setup or dispatch.
+  The full argument list is checked before lifecycle targets or cleanup flags
+  are acted on. This does not make multi-target operations transactional or
+  fix all runtime status propagation. Empty ``limits`` and ``uncap`` can still
+  return failure despite an empty or cleared rule set. Verify intended state,
+  not only the exit code.
 * **Version:** the runtime banner still prints ``2.1.2``. Include the installed
   package version or checkout commit when reporting a problem.
 * **Git:** normal plugin fetch can leave a detached checkout, so ``pull`` may

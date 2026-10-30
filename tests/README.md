@@ -15,6 +15,7 @@ sh tests/clean-template-safety.sh
 sh tests/destroy-guard-safety.sh
 sh tests/import.sh
 sh tests/defaults.sh
+sh tests/cli-args.sh
 ```
 
 These execute the real shell functions with mocked ZFS/system calls. They do
@@ -36,6 +37,35 @@ Safety tests additionally cover fresh full-send snapshots, every pipeline stage
 (including both buffers), activation failures, source identity across moves,
 read-only discovery, legacy-config preservation, forward conversion failures,
 invalid config paths, cleanup races and propagation of dependency-query errors.
+
+## CLI syntax and native entrypoint tests
+
+`cli-args.sh` exercises the real preflight and dispatcher with inert command
+handler boundaries, plus direct send preflight. Shared failure cases live in
+`cli-args-cases.sh`. Unknown commands/options, missing/empty operands, bad list
+sort columns, malformed property syntax, late flags and malformed send options
+must fail before a handler/system operation. Positive cases preserve argument
+order, optional arguments, legacy accepted forms and exec/pkg payloads.
+
+On the disposable FreeBSD host, use a fetched release and the activated test
+pool; normal iocell dependencies and root are required:
+
+```sh
+IOC_TEST_POOL=YOUR_TEST_POOL IOC_TEST_RELEASE=15.1-RELEASE \
+    sh tests/cli-args-zfs.sh
+```
+
+This tests the actual entrypoint. Guard wrappers fail if rejected commands
+reach ZFS, UCL, jail, mount, RCTL, SSH or file-mutating utility handling;
+initial read-only platform checks remain real. Config/default bytes, a data canary, dataset GUIDs and the
+filesystem/snapshot namespace must stay unchanged. Real successful commands
+exercise help/version aliases, verbose forms, reads, recursive snapshots,
+start/stop, hard/soft restart, exec quoting/status, and deletion of only a second
+new, uniquely identified fixture. The primary fixture and logs are retained;
+cleanup stops its jail if a test fails. Existing jails/datasets are not deleted.
+
+This is CLI syntax coverage, not full property/kernel validation or a promise
+of atomic multi-target commands. Real SSH/send data-path tests are below.
 
 ## Real-ZFS defaults integration test
 

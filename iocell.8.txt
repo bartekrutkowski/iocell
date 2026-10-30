@@ -88,9 +88,14 @@ DESCRIPTION
   fixtures. The historical 9.3 kernel-version check is not a support guarantee.
   Enable RACCT at boot (kern.racct.enable=1) before using resource limits.
 
-  The -v switch before a command enables verbose shell tracing. Some legacy
-  command paths still have misleading exit statuses; inspect resulting state.
-  Historical chroot, record, package and show commands are not dispatched.
+  The -v switch before a command enables verbose shell tracing. Unknown
+  commands, missing required operands and malformed option/argument lists
+  return nonzero with diagnostics before pool/filesystem setup or dispatch.
+  No-argument usage, help and version return success. This is syntax checking,
+  not complete property/kernel validation or a transaction across targets;
+  a later runtime error can follow earlier successful operations. Some legacy
+  execution paths still have misleading statuses; inspect resulting state.
+  Historical chroot, record, package and show commands remain undispatched.
 
 SUBCOMMANDS
 
@@ -243,8 +248,9 @@ SUBCOMMANDS
     iocell get -r rlimits
     iocell get all UUID|TAG
 
-    Use defaults rather than get all default. Some invalid-option paths still
-    return success; verify the requested value and reported errors.
+    Use defaults rather than get all default. Unknown get options and missing
+    operands are rejected before property lookup. The separate per-jail getter
+    limitation for a literal string null remains; inspect UCL for that value.
 
   help
 

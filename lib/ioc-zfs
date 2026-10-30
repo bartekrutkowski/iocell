@@ -1384,12 +1384,71 @@ __send_receive () {
     fi
 }
 
+# Reject syntax errors before cleanup, pool probing, snapshots or SSH.
+__validate_send_args () {
+    local _opt _clean _move _remote _host _user _i _I OPTIND OPTARG
+    _clean=0; _move=0; _remote=0; _host=''; _user=''; _i=0; _I=0
+    OPTIND=1
+    while getopts :ci:I:rmh:u: _opt "$@" ; do
+        case "${_opt}" in
+            c) _clean=1 ;;
+            m) _move=1 ;;
+            r) _remote=1 ;;
+            h|u|i|I)
+                case "${OPTARG}" in
+                    ''|-*) __error "send: missing argument for -${_opt}"
+                        return 1 ;;
+                esac
+                case "${_opt}" in
+                    h) _host="${OPTARG}" ;;
+                    u) _user="${OPTARG}" ;;
+                    i) _i=$((_i + 1)) ;;
+                    I) _I=$((_I + 1)) ;;
+                esac ;;
+            *) __error "send: invalid option or missing option argument"
+                return 1 ;;
+        esac
+    done
+    shift $((OPTIND - 1))
+    if [ "$#" -ne 1 ] ; then
+        __error "send: please specify exactly one destination pool"
+        return 1
+    fi
+    case "$1" in
+        ''|[![:alpha:]]*|*[![:alnum:]_.:-]*)
+            __error "send: please specify a valid destination pool"
+            return 1 ;;
+    esac
+    if { [ "${_i}" -ne 0 ] && [ "${_i}" -ne 2 ]; } ||
+        { [ "${_I}" -ne 0 ] && [ "${_I}" -ne 2 ]; } ||
+        { [ "${_i}" -ne 0 ] && [ "${_I}" -ne 0 ]; } ; then
+        __error "send: supply two -i or two -I snapshot endpoints"
+        return 1
+    fi
+    if [ "${_clean}" -eq 1 ] && [ $((_i + _I)) -ne 0 ] ; then
+        __error "send: cannot use clean with incrementals"
+        return 1
+    fi
+    if [ "${_remote}" -eq 1 ] ; then
+        if [ -z "${_host}" ] || [ -z "${_user}" ] ||
+            [ "${_move}" -eq 1 ] ; then
+            __error "send: remote sends need -h host and -u user, without -m"
+            return 1
+        fi
+    elif [ -n "${_host}" ] || [ -n "${_user}" ] ; then
+        __error "send: -h and -u require -r"
+        return 1
+    fi
+    return 0
+}
+
 __send () {
     local _clean _count _date _dest _exists _exit _incremental _Incremental \
           _mbuffertest _move _opt _pool _remote _remotehost _remoteuser \
           _snapshot _sshtest _state _switch _zfstest _source_dataset \
           _full_snapshot _spinner_pid _mountpoint
 
+    __validate_send_args "$@" || return $?
     _source_dataset="${pool}/iocell"
     _date=$(date "+%F")
 

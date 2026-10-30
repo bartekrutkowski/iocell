@@ -137,7 +137,16 @@ writes leave the setting unchanged. Other value validation is incomplete;
 a stored string is not proof that every kernel combination will work.
 Multiple settings are independent updates, not a batch transaction.
 
-Some property values are only partially validated. A benign apostrophe in a
+Malformed command syntax, unknown commands/options and missing required
+operands return nonzero with diagnostics before pool/filesystem setup or
+command dispatch. For example, ``iocell start`` without a target fails rather
+than reporting success. The complete argument list is checked before a valid
+target preceding a bad option can be acted on. No-argument usage, help/version
+aliases and ``-v help``/``-v version`` still succeed.
+
+This is syntax checking, not a transaction or complete property validation.
+A command with valid syntax can still fail during execution after an earlier
+target has changed. Some property values are only partially validated. A benign apostrophe in a
 notes value currently breaks argument parsing; avoid it until the parser is
 fixed. The known-issues chapter records these limitations rather than treating
 unsupported examples as working commands.
@@ -152,6 +161,7 @@ bypasses confirmation and may stop a running jail before destroying it.
 .. warning::
 
    Destruction is irreversible. Verify identity, dependent clones and backups.
-   Several unrelated commands still return success for missing operands or
-   invalid requests; never treat a zero exit status alone as proof of the
-   intended state. Explicit template force-cleanup can destroy dependent clones.
+   Syntax errors now fail before dispatch, but runtime status propagation is
+   not universally reliable. Never treat a zero exit status alone as proof of
+   the intended state. Explicit template force-cleanup can destroy dependent
+   clones.

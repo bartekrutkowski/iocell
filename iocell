@@ -30,7 +30,20 @@ unset LANG
 
 PATH=${PATH}:/bin:/usr/bin:/usr/local/bin:/sbin:/usr/sbin:/usr/local/sbin
 
+if [ "${1}" = "-v" ] ; then
+    set -x
+    shift
+    if [ "$#" -eq 0 ] ; then
+        echo "  ERROR: missing command after -v" >&2
+        exit 1
+    fi
+fi
+
 if [ "${1}" = "--version" ] || [ "${1}" = "version" ] ; then
+    if [ "$#" -ne 1 ] ; then
+        echo "  ERROR: version takes no operands" >&2
+        exit 1
+    fi
     echo "iocell 2.1.2 (2017-06-17)"
     exit 0
 fi
@@ -95,15 +108,13 @@ fi
 # shellcheck source=lib/ioc-git
 . "${LIB}/ioc-git"
 
-if [ -z "$1" ] ; then
+if [ "$#" -eq 0 ] ; then
     __usage
     exit 0
 fi
 
-if [ "$1" = "-v" ] ; then
-    set -x
-    shift
-fi
+# Validate before selecting/migrating filesystems or exporting properties.
+__validate_cmd "$@" || exit $?
 
 if [ "$1" = "help" ] || [ "$1" = "--help" ] || [ "$1" = "-h" ] ; then
     __help
