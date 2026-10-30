@@ -20,6 +20,7 @@ sh tests/cli-args.sh
 sh tests/native-test-guard.sh
 sh tests/set-values.sh
 sh tests/console-force.sh
+sh tests/version.sh
 ```
 
 These execute the real shell functions with mocked ZFS/system calls. They do

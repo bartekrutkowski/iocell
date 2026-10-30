@@ -496,8 +496,8 @@ SUBCOMMANDS
 
   version | --version
 
-    Print the runtime version banner, currently stale at 2.1.2. Include the
-    installed package version or checkout commit when reporting problems.
+    Print the iocell version. Include the installed package version or
+    checkout commit when reporting problems from a modified source tree.
 
 PROPERTIES
   For more information on properties please check the relevant man page which

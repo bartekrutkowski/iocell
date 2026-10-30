@@ -110,8 +110,8 @@ Useful distinctions:
 
 Open issues at <https://github.com/bartekrutkowski/iocell/issues> with the command,
 complete output, `uname -ro`, jail type, relevant properties, and expected versus
-observed state. The runtime `version` banner is currently stale; also include
-the checkout's `git rev-parse HEAD` or installed package version.
+observed state. Include `iocell version` and the checkout's `git rev-parse HEAD`
+or installed package version.
 
 Please open upstream pull requests against `develop` and follow
 [CONTRIBUTING.md](CONTRIBUTING.md). Update `lib/ioc-help` before regenerating the

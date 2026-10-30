@@ -115,8 +115,8 @@ _var2="bar"
 -----
 The Sphinx source is `doc/source`. Update working examples and known limitations
 alongside the command reference; do not present historical recipes as verified
-current interfaces. The documentation version identifies the upstream baseline,
-not a new release or a guarantee that the runtime banner is accurate.
+current interfaces. Keep the runtime banner and documentation version aligned
+with the project release.
 
 Install Sphinx in a separate Python environment and validate every page and
 internal reference before committing:

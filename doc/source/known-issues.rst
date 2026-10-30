@@ -52,8 +52,6 @@ Current command limitations
   fix all runtime status propagation. Empty ``limits`` and ``uncap`` can still
   return failure despite an empty or cleared rule set. Verify intended state,
   not only the exit code.
-* **Version:** the runtime banner still prints ``2.1.2``. Include the installed
-  package version or checkout commit when reporting a problem.
 * **Git:** normal plugin fetch can leave a detached checkout, so ``pull`` may
   fail without propagating the failure. ``push`` is unfinished and uses the
   invocation directory. Do not rely on these experimental dispatcher entries
