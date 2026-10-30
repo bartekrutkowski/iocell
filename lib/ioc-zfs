@@ -186,9 +186,14 @@ __clean_jails () {
 }
 
 __clean_templates () {
-    local _answer _origins _clones _flags
+    local _answer _clones _flags _status
 
     _flags=-rf
+    _clones=$(__external_clones "${pool}/iocell/templates") || {
+        _status=$?
+        __error "cannot inspect template clone dependencies"
+        return "${_status}"
+    }
 
     if [ "${_force}" != "1" ] ; then
         echo " "
@@ -199,14 +204,6 @@ __clean_templates () {
 
         if [ "${_answer}" = "Y" ] || [ "${_answer}" = "y" ] ; then
             echo " "
-            # A clone's origin is on its root (or delegated) dataset, not
-            # its jail parent. Include clones outside the jails namespace.
-            _origins=$(zfs get -rH -o name,value origin "${pool}") \
-                || return $?
-            _clones=$(printf '%s\n' "${_origins}" | awk \
-                -v prefix="${pool}/iocell/templates/" \
-                'index($2, prefix) == 1 { print $1 }')
-
             if [ -n "${_clones}" ] ; then
                 printf '  WARNING: dependent clones:\n%s\n' "${_clones}" >&2
                 echo " "
@@ -220,6 +217,10 @@ __clean_templates () {
 
     if [ "${_force}" = 1 ] ; then
         _flags=-rRf
+        if [ -n "${_clones}" ] ; then
+            printf '  WARNING: forced cleanup destroys dependent clones:\n%s\n' \
+                "${_clones}" >&2
+        fi
     fi
     __info "cleaning templates at ${pool}/iocell/templates"
     # Without explicit force, ZFS itself must also refuse external clones,
@@ -247,11 +248,29 @@ __deactivate () {
 
 # Accepts two arguments. Which is used as the UUID for the umount operations
 # and what release to use.
-__migrate_basejail () {
-    local _bfs_list _fulluuid _release _basedir_list _spinner _oldtemplate _error
-
-    _fulluuid="$1"
-    _release="$2"
+__migrate_basejail () (
+    local _bfs_list _fulluuid _release _basedir_list _spinner _oldtemplate
+    local _error _spinner_pid _tag
+    _fulluuid="$1"; _release="$2"; _error=0
+    if ! __is_jail_uuid "${_fulluuid}" ; then
+        __error "invalid jail UUID for basejail migration"
+        return 1
+    fi
+    _oldtemplate=$(__get_jail_prop template "${_fulluuid}" \
+        "${pool}/iocell/jails/${_fulluuid}") || return $?
+    if [ "${_oldtemplate}" = yes ] ; then
+        _tag=$(__get_jail_prop tag "${_fulluuid}" \
+            "${pool}/iocell/jails/${_fulluuid}") || return $?
+        if ! __is_template_tag "${_tag}" ; then
+            __error "tag is not a safe template dataset name; retag before migration"
+            return 1
+        fi
+        if zfs get -H creation "${pool}/iocell/templates/${_tag}" >/dev/null 2>&1 ; then
+            __error "template destination already exists: ${_tag}"
+            return 1
+        fi
+        __check_children "${_fulluuid}" "${pool}/iocell/jails/${_fulluuid}" || return $?
+    fi
     _bfs_list="bin
                boot
                lib
@@ -279,7 +298,12 @@ __migrate_basejail () {
         sleep .1
     done &
 
-    trap 'kill $!' 2 3
+    _spinner_pid=$!
+    # Capture the PID in the trap: FreeBSD may unwind locals on subshell exit.
+    trap "kill ${_spinner_pid} 2>/dev/null || :; wait ${_spinner_pid} 2>/dev/null || :" EXIT
+    trap 'exit 129' HUP
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
 
     # Destroy all the old datasets
     for _fs in ${_bfs_list} ; do
@@ -292,10 +316,9 @@ __migrate_basejail () {
     done
 
     if [ "${_error}" = "1" ] ; then
-        printf "\b%1s\n" "error!" ; kill $! && trap " " 2 3 \
-            ; echo "  ERROR: please destroy all clones before using" \
-            "this jail." >&2
-        exit 1
+        printf "\b%1s\n" "error!"
+        __error "please destroy all clones before using this jail"
+        return 1
     fi
 
     # If the user has a /usr/local, move it for migration
@@ -353,9 +376,6 @@ __migrate_basejail () {
 
     zfs destroy -fr ${pool}/iocell/base@${_fulluuid} > /dev/null 2>&1
 
-    _oldtemplate="$(__get_jail_prop template ${_fulluuid} \
-        ${pool}/iocell/jails/${_fulluuid})"
-
     # Discovery owns legacy config migration. Do not scan unrelated datasets
     # here, after the selected jail's old layout has already been changed.
 
@@ -364,10 +384,10 @@ __migrate_basejail () {
     # Normally we'd use __set_jail_prop but these are special properties that
     # have a ton happen with them. We don't need that, just need to shift the
     # values.
-    __ucl_set "${_mountpoint}" "istemplate" "no"
+    __ucl_set "${_mountpoint}" "istemplate" "no" || return $?
 
     # We never stored this, so we need a sane default.
-    __ucl_set "${_mountpoint}" "template" "none"
+    __ucl_set "${_mountpoint}" "template" "none" || return $?
 
     # Set the jail up for the new template structures.
     if [ "${_oldtemplate}" = "yes" ] ; then
@@ -378,25 +398,18 @@ __migrate_basejail () {
 
         # Since this jail is now a new template, we need to finish migration
         # and exit.
-        __ucl_set "${_mountpoint}" "template" "none"
+        __ucl_set "${_mountpoint}" "template" "none" || return $?
         __set_jail_prop release="${_release}" "${_fulluuid}" \
-            "${pool}/iocell/jails/${_fulluuid}"
+            "${pool}/iocell/jails/${_fulluuid}" || return $?
         __set_jail_prop istemplate="yes" "${_fulluuid}" \
-            "${pool}/iocell/jails/${_fulluuid}"
-
-        if [ "$?" -eq 1 ] ; then
-            printf "\b%1s\n" "error!" ; kill $! && trap " " 2 3 \
-                ; echo "${error}" >&2
-            exit 1
-        fi
+            "${pool}/iocell/jails/${_fulluuid}" || return $?
     else
-        __ucl_set "${_mountpoint}" "template" "none"
+        __ucl_set "${_mountpoint}" "template" "none" || return $?
         __set_jail_prop release="${_release}" "${_fulluuid}" \
-            "${pool}/iocell/jails/${_fulluuid}"
+            "${pool}/iocell/jails/${_fulluuid}" || return $?
     fi
-
-    printf "\b%1s\n" "done!" ; kill $! && trap " " 2 3
-}
+    printf "\b%1s\n" "done!"
+)
 
 __check_basejail () {
     local _fulluuid _dataset _jail_release _old_base_check _jailed_dataset \
@@ -1095,37 +1108,31 @@ __check_filesystems () {
     fi
 }
 
+# Clones inside the selected subtree are part of the same recursive operation.
+# List only dependents outside it, without reading snapshots as filesystems.
+__external_clones () {
+    local _dataset _origins
+    _dataset="$1"
+    _origins=$(zfs get -rH -t filesystem,volume -o name,value origin "${pool}") \
+        || return $?
+    printf '%s\n' "${_origins}" | awk -v tree="${_dataset}" '
+        ($1 != tree && index($1, tree "/") != 1) &&
+        (index($2, tree "@") == 1 || index($2, tree "/") == 1) { print $1 }
+    '
+}
+
 __check_children () {
-    local _dataset _jail_datasets _fs _origin _tag _fulluuid \
-          _uuid _grepstring _printf
-
-    _fulluuid="$1"
+    local _dataset _clones _status
     _dataset="$2"
-    _grepstring="jails$|base|releases|templates$|download|${pool}/iocell$"
-    _grepstring="${_grepstring}|/data$"
     error=''
-    _jail_datasets=$(zfs list -d3 -rH -o name "${pool}/iocell") || return $?
-    _jail_datasets=$(printf '%s\n' "${_jail_datasets}" | \
-        egrep -v "${_grepstring}")
-
-    for _fs in ${_jail_datasets} ; do
-        _origin=$(zfs get -H -o value origin "${_fs}") || return $?
-        _origin="${_origin%@*}"
-
-        if ! echo "${_fs}" | grep -q "/root" ; then
-            # _fs is actually a dataset, so fulluuid needs to be faked.
-            _uuid=$(__check_name "name" "${_fs}" 2> /dev/null)
-            _tag=$(__get_jail_prop tag "${_uuid}" "${_fs}")
-        fi
-
-        if [ "${_origin}" = "${_dataset}/root" ] ; then
-            _printf=" ERROR: jail has dependent clone, uuid: ${_uuid} (${_tag})"
-            error="${error} $(printf "\n%s" "${_printf}")"
-        fi
-    done
-
-    if [ ! -z "${error}" ] ; then
-        export error
+    _clones=$(__external_clones "${_dataset}") || {
+        _status=$?
+        __error "cannot inspect dependent clones for ${_dataset}"
+        return "${_status}"
+    }
+    if [ -n "${_clones}" ] ; then
+        error=$(printf 'dependent clones of %s:\n%s' "${_dataset}" "${_clones}")
+        __error "${error}"
         return 1
     fi
 }

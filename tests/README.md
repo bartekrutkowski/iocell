@@ -13,6 +13,8 @@ sh tests/discovery-safety.sh
 sh tests/bulk-jails.sh
 sh tests/template-forward-safety.sh
 sh tests/clean-template-safety.sh
+sh tests/dependent-clones.sh
+sh tests/migrate-safety.sh
 sh tests/destroy-guard-safety.sh
 sh tests/import.sh
 sh tests/defaults.sh
@@ -248,6 +250,26 @@ lists, and package installation through existing template overlays without
 changing the source template. No jail is intentionally started. All newly
 created datasets, templates, and logs are retained for inspection. Log paths
 are printed at the start of each run; existing fixtures are not modified.
+
+## Template and dependency failure boundaries
+
+The opt-in native checks also include:
+
+```sh
+IOC_TEST_POOL=YOUR_TEST_POOL sh tests/template-safety-zfs.sh
+IOC_TEST_POOL=YOUR_TEST_POOL sh tests/dependent-clones-zfs.sh
+```
+
+The first verifies colliding tags cannot redirect delegated state, failures in
+type/alias updates propagate after rename without updating the final flag, and
+unsafe legacy template tags are refused before old datasets are destroyed.
+Only its intentionally interrupted fixtures are explicitly repaired.
+
+The second uses a new UUID-named file-backed pool without changing activation.
+It verifies internal template clones can be removed non-force, outside root
+and data-only clones are protected, and explicit force lists what it destroys.
+Both retain logs and data fixtures. Portable migration tests additionally prove
+that returned and exiting backend failures reap the spinner and keep user files.
 
 ## Real template round-trip integration test
 

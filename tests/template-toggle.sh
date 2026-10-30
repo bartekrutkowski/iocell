@@ -6,6 +6,7 @@ set -e
 cd "$(dirname "$0")/.."
 . ./lib/ioc-common
 . ./lib/ioc-info
+. ./lib/ioc-zfs
 
 workdir=$(mktemp -d "${TMPDIR:-/tmp}/iocell-template.XXXXXX")
 trap 'rm -rf "${workdir}"' EXIT
@@ -32,10 +33,7 @@ __get_jail_prop () {
             echo "${tag}"
             ;;
         host_hostuuid) echo "${stored_uuid}" ;;
-        type) echo template ;;
-        release) echo 15.1-RELEASE ;;
-        # Root datasets have no jail configuration file of their own.
-        origin) echo '' ;;
+        type) [ "${source_mode:-template}" != jail ] && echo template || echo basejail ;;
         mountpoint) echo "${iocroot}/${3#${pool}/iocell/}" ;;
         *) return 1 ;;
     esac
@@ -48,11 +46,13 @@ __is_running () {
 }
 
 __ucl_set () {
+    [ "${type_failure:-no}" != yes ] || [ "$2" != type ] || return 6
     printf '%s %s %s\n' "$1" "$2" "$3" >> "${writes}"
 }
 
 __link_tag () {
     printf 'link %s %s\n' "$1" "$2" >> "${trace}"
+    [ "${link_failure:-no}" != yes ] || return 6
 }
 
 __check_basejail () {
@@ -65,18 +65,6 @@ __umount_basejail () {
 
 zfs () {
     case "$1" in
-        list)
-            if [ "${list_failure}" = yes ] ; then
-                return 9
-            fi
-
-            printf '%s\n' "${source_dataset}" "${source_dataset}/root"
-
-            if [ "${dependent}" = yes ] ; then
-                printf '%s\n' "${dependent_dataset}" \
-                    "${dependent_dataset}/root"
-            fi
-            ;;
         get)
             case " $* " in
                 *' creation '*'/data '*)
@@ -84,20 +72,12 @@ zfs () {
                     ;;
                 *' jailed '*) cat "${data_state}" ;;
                 *' origin '*)
-                    if [ "${origin_failure}" = yes ] ; then
-                        return 8
-                    fi
-
-                    for _arg in "$@" ; do
-                        _origin_dataset="${_arg}"
-                    done
-
-                    if [ "${dependent}" = yes -a \
-                        "${_origin_dataset}" = "${dependent_dataset}/root" ]
-                    then
-                        echo "${source_dataset}/root@saved"
-                    else
-                        echo -
+                    [ "${query_failure}" != yes ] || return 9
+                    [ "${origin_failure}" != yes ] || return 8
+                    printf '%s\t-\n' "${source_dataset}/root"
+                    if [ "${dependent}" = yes ] ; then
+                        printf '%s\t%s\n' "${dependent_dataset}/root" \
+                            "${source_dataset}/root@saved"
                     fi
                     ;;
                 *) return 1 ;;
@@ -138,8 +118,10 @@ run_case () {
     dependent=no
     running_name=''
     rename_failure=no
-    list_failure=no
+    query_failure=no
     origin_failure=no
+    type_failure=no; link_failure=no; source_mode=template
+    source_dataset="${pool}/iocell/templates/${tag}"
 
     case "${_label}" in
         delegated-on) data_mode=on ;;
@@ -151,8 +133,15 @@ run_case () {
         dependent-clone) dependent=yes ;;
         running-uuid) running_name="${original_uuid}" ;;
         running-tag) running_name="${tag}" ;;
-        list-failure) list_failure=yes ;;
+        query-status-9) query_failure=yes ;;
         origin-failure) origin_failure=yes ;;
+        type-failure) type_failure=yes; data_mode=on ;;
+        link-failure) link_failure=yes; data_mode=on ;;
+        base-tag-collision)
+            source_mode=jail; data_mode=on
+            source_dataset="${target_dataset}"
+            mkdir -p "${iocroot}/jails/${original_uuid}"
+            ;;
     esac
 
     echo "${data_mode}" > "${data_state}"
@@ -178,6 +167,18 @@ run_case () {
             "${trace}" >/dev/null || return 1
         grep -F ' type basejail' "${writes}" >/dev/null || return 1
         grep -F ' istemplate no' "${writes}" >/dev/null || return 1
+    elif [ "${_label}" = type-failure ] || [ "${_label}" = link-failure ] ; then
+        [ -d "${iocroot}/jails/${original_uuid}" ] || return 1
+        [ ! -d "${iocroot}/templates/${tag}" ] || return 1
+        ! grep -q ' istemplate no' "${writes}" || return 1
+        ! grep -Eq '^(check|umount) ' "${trace}" || return 1
+    elif [ "${_label}" = base-tag-collision ] ; then
+        [ -d "${iocroot}/templates/${tag}" ] || return 1
+        [ -d "${iocroot}/jails/${original_uuid}" ] || return 1
+        [ ! -s "${writes}" ] || return 1
+        ! grep -Eq '^(jailed=|rename )' "${trace}" || {
+            echo 'FAIL: basejail conversion touched the colliding template' >&2; return 1;
+        }
     else
         [ -d "${iocroot}/templates/${tag}" ] || return 1
         [ ! -d "${iocroot}/jails/${original_uuid}" ] || return 1
@@ -208,10 +209,14 @@ for label in invalid-uuid missing-uuid unsafe-uuid dependent-clone \
     run_case "${label}" 1 || { echo "FAIL: ${label}" >&2; failed=1; }
 done
 run_case rename-failure 7 || failed=1
-run_case list-failure 9 || failed=1
+run_case query-status-9 9 || failed=1
 run_case origin-failure 8 || failed=1
+run_case type-failure 6 || { echo 'FAIL: post-rename type failure was ignored'; failed=1; }
+run_case link-failure 6 || { echo 'FAIL: post-rename alias failure was ignored'; failed=1; }
+run_case base-tag-collision 1 || failed=1
 
 # The CLI must not mask a failed conversion or apply later properties/jails.
+source_dataset="${pool}/iocell/templates/${tag}"
 . ./lib/ioc-cmd
 __export_props () {
     :

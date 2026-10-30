@@ -56,10 +56,14 @@ renames before changing metadata or aliases, and preserves both ``on`` and
 ``off`` delegated states. A failed config lookup cannot edit the host's
 ``/config``.
 
-Without ``-f``, ``iocell clean -t`` refuses dependent clones, including clones
-outside the jails namespace. ZFS dependency protection also remains enabled
-if a clone appears after the preflight check. ``iocell clean -f -t`` explicitly
-permits destruction of the templates and their dependent clones.
+``iocell clean -t`` includes clones inside the templates tree, but refuses
+clones outside it. ZFS dependency protection remains enabled if an outside clone
+appears after the preflight check. ``iocell clean -f -t`` lists those outside
+clones before explicitly permitting their destruction.
+
+A failed metadata or alias update after a successful conversion rename returns
+an error; the dataset may already have moved. The final template flag is not
+written after that failure.
 
 To make it a template again, stop the jail and run
 ``iocell set istemplate=yes UUID|TAG``.

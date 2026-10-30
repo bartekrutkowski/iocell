@@ -120,8 +120,9 @@ SUBCOMMANDS
     so be sure you don't use this flag if you have any. The -j flag will
     destroy the jails dataset. The -t flag will destroy the templates dataset.
     Same warning applies here as with cleaning the RELEASE dataset.
-    Without -f, template cleanup refuses dependent clones, including root
-    clones outside the jails dataset. Explicit -f permits their destruction.
+    Template cleanup includes clones inside the templates tree. Without -f,
+    it refuses clones outside that tree. With -f, it lists the outside clones
+    and permits their destruction.
 
   clone UUID|TAG[@snapshot] [property=value]
 

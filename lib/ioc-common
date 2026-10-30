@@ -5,6 +5,10 @@ __is_jail_uuid () {
         '^[[:xdigit:]]{8}(-[[:xdigit:]]{4}){3}-[[:xdigit:]]{12}$'
 }
 
+__is_template_tag () {
+    printf '%s\n' "$1" | grep -Eq '^[[:alnum:]_][[:alnum:]_.:-]*$'
+}
+
 # Export every property specified on command line ----------------------
 __export_props () {
     local _pname _property
@@ -103,11 +107,10 @@ __load_create_defaults () {
 # Set properties ------------------------------------------------------
 __set_jail_prop () {
     local _name _property _dataset _pname _pval _found _CONF \
-          _type _state _tag _release _jail_type _jail_zfs_mountpoint \
+          _type _state _tag _jail_type _jail_zfs_mountpoint \
           _jail_zfs_datasets _old_mountpoint _tmp_mountpoint _zfs_dataset \
-          _parent _release_tag _jid _jailed_dataset _jailed_dataset_check \
-          _jail_zfs _jail_datasets _newuuid _template_tag _jailed_state \
-          _status _fs _origin _uuid
+          _jid _jailed_dataset _jailed_dataset_check \
+          _jail_zfs _newuuid _template_tag _jailed_state _status _fs
 
     _name="$2"
     _property="$1"
@@ -244,39 +247,34 @@ __set_jail_prop () {
             ;;
         istemplate)
             if [ "${_jail_type}" != "basejail" -a "${_jail_type}" != "template" ] ; then
-                __die "templates aren't supported for this jail type (${_jail_type})"
+                __error "templates aren't supported for this jail type (${_jail_type})"
+                return 1
             fi
 
             if [ "${_pval}" = "yes" ] ; then
-                _release_tag="$(__get_jail_prop tag ${_fulluuid} ${_dataset})"
+                _tag=$(__get_jail_prop tag "${_fulluuid}" "${_dataset}") || return $?
                 _state="$(__is_running ${_fulluuid})"
-
-                if [ ! -z "${_state}" ] ; then
-                    __die "cannot make ${_release_tag} a template" \
-                        "- jail is running!"
+                if [ -n "${_state}" ] ; then
+                    __error "cannot make ${_tag} a template - jail is running!"
+                    return 1
                 fi
-
-                _tag="$(__get_jail_prop tag "${_fulluuid}" "${_dataset}")" \
-                    || return $?
-                if ! printf '%s\n' "${_tag}" | grep -Eq \
-                    '^[[:alnum:]_][[:alnum:]_.:-]*$' ; then
-                    __die "tag is not a safe template dataset name; retag first"
+                if ! __is_template_tag "${_tag}" ; then
+                    __error "tag is not a safe template dataset name; retag first"
+                    return 1
                 fi
                 if [ "${_dataset}" != \
                     "${pool}/iocell/jails/${_fulluuid}" ] ; then
-                    __die "${_tag} is already a template"
+                    __error "${_tag} is already a template"
+                    return 1
                 fi
                 if zfs get -H creation "${pool}/iocell/templates/${_tag}" \
                     >/dev/null 2>&1 ; then
-                    __die "template destination already exists: ${_tag}"
+                    __error "template destination already exists: ${_tag}"
+                    return 1
                 fi
                 _old_mountpoint="$(__get_jail_prop mountpoint \
                     "${_fulluuid}" "${_dataset}")" || return $?
-                __check_children "${_fulluuid}" "${_dataset}" || {
-                    _status=$?
-                    [ -z "${error}" ] || __error "${error}"
-                    return "${_status}"
-                }
+                __check_children "${_fulluuid}" "${_dataset}" || return $?
 
                 _jailed_dataset="${_dataset}/data"
                 _jailed_dataset_check="$(zfs get -H creation \
@@ -308,61 +306,36 @@ __set_jail_prop () {
                     || return $?
                 __unlink_tag "${_dataset}" "${_old_mountpoint}"
             elif [ "${_pval}" = "no" ] ; then
-                _template_tag="$(__get_jail_prop tag ${_fulluuid} ${_dataset})"
-                _release="$(__get_jail_prop release ${_fulluuid} ${_dataset})"
+                _template_tag=$(__get_jail_prop tag "${_fulluuid}" "${_dataset}") || return $?
+                if [ "${_dataset}" != "${pool}/iocell/templates/${_template_tag}" ] ; then
+                    __error "${_template_tag} is already a jail"
+                    return 1
+                fi
                 _newuuid="$(__get_jail_prop host_hostuuid \
                     "${_fulluuid}" "${_dataset}")" || return $?
 
                 # Template datasets are named by tag, not by jail UUID.
-                if ! printf '%s\n' "${_newuuid}" | grep -Eq \
-                    '^[[:xdigit:]]{8}(-[[:xdigit:]]{4}){3}-[[:xdigit:]]{12}$'
-                then
-                    __die "invalid stored jail UUID: ${_newuuid}"
+                if ! __is_jail_uuid "${_newuuid}" ; then
+                    __error "invalid stored jail UUID: ${_newuuid}"
+                    return 1
                 fi
 
                 if [ -n "$(__is_running "${_newuuid}")" ] || \
                     [ -n "$(__is_running "${_fulluuid}")" ] ; then
-                    __die "please stop ${_template_tag} before converting it!"
+                    __error "please stop ${_template_tag} before converting it!"
+                    return 1
                 fi
 
                 if [ ! -d "${iocroot}/templates/${_template_tag}" ] ; then
-                    __die "${_template_tag} is already a jail"
+                    __error "${_template_tag} is already a jail"
+                    return 1
                 fi
 
-                _parent=0
-                _jailed_dataset="${pool}/iocell/templates/${_template_tag}/data"
+                _jailed_dataset="${_dataset}/data"
                 _jailed_dataset_check="$(zfs get -H creation ${_jailed_dataset} > \
                                        /dev/null 2>&1 ; echo $?)"
 
-                # Include root datasets: their origin identifies dependent
-                # clones, while the parent jail dataset is usually not a clone.
-                _jail_datasets="$(zfs list -d3 -rH -o name \
-                    "${pool}/iocell")" || return $?
-                _jail_datasets="$(printf '%s\n' "${_jail_datasets}" | \
-                    egrep -v \
-                    "jails$|base|releases|templates$|download|${pool}/iocell$")"
-
-                for _fs in ${_jail_datasets} ; do
-                    # _fs is actually a dataset, so fulluuid needs to
-                    # be faked.
-                    _uuid=$(__check_name "name" ${_fs} 2> /dev/null)
-                    _origin="$(zfs get -H -o value origin "${_fs}")" \
-                        || return $?
-                    _origin="${_origin%@*}"
-
-                    if [ "${_origin}" = "${_dataset}/root" ] ; then
-                        _tag="$(__get_jail_prop tag "${_uuid}" \
-                            "${_fs%/root}")"
-                        __info "${_template_tag} has dependent clone," \
-                            "uuid: ${_uuid} (${_tag})"
-                        _parent=1
-                    fi
-                done
-
-                if [ "${_parent}" = "1" ] ; then
-                    __die "please destroy before converting ${_template_tag}" \
-                        "back to a jail"
-                fi
+                __check_children "${_fulluuid}" "${_dataset}" || return $?
 
                 _jailed_state=off
 
@@ -397,8 +370,9 @@ __set_jail_prop () {
                     zfs set jailed=on "${_jailed_dataset}" || return $?
                 fi
 
-                __set_jail_prop type="basejail" "${_newuuid}" "${_dataset}"
-                __link_tag "${_dataset}" "${_template_tag}"
+                __set_jail_prop type="basejail" "${_newuuid}" "${_dataset}" \
+                    || return $?
+                __link_tag "${_dataset}" "${_template_tag}" || return $?
                 __check_basejail "${_newuuid}" "${_dataset}" \
                     > /dev/null 2>&1
                 __umount_basejail "${_newuuid}" "${_dataset}" \

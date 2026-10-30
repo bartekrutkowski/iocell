@@ -35,23 +35,20 @@ __get_jail_prop () {
     mp="$iocroot/${3#tank/iocell/}"
     case "$1" in
         mountpoint) [ -d "$mp" ] || return 1; echo "$mp" ;;
-        jail_zfs_dataset) echo "$source/data" ;;
-        release) echo 15.1-RELEASE ;;
         *) awk -F= -v key="$1" '$1 == key {print substr($0,length(key)+2)}' "$mp/config" ;;
     esac
 }
 zfs () {
     case "$1" in
-        list)
-            [ "$fault" != list ] || return 9
-            printf '%s\n' "$source" "$source/root"
-            ;;
         get)
             for a in "$@"; do ds="$a"; done
             mp="$iocroot/${ds#tank/iocell/}"
             case "$*" in
                 *' creation '*) [ -d "$mp" ] ;;
-                *' origin '*) [ "$fault" != origin ] || return 8; echo - ;;
+                *' origin '*)
+                    [ "$fault" != query ] || return 9
+                    [ "$fault" != origin ] || return 8
+                    printf '%s\t-\n' "$source/root" ;;
                 *' jailed '*) cat "$mp/jailed" ;;
                 *' mountpoint '*) [ -d "$mp" ] || return 1; echo "$mp" ;;
                 *) return 1 ;;
@@ -72,7 +69,7 @@ zfs () {
     esac
 }
 failed=0
-for label in normal delegated-off timestamp slash running collision rename list origin ; do
+for label in normal delegated-off timestamp slash running collision rename query origin ; do
     iocroot="$workdir/$label"; fault=none; tag=forward-template; delegated=on
     case "$label" in
         delegated-off) delegated=off ;;
