@@ -14,6 +14,7 @@ sh tests/send-cleanup.sh
 sh tests/send-csh.sh
 sh tests/discovery-safety.sh
 sh tests/bulk-jails.sh
+sh tests/rc-jails.sh
 sh tests/template-forward-safety.sh
 sh tests/clean-template-safety.sh
 sh tests/dependent-clones.sh
@@ -71,6 +72,18 @@ a diagnostic and stop before fixtures or host configuration are changed.
 
 Scratch pool names use UUIDs rather than PIDs. Native tests retain their logs,
 file vdevs and fixtures; their printed paths identify what they leave behind.
+
+## rc boot and shutdown selection
+
+`rc-jails.sh` keeps discovery, property reads and rc selection real. It checks
+boot/hostid filtering, priority order, reverse shutdown order and propagation
+of discovery failures before any lifecycle action.
+
+With native authorization set as above, run `sh tests/rc-jails-zfs.sh`. It uses
+an owned scratch pool with real ZFS/UCL metadata and minimal kernel persist
+jails. It exercises rc selection and kernel creation/removal, not full jail
+userland startup. Config bytes, canaries, dataset GUIDs and activation must
+remain unchanged. Only that test's jails are stopped; pool and logs are retained.
 
 ## CLI syntax and native entrypoint tests
 

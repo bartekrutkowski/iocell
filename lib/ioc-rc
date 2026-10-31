@@ -773,21 +773,20 @@ __restart_jail () {
 
 __rc_jails () {
     local _action _jails _boot_list _name _boot _jail_hostid _priority \
-          _boot_order _shutdown_order _jail _jail_path _state
+          _boot_order _shutdown_order _jail _dataset _state
 
     _action=$1
-    _jails=$(__find_jail ALL | \
+    _jails=$(__find_jail ALL) || return $?
+    _jails=$(printf '%s\n' "${_jails}" | \
             awk 'BEGIN { FS = "/" } ; { if (length($NF)==36) { print }}')
     _boot_list="/tmp/iocell.$$"
 
     for _jail in ${_jails} ; do
         # _jail is actually a dataset, so fulluuid needs to be faked.
-        _name="$(__check_name "name" ${_jail} 2> /dev/null)"
-        _boot="$(__get_jail_prop boot ${_jail})"
-        _jail_hostid="$(__get_jail_prop hostid \
-                    ${_jail})"
-        _priority="$(__get_jail_prop priority \
-                    ${_jail})"
+        _name="$(__check_name "name" "${_jail}" 2> /dev/null)"
+        _boot="$(__get_jail_prop boot "${_name}" "${_jail}")"
+        _jail_hostid="$(__get_jail_prop hostid "${_name}" "${_jail}")"
+        _priority="$(__get_jail_prop priority "${_name}" "${_jail}")"
 
         if [ "${_boot}" = "on" -a "${_jail_hostid}" = "${hostid}" ] ; then
             echo "${_priority},${_name}" >> "${_boot_list}"
@@ -809,11 +808,9 @@ __rc_jails () {
         for _i in ${_boot_order} ; do
             _jail="$(echo ${_i} | cut -f2 -d,)"
             _priority="$(echo ${_i} | cut -f1 -d,)"
-            _dataset="${pool}/iocell/jails/${_jail}"
-            _jail_path="$(__get_jail_prop mountpoint ${_jail} ${_dataset})"
-            _state="$(jls | grep ${_jail_path} | wc -l)"
+            _state="$(__is_running "${_jail}")"
 
-            if [ "${_state}" -lt "1" -a "${_priority}" -eq 99 ] ; then
+            if [ -z "${_state}" ] && [ "${_priority}" -eq 99 ] ; then
                 __info "executing background start for ${_jail}"
                 __start_jail "${_jail}" > "/var/tmp/${_jail}" 2>&1 \
                     && cat "/var/tmp/${_jail}" &
@@ -829,10 +826,9 @@ __rc_jails () {
         for _i in ${_shutdown_order} ; do
             _jail="$(echo ${_i} | cut -f2 -d,)"
             _dataset="${pool}/iocell/jails/${_jail}"
-            _jail_path="$(__get_jail_prop mountpoint ${_jail} ${_dataset})"
-            _state="$(jls | grep ${_jail_path} | wc -l)"
+            _state="$(__is_running "${_jail}")"
 
-            if [ "${_state}" -eq "1" ] ; then
+            if [ -n "${_state}" ] ; then
                 __stop_jail "${_jail}" "${_dataset}"
             fi
         done
