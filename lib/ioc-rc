@@ -771,7 +771,7 @@ __restart_jail () {
     fi
 }
 
-__rc_jails () {
+__rc_jails () (
     local _action _jails _boot_list _name _boot _jail_hostid _priority \
           _boot_order _shutdown_order _jail _dataset _state
 
@@ -779,7 +779,12 @@ __rc_jails () {
     _jails=$(__find_jail ALL) || return $?
     _jails=$(printf '%s\n' "${_jails}" | \
             awk 'BEGIN { FS = "/" } ; { if (length($NF)==36) { print }}')
-    _boot_list="/tmp/iocell.$$"
+    _boot_list=$(mktemp /tmp/iocell.XXXXXX) || return $?
+    # Capture the path: FreeBSD sh can unwind locals before its EXIT trap.
+    trap "rm -f -- \"${_boot_list}\"" EXIT
+    trap 'exit 129' HUP
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
 
     for _jail in ${_jails} ; do
         # _jail is actually a dataset, so fulluuid needs to be faked.
@@ -793,7 +798,7 @@ __rc_jails () {
         fi
     done
 
-    if [ -e "${_boot_list}" ] ; then
+    if [ -s "${_boot_list}" ] ; then
         _boot_order=$(sort -n ${_boot_list})
         _shutdown_order=$(sort -rn ${_boot_list})
     else
@@ -834,5 +839,4 @@ __rc_jails () {
         done
 
     fi
-    rm "${_boot_list}"
-}
+)

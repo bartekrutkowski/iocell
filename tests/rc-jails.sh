@@ -6,7 +6,17 @@ cd "$(dirname "$0")/.."
 . ./lib/ioc-info
 . ./lib/ioc-rc
 workdir=$(mktemp -d "${TMPDIR:-/tmp}/iocell-rc.XXXXXX")
-trap 'rm -rf "$workdir"' EXIT
+fixed="/tmp/iocell.$$"
+[ ! -e "$fixed" ] && [ ! -L "$fixed" ] || exit 1
+trap 'rm -f "$fixed"; rm -rf "$workdir"' EXIT
+: > "$workdir/canary"
+ln -s "$workdir/canary" "$fixed"
+: > "$workdir/temps"
+mktemp () {
+    temp=$(command mktemp "$@") || return $?
+    echo "$temp" >> "$workdir/temps"
+    printf '%s\n' "$temp"
+}
 pool=tank; hostid=fixture-host
 first=11111111-1111-1111-1111-111111111111
 second=22222222-2222-2222-2222-222222222222
@@ -61,6 +71,7 @@ jls () {
     fi
 }
 __start_jail () {
+    [ "$fault" != backend-exit ] || exit 42
     [ "$#" = 1 ] && [ -f "$workdir/$1/config" ] || return 99
     touch "$workdir/running/$1"
     echo "$1" >> "$workdir/actions"
@@ -93,6 +104,40 @@ for action in boot shutdown; do
         [ ! -e "$workdir/running/$disabled" ] || exit 1
     echo "PASS: rc $action uses real discovery and properties in priority order"
 done
+if [ -s "$workdir/canary" ] || [ ! -L "$fixed" ]; then
+    echo 'FAIL: rc used the predictable PID path or followed its symlink'
+    failed=1
+else
+    echo 'PASS: rc ignores a preexisting predictable-path symlink'
+fi
+rm -f "$fixed"
+printf '5,%s\n' "$disabled" > "$fixed"
+: > "$workdir/actions"; status=0
+( __rc_jails boot ) > "$workdir/stale.log" 2>&1 || status=$?
+printf '%s\n' "$first" "$second" > "$workdir/expected"
+if [ "$status" != 0 ] || ! cmp -s "$workdir/actions" "$workdir/expected"; then
+    echo 'FAIL: rc included stale predictable-file contents in the boot order'
+    failed=1
+else
+    echo 'PASS: rc ignores stale predictable-file contents'
+fi
+fault=backend-exit; status=0
+( __rc_jails boot ) > "$workdir/backend.log" 2>&1 || status=$?
+[ "$status" = 42 ] || { echo 'FAIL: rc lost an exiting backend failure'; failed=1; }
+fault=none; hostid=no-matching-host; : > "$workdir/actions"; status=0
+( __rc_jails boot ) > "$workdir/empty.log" 2>&1 || status=$?
+if [ "$status" != 0 ] || [ -s "$workdir/actions" ] || \
+    ! grep -q 'no jails found' "$workdir/empty.log"; then
+    echo 'FAIL: rc empty selection did not exit cleanly'; failed=1
+else echo 'PASS: rc empty selection succeeds without lifecycle work'; fi
+if [ ! -s "$workdir/temps" ]; then
+    echo 'FAIL: rc did not allocate private temporary boot lists'; failed=1
+else
+    while IFS= read -r temp; do
+        [ ! -e "$temp" ] || { echo 'FAIL: rc leaked its temporary boot list'; failed=1; }
+    done < "$workdir/temps"
+    echo 'PASS: rc removes private boot lists on normal, empty and exiting paths'
+fi
 fault=enumeration; : > "$workdir/actions"; status=0
 ( __rc_jails boot ) > "$workdir/enumeration.log" 2>&1 || status=$?
 if [ "$status" != 42 ] || [ -s "$workdir/actions" ] || \
