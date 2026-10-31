@@ -11,7 +11,7 @@ trap 'exit 1' HUP INT TERM
 pool=tank
 id () { if [ "$1" = -un ]; then echo root; else command id "$@"; fi; }
 iocroot="$workdir/iocell"
-uuid=11111111-1111-1111-1111-111111111111
+uuid=a1111111-b111-c111-d111-e11111111111
 jail="tank/iocell/jails/$uuid"
 template=tank/iocell/templates/database-template
 mkdir -p "$iocroot/jails/$uuid/backup" "$iocroot/templates/database-template"
@@ -61,6 +61,14 @@ if [ "$status" -ne 0 ] || [ "$(cat "$workdir/find")" != "$template" ]; then
 else
     echo 'PASS: template names containing database are discoverable'
 fi
+for name in A1111111-B111-C111-D111-E11111111111 DATABASE-TEMPLATE; do
+    want="$jail"; [ "$name" != DATABASE-TEMPLATE ] || want="$template"
+    status=0
+    ( __find_jail "$name" ) > "$workdir/case.out" 2> "$workdir/case.err" || status=$?
+    if [ "$status" != 0 ] || [ "$(cat "$workdir/case.out")" != "$want" ]; then
+        echo "FAIL: case-folded dataset identity $name was not found"; failed=1
+    else echo "PASS: case-folded dataset identity $name"; fi
+done
 echo original > "$iocroot/jails/$uuid/config"
 ( set +e; __dump_config "$uuid" ) > "$workdir/dump" 2>&1 || :
 if [ "$(cat "$iocroot/jails/$uuid/config")" != original ]; then

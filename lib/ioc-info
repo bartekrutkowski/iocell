@@ -79,7 +79,9 @@ __discover_missing_config () (
 # Find direct jail/template identities, including ones needing operator repair.
 __find_jail () {
     local _name _jlist _jail _tag _mountpoint _candidates _jails _count
+    local _name_lower _uuid_candidates
     _name="$1"; _jlist=''
+    _name_lower=$(printf '%s' "${_name}" | tr '[:upper:]' '[:lower:]')
     case "${_name}" in
         ''|-*) __error "missing or invalid jail name: ${_name}"; return 1 ;;
     esac
@@ -87,9 +89,11 @@ __find_jail () {
         "${pool}/iocell/jails" "${pool}/iocell/templates") || return $?
     # Never reinterpret a root, backup or delegated descendant as its parent.
     _jails=$(printf '%s\n' "${_candidates}" | awk -F/ 'NF == 4')
-    if __is_jail_uuid "${_name}" && printf '%s\n' "${_jails}" | \
-        grep -Fqx "${pool}/iocell/jails/${_name}" ; then
-        _jails="${pool}/iocell/jails/${_name}"
+    if __is_jail_uuid "${_name_lower}" ; then
+        _uuid_candidates=$(printf '%s\n' "${_jails}" | awk -F/ \
+            -v root="${pool}/iocell/jails/" -v name="${_name_lower}" \
+            'index($0,root)==1 && tolower($NF)==name')
+        [ -z "${_uuid_candidates}" ] || _jails="${_uuid_candidates}"
     fi
     for _jail in ${_jails} ; do
         _mountpoint=$(zfs get -H -o value mountpoint "${_jail}") || {
@@ -110,7 +114,8 @@ __find_jail () {
             _tag=$(zfs get -H -o value org.freebsd.iocell:tag \
                 "${_jail}" 2>/dev/null) || _tag=''
         fi
-        if [ "${_name}" = "${_jail##*/}" ] || [ "${_name}" = "${_tag}" ] ; then
+        if [ "${_name_lower}" = "$(printf '%s' "${_jail##*/}" | \
+            tr '[:upper:]' '[:lower:]')" ] || [ "${_name}" = "${_tag}" ] ; then
             _jlist="${_jlist} ${_jail}"
         fi
     done
