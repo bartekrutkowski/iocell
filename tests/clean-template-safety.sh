@@ -24,6 +24,7 @@ zfs () {
             ;;
         destroy)
             if [ "$2" = -nvrRf ]; then
+                [ "$fault" != preview ] || return 9
                 printf '%s\n' 'would destroy tank/iocell/jails/fixture/root'
                 return 0
             fi
@@ -42,13 +43,14 @@ zfs () {
     esac
 }
 failed=0
-for label in dependent clear internal forced destroy-failure origin-failure race ; do
+for label in dependent clear internal forced preview-failure destroy-failure origin-failure race ; do
     state="$workdir/$label"; mkdir "$state"
     echo data > "$state/clone"; echo source > "$state/template"
     dependent=no; _force=0; fault=none
     case "$label" in
         dependent) dependent=yes ;;
         forced) dependent=yes; _force=1 ;;
+        preview-failure) dependent=yes; _force=1; fault=preview ;;
         internal) dependent=internal ;;
         destroy-failure) fault=destroy ;;
         origin-failure) fault=origin ;;

@@ -228,7 +228,10 @@ values and data; a failed UCL write publishes no partial config and can be
 retried. Unconfigured identities remain visible without invented metadata.
 A new unconfigured kernel jail and a real basejail exercise `stop ALL`: the
 former is reported/skipped, the later valid jail stops, and the command returns
-failure. Cleanup removes the temporary kernel jail; datasets/logs are retained.
+failure. Cleanup stops the kernel jail and removes GUID-verified incomplete
+fixtures after success; failed fixtures, valid jails, and logs are retained.
+`lookup-case-zfs.sh` checks UUID/template-name case folding, literal config tags,
+and ambiguous names without changing configuration bytes or dataset GUIDs.
 Portable bulk tests cover start/stop/reboot/restart continuation and enumeration
 failures without relying on pipelines that can hide discovery status.
 

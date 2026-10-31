@@ -275,7 +275,7 @@ __set_jail_prop () {
                 fi
                 _old_mountpoint="$(__get_jail_prop mountpoint \
                     "${_fulluuid}" "${_dataset}")" || return $?
-                __check_children "${_fulluuid}" "${_dataset}" || return $?
+                __check_children "${_dataset}" || return $?
 
                 _jailed_dataset="${_dataset}/data"
                 _jailed_dataset_check="$(zfs get -H creation \
@@ -336,7 +336,7 @@ __set_jail_prop () {
                 _jailed_dataset_check="$(zfs get -H creation ${_jailed_dataset} > \
                                        /dev/null 2>&1 ; echo $?)"
 
-                __check_children "${_fulluuid}" "${_dataset}" || return $?
+                __check_children "${_dataset}" || return $?
 
                 _jailed_state=off
 

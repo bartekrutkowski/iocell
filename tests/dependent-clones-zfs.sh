@@ -45,7 +45,7 @@ status=0
     . ./lib/ioc-common
     . ./lib/ioc-zfs
     pool="$p"
-    __check_children data-only "$p/iocell/templates/data-only"
+    __check_children "$p/iocell/templates/data-only"
 ) > "$workdir/data-guard.log" 2>&1 || status=$?
 [ "$status" = 1 ]
 grep -F "$p/outside-data" "$workdir/data-guard.log"

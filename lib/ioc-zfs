@@ -237,8 +237,6 @@ __deactivate () {
 # Accepts two arguments. Which is used as the UUID for the umount operations
 # and what release to use.
 __migrate_basejail () (
-    local _bfs_list _fulluuid _release _basedir_list _spinner _oldtemplate
-    local _error _spinner_pid _tag
     _fulluuid="$1"; _release="$2"; _error=0
     if ! __is_jail_uuid "${_fulluuid}" ; then
         __error "invalid jail UUID for basejail migration"
@@ -257,7 +255,7 @@ __migrate_basejail () (
             __error "template destination already exists: ${_tag}"
             return 1
         fi
-        __check_children "${_fulluuid}" "${pool}/iocell/jails/${_fulluuid}" || return $?
+        __check_children "${pool}/iocell/jails/${_fulluuid}" || return $?
     fi
     _bfs_list="bin
                boot
@@ -279,7 +277,6 @@ __migrate_basejail () (
     _spinner='/-\|'
 
     printf "  INFO: migrating basejail: \b%2s"
-    export migrate="yes"
     while true; do
         printf '\b%.1s' "${_spinner}"
         _spinner=${_spinner#?}${_spinner%???}
@@ -919,7 +916,7 @@ __destroy_jail () {
     _state="$(__is_running ${_fulluuid})"
     _jail_type="$(__get_jail_prop type ${_fulluuid} ${_dataset})"
 
-    __check_children "${_fulluuid}" "${_dataset}" || exit $?
+    __check_children "${_dataset}" || exit $?
 
     if [ "${_force}" -ne "1" ] ; then
             echo " "
@@ -1108,9 +1105,8 @@ __external_clones () {
 }
 
 __check_children () {
-    local _dataset _clones _status
-    _dataset="$2"
-    error=''
+    local _dataset _clones _status error
+    _dataset="$1"
     _clones=$(__external_clones "${_dataset}") || {
         _status=$?
         __error "cannot inspect dependent clones for ${_dataset}"

@@ -9,19 +9,23 @@ fi
 . ./tests/native-common.sh
 workdir=$(mktemp -d "${TMPDIR:-/tmp}/iocell-native-guard.XXXXXX")
 trap 'rm -rf "$workdir"' EXIT
-uname () { echo "$test_os"; }
-id () { echo "$test_uid"; }
+uname () { [ "$*" = -s ] || return 99; echo "$test_os"; }
+id () { [ "$*" = -u ] || return 99; echo "$test_uid"; }
 zfs () {
     echo "zfs $*" >> "$trace"
     [ "$property_error" = no ] || return 42
-    [ "$1" = get ] || return 99
+    [ "$*" = 'get -H -s local -o value org.freebsd.iocell:test tank' ] || return 99
     echo "$marker"
 }
 df () {
+    [ "$*" = '-P /iocell' ] || return 99
     printf 'Filesystem 1024-blocks Used Available Capacity Mounted\n'
     printf '%s 100 1 99 1%% /iocell\n' "$mounted_dataset"
 }
-uclcmd () { echo "$selected_pool"; }
+uclcmd () {
+    [ "$*" = 'get -qf /iocell/.default pool' ] || return 99
+    echo "$selected_pool"
+}
 failed=0
 for label in opt-in missing-pool platform credentials unmarked query wrong-mount wrong-selection accepted; do
     trace="$workdir/$label.trace"; : > "$trace"
@@ -82,5 +86,27 @@ for label in opt-in missing-peer missing-pool unsafe-pool platform credentials u
         if [ -s "$trace" ]; then echo "FAIL: receiver $label made SSH contact"; failed=1; continue; fi ;;
     esac
     echo "PASS: receiver guard $label"
+done
+mkdir "$workdir/deny"
+cat > "$workdir/deny/denied" <<'DENIED'
+#!/bin/sh
+printf '%s %s\n' "$0" "$*" >> "$IOC_GUARD_TRACE"
+exit 99
+DENIED
+chmod +x "$workdir/deny/denied"
+for cmd in zfs zpool jail mount umount mktemp mkdir truncate rm cp mv touch chmod chflags; do
+    ln -s denied "$workdir/deny/$cmd"
+done
+for script in tests/*-zfs.sh; do
+    trace="$workdir/$(basename "$script").guard"; : > "$trace"; status=0
+    (
+        unset IOC_TEST_DESTRUCTIVE IOC_TEST_REMOTE_DESTRUCTIVE
+        export IOC_GUARD_TRACE="$trace" PATH="$workdir/deny:$PATH"
+        sh "$script"
+    ) > "$trace.log" 2>&1 || status=$?
+    if [ "$status" = 0 ] || [ -s "$trace" ] ||
+        ! grep -q 'Native test refused: set IOC_TEST_DESTRUCTIVE=yes' "$trace.log"; then
+        echo "FAIL: $script did not refuse before system changes"; failed=1
+    else echo "PASS: $script refuses unauthorized execution"; fi
 done
 exit "$failed"

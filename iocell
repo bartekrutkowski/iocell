@@ -93,8 +93,6 @@ fi
 . "${LIB}/ioc-upgrade"
 # shellcheck source=lib/ioc-image
 . "${LIB}/ioc-image"
-# shellcheck source=lib/ioc-common
-. "${LIB}/ioc-common"
 # shellcheck source=lib/ioc-rc
 . "${LIB}/ioc-rc"
 # shellcheck source=lib/ioc-network

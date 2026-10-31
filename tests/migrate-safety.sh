@@ -29,7 +29,7 @@ __set_jail_prop () {
     [ "$1" = istemplate=yes ] || return 0
     case "$mode" in
         backend-return) __error 'fixture conversion return'; return 9 ;;
-        backend-exit|unsafe-tag|destination) __die 'fixture conversion exit' ;;
+        backend-exit) __die 'fixture conversion exit' ;;
     esac
 }
 zfs () {

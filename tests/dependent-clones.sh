@@ -7,15 +7,9 @@ cd "$(dirname "$0")/.."
 pool=tank
 uuid=11111111-1111-1111-1111-111111111111
 source="tank/iocell/jails/$uuid"
-__check_name () { echo "$uuid"; }
-__get_jail_prop () { echo fixture; }
 zfs () {
     [ "$label" != query-failure ] || return 8
     case "$1" in
-        list)
-            printf '%s\n' "$source" "$source/root"
-            [ "$label" != internal ] || echo "$source/backup"
-            ;;
         get)
             case " $* " in
                 *' name,value '*)
@@ -27,9 +21,7 @@ zfs () {
                         unrelated) printf '%s\t%s\n' tank/outside "$source-other/root@saved" ;;
                     esac
                     ;;
-                *) for last; do :; done
-                    if [ "$last" = "$source/backup" ]; then echo "$source/root@saved"
-                    else echo -; fi ;;
+                *) return 99 ;;
             esac ;;
     esac
 }
@@ -40,7 +32,7 @@ for label in none internal root-external data-external unrelated query-failure; 
     want=0
     case "$label" in *-external) want=1 ;; query-failure) want=8 ;; esac
     status=0
-    ( __check_children "$uuid" "$source" ) > "$workdir/$label.out" \
+    ( __check_children "$source" ) > "$workdir/$label.out" \
         2> "$workdir/$label.err" || status=$?
     if [ "$status" != "$want" ]; then
         echo "FAIL: dependency $label status=$status expected=$want"; failed=1; continue

@@ -11,7 +11,8 @@ SYNOPSIS
   iocell [-v] clean [-f] [-a|-r|-j|-t]
   iocell [-v] clone UUID|TAG[@snapshot] [property=value]
   iocell [-v] console [-f] UUID|TAG
-  iocell [-v] create [-e] [release=RELEASE] [pkglist=file] [property=value] [count=value]
+  iocell [-v] create [-e] [release=RELEASE] [pkglist=file]
+      [property=value] [count=value]
   iocell [-v] deactivate ZPOOL
   iocell [-v] defaults
   iocell [-v] destroy [-f] UUID|TAG
@@ -239,11 +240,11 @@ SUBCOMMANDS
     compression: Compression is lz4 by default; see zfs(8) for the list of
     compression algorithms available.
 
-    ftplocaldir: Specifying ftplocaldir=/path/to/distributions fetches files from a
-    local system directory. This is useful when a user wants to use a custom build
+    ftplocaldir: Specifying ftplocaldir=/path/to/distributions fetches files
+    from a local directory. This is useful when a user wants a custom build
     release or use iocell offline.
 
-    Example: iocell fetch release=15.1-RELEASE ftplocaldir=/path/to/distributions
+    Example: iocell fetch release=15.1-RELEASE ftplocaldir=/path/to/dist
 
   get property|all UUID|TAG
   get -r property|all
@@ -368,7 +369,7 @@ SUBCOMMANDS
        [-i SNAP1 -i SNAP2 | -I SNAP1 -I SNAP2] POOL
 
     Takes a recursive snapshot of the active SOURCEPOOL/iocell dataset and
-    sends it to POOL/iocell. Supports remote, incremental and movement operations.
+    sends it to POOL/iocell. Supports remote, incremental and move operations.
     Every full send creates a unique fresh snapshot; snapshot or pipeline
     failures are returned as errors. A failed full transfer reports and retains
     its source snapshot for recovery. Existing snapshot-bearing replicas may
@@ -386,12 +387,13 @@ SUBCOMMANDS
     Failed transfers retain earlier bases. Other snapshots and dependent
     clones are not destroyed to make cleanup succeed; failures are returned.
     Local transfers clean both ends. Remote -c cleans only the sender;
-    manage receiver retention separately. Do not combine clean with incrementals.
+    manage receiver retention separately. Do not combine clean with
+    incrementals.
     Remote destinations are validated on the receiver, not locally.
     Identical names on different hosts are valid, not self-send.
 
     Local Example: iocell send newpool
-    Incremental Example: iocell send -i oldpool/iocell@snap1 -i oldpool/iocell@snap2 newpool
+    Incremental Example: iocell send -i old/iocell@s1 -i old/iocell@s2 new
     Remote Example: iocell send -r -u root -h some.host newpool
 
     The received pool is not mounted if received locally, but is mounted if
@@ -1112,7 +1114,7 @@ PROPERTIES
     tag must start with a letter, digit or underscore and contain only letters,
     digits, underscores, periods, colons or hyphens. Retag generated timestamp
     names before conversion, e.g. set tag=mytemplate UUID. Invalid tags are
-    rejected before any rename, metadata or alias changes. (See EXAMPLES section)
+    rejected before rename, metadata or alias changes. (See EXAMPLES section)
 
     Default: no
     Source: local

@@ -69,6 +69,30 @@ zfs create -p "$bad_ds/root"
 bad_root=$(zfs get -H -o value mountpoint "$bad_ds/root")
 unconfigured="$IOC_TEST_POOL/iocell/templates/unconfigured-$suffix"
 zfs create "$unconfigured"
+bad_guid=$(zfs get -H -o value guid "$bad_ds")
+unconfigured_guid=$(zfs get -H -o value guid "$unconfigured")
+good=''
+cleanup () {
+    status=$?
+    trap - EXIT
+    [ -z "$good" ] || iocell stop "$good" >/dev/null 2>&1 || :
+    jail -r "ioc-$bad" >/dev/null 2>&1 || :
+    # Keep failed fixtures for diagnosis, but do not pollute later successful runs.
+    if [ "$status" = 0 ]; then
+        for target in "$bad_ds" "$unconfigured"; do
+            expected="$bad_guid"
+            [ "$target" != "$unconfigured" ] || expected="$unconfigured_guid"
+            if [ "$(zfs get -H -o value guid "$target")" != "$expected" ]; then
+                echo "FAIL: refusing cleanup of replaced fixture $target" >&2; status=1; continue
+            fi
+            zfs destroy -r "$target" || status=1
+        done
+        [ "$status" != 0 ] || echo 'PASS: discovery removes its temporary incomplete fixtures'
+    fi
+    exit "$status"
+}
+trap cleanup EXIT
+trap 'exit 1' HUP INT TERM
 find_all > "$workdir/incomplete.out" 2> "$workdir/incomplete.err"
 grep -Fx "$bad_ds" "$workdir/incomplete.out"
 grep -Fx "$unconfigured" "$workdir/incomplete.out"
@@ -76,13 +100,6 @@ grep -q 'missing configuration:' "$workdir/incomplete.err"
 [ ! -e "${bad_root%/root}/config" ]
 echo 'PASS: native incomplete identities remain visible without fabricated config'
 
-good=''
-cleanup () {
-    [ -z "$good" ] || iocell stop "$good" >/dev/null 2>&1 || :
-    jail -r "ioc-$bad" >/dev/null 2>&1 || :
-}
-trap cleanup EXIT
-trap 'exit 1' HUP INT TERM
 jail -c "name=ioc-$bad" "path=$bad_root" persist ip4=disable ip6=disable
 tag="bulk-good-$suffix"
 iocell create "release=$IOC_TEST_RELEASE" "tag=$tag" vnet=off \
