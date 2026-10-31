@@ -455,8 +455,8 @@ release snapshot's outside clone while removing the jails namespace.
 
 For real remote and buffered pipelines, prepare a second disposable FreeBSD
 host with root public-key SSH authentication and `mbuffer` installed on both
-hosts. Allow sufficient RAM for the existing 1 GiB buffer at each end (the
-verification VMs used 2 GiB each temporarily):
+hosts. Allow RAM for the 1 GiB buffer at each end in addition to ZFS metadata
+and host processes. Many retained test pools can substantially increase usage:
 
 ```sh
 IOC_TEST_POOL=YOUR_TEST_POOL IOC_TEST_REMOTE=root@PRIVATE_TEST_RECEIVER \
