@@ -148,7 +148,6 @@ __set_jail_prop () {
 
     case "${_pname}" in
         tag)
-            __unlink_tag "${_dataset}" || return $?
             __link_tag "${_dataset}" "${_pval}" || return $?
             ;;
         jail_zfs)
@@ -429,7 +428,11 @@ __set_jail_prop () {
     if [ "${_type}" = "custom" ] ; then
         _mountpoint="$(__get_jail_prop mountpoint \
             "${_fulluuid}" "${_dataset}")" || return $?
-        __ucl_set "${_mountpoint}" "${_pname}" "${_pval}"
+        __ucl_set "${_mountpoint}" "${_pname}" "${_pval}" || return $?
+        if [ "${_pname}" = tag ] ; then
+            # Keep old aliases until both the new link and metadata exist.
+            __unlink_tag "${_dataset}" "" "${_pval}" || return $?
+        fi
     elif [ "${_type}" = "native" ] ; then
         zfs set ${_pname}="${_pval}" ${_dataset}
     fi
@@ -856,7 +859,7 @@ __link_tag () {
     }
 }
 
-# removes all symlinks found in $iocroot/tags pointing to the given jail dataset
+# Remove matching aliases; optional third argument keeps one literal tag name.
 __unlink_tag () {
     local _dataset _mountpoint
     _dataset=$1
@@ -868,12 +871,18 @@ __unlink_tag () {
             || return $?
     fi
     [ -d "${iocroot}/tags" ] || return 0
+    if [ -n "${3:-}" ] ; then
+        # -name/-path treat glob characters specially; test compares literally.
+        set -- ! -exec test '{}' = "${iocroot}/tags/$3" ';'
+    else
+        set --
+    fi
     if [ -n "${_mountpoint}" ] ; then
         find "${iocroot}/tags" -type l -lname "${_mountpoint}" \
-            -exec rm -f {} + || return $?
+            "$@" -exec rm -f {} + || return $?
         _mountpoint="..${_mountpoint#${iocroot}}"
         find "${iocroot}/tags" -type l -lname "${_mountpoint}" \
-            -exec rm -f {} +
+            "$@" -exec rm -f {} +
     fi
 }
 

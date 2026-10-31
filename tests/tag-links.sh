@@ -24,20 +24,29 @@ uclcmd () {
     done
     if [ "$operation" = get ]; then awk -F= '$1=="tag" {print $2}' "$input"; return; fi
     [ "$fault" != writer ] || return 6
+    [ "$fault" != source-writer ] || [ "$input" != "$new/config" ] || return 6
     [ -n "$output" ] || output="$input"
     printf 'tag=%s\n' "$2" > "$output"
 }
 ln () {
     [ "$fault" != link ] || [ "$1" != -sfn ] || return 7
+    [ "$fault" != new-link ] || [ "$1" != -s ] || return 7
     command ln "$@"
 }
 failed=0
-for label in absolute relative collision writer link foreign broken file; do
-    iocroot="$workdir/$label/iocell"; altroot=-; fault=none
+for label in absolute relative collision same literal writer source-writer \
+    link new-link foreign broken file; do
+    iocroot="$workdir/$label/iocell"; altroot=-; fault=none; requested=shared
     old="$iocroot/jails/$oldid"; new="$iocroot/jails/$newid"
     mkdir -p "$old" "$new" "$iocroot/tags"
     echo tag=shared > "$old/config"; echo tag=original > "$new/config"
+    cp "$new/config" "$workdir/$label.before"
+    ln -s "$new" "$iocroot/tags/original"
+    ln -s "../jails/$newid" "$iocroot/tags/other-original"
     case "$label" in
+        same) requested=original ;;
+        literal) requested='new[1]*?' ;;
+        source-writer|new-link) : ;;
         relative) altroot="$workdir/$label"; ln -s "../jails/$oldid" "$iocroot/tags/shared" ;;
         collision)
             ln -s "$old" "$iocroot/tags/shared"
@@ -49,20 +58,24 @@ for label in absolute relative collision writer link foreign broken file; do
         file) echo canary > "$iocroot/tags/shared" ;;
         *) ln -s "$old" "$iocroot/tags/shared" ;;
     esac
-    case "$label" in writer|link) fault="$label" ;; esac
+    case "$label" in writer|source-writer|link|new-link) fault="$label" ;; esac
     before_pwd=$(pwd -P); status=0
     (
-        __set_jail_prop tag=shared "$newid" "tank/iocell/jails/$newid"
+        __set_jail_prop "tag=$requested" "$newid" "tank/iocell/jails/$newid"
         result=$?
         [ "$(pwd -P)" = "$before_pwd" ] || exit 99
         exit "$result"
     ) > "$workdir/$label.log" 2>&1 || status=$?
     case "$label" in
-        writer|link|foreign|broken|file)
+        writer|source-writer|link|new-link|foreign|broken|file)
             want=1
-            case "$label" in writer) want=6 ;; link) want=7 ;; esac
-            if [ "$status" != "$want" ] || [ "$(cat "$new/config")" != tag=original ]; then
-                echo "FAIL: tag $label changed config or ignored failure"; failed=1; continue
+            case "$label" in writer|source-writer) want=6 ;; link|new-link) want=7 ;; esac
+            if [ "$status" != "$want" ] || \
+                ! cmp -s "$new/config" "$workdir/$label.before" || \
+                [ "$(readlink "$iocroot/tags/original")" != "$new" ] || \
+                [ "$(readlink "$iocroot/tags/other-original")" != "../jails/$newid" ]; then
+                echo "FAIL: tag $label lost previous aliases/config or ignored failure"
+                failed=1; continue
             fi
             [ "$(cat "$old/config")" = tag=shared ] || { failed=1; continue; }
             [ "$label" != foreign ] || [ "$(cat "$workdir/unmanaged/config")" = tag=untouched ] || exit 1
@@ -72,15 +85,23 @@ for label in absolute relative collision writer link foreign broken file; do
             }
             ;;
         *)
-            if [ "$status" != 0 ] || [ "$(cat "$new/config")" != tag=shared ] || \
-                [ "$(cd "$iocroot/tags/shared" && pwd -P)" != "$(cd "$new" && pwd -P)" ]; then
+            if [ "$status" != 0 ] || [ "$(cat "$new/config")" != "tag=$requested" ] || \
+                [ "$(cd "$iocroot/tags/$requested" && pwd -P)" != "$(cd "$new" && pwd -P)" ]; then
                 echo "FAIL: tag $label link and config disagree"; failed=1; continue
             fi
-            oldtag=$(awk -F= '{print $2}' "$old/config")
-            [ "$oldtag" != shared ] && [ -L "$iocroot/tags/$oldtag" ] && \
-                [ "$(cd "$iocroot/tags/$oldtag" && pwd -P)" = "$(cd "$old" && pwd -P)" ] || {
-                echo "FAIL: tag $label lost the old jail's alias"; failed=1; continue;
+            [ ! -L "$iocroot/tags/other-original" ] || {
+                echo "FAIL: tag $label retained an obsolete relative alias"; failed=1; continue;
             }
+            if [ "$requested" != original ] && [ -L "$iocroot/tags/original" ]; then
+                echo "FAIL: tag $label retained an obsolete absolute alias"; failed=1; continue
+            fi
+            case "$label" in same|literal) : ;; *)
+                oldtag=$(awk -F= '{print $2}' "$old/config")
+                [ "$oldtag" != shared ] && [ -L "$iocroot/tags/$oldtag" ] && \
+                    [ "$(cd "$iocroot/tags/$oldtag" && pwd -P)" = "$(cd "$old" && pwd -P)" ] || {
+                    echo "FAIL: tag $label lost the old jail's alias"; failed=1; continue;
+                } ;;
+            esac
             ;;
     esac
     [ "$(pwd -P)" = "$before_pwd" ] || exit 1

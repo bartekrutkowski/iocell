@@ -330,18 +330,24 @@ and data-only clones are protected, and explicit force lists what it destroys.
 Both retain logs and data fixtures. Portable migration tests additionally prove
 that returned and exiting backend failures reap the spinner and keep user files.
 
-## Tag aliases with a real altroot
+## Tag aliases with native ZFS
+
+With native authorization set, test both relative and absolute aliases:
 
 ```sh
 IOC_TEST_POOL=YOUR_TEST_POOL sh tests/tag-links-zfs.sh
+IOC_TEST_POOL=YOUR_TEST_POOL IOC_TAG_ALTROOT=no sh tests/tag-links-zfs.sh
 ```
 
-This creates an isolated file-backed pool with a real ZFS altroot and invokes
-the production setter with that pool/root explicitly selected. It checks relative
-alias replacement, both owners' configurations, data/GUID preservation, injected
-writer/link errors, foreign-target rejection and unchanged original defaults.
-It does not claim to validate the legacy CLI altroot bootstrap, which cannot
-select this layout while the usual `/iocell` already exists. Fixtures are retained.
+Each run creates an owned file-backed pool and selects its pool/root explicitly.
+It checks both owners' configurations, data/GUID preservation, writer/link
+errors, foreign-target rejection and unchanged original defaults. A preexisting
+source alias must survive rejection or a failed link/config write. Old source
+aliases are removed only after the replacement link and config write succeed;
+the new alias is retained even when its name contains literal glob characters.
+This is not a multi-jail tag transaction: a failed final write can leave an
+additional alias. The altroot mode does not validate the separate CLI bootstrap
+path while `/iocell` already exists. Fixtures and logs are retained.
 
 ## Real template round-trip integration test
 
