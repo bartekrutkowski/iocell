@@ -76,6 +76,9 @@ __fetch_release () {
     mv "$MC_STATE/release-stash" "$iocroot/releases/$MC_RELEASE"
 }
 case "$mode" in *-ok) __check_basejail () { return 0; } ;; esac
+case "$mode" in *-setfail)
+    __ucl_set () { __error 'fixture release write failure'; return 42; } ;;
+esac
 case "$mode" in
     start) __start_jail "$uuid" ;;
     update) __update x x x "$uuid" ;;
@@ -98,9 +101,9 @@ cp "$mp/config" "$workdir/config-before"
 zfs get -rHp -o name,value guid "$ds" | sort > "$workdir/guids-before"
 failed=0
 for mode in start update upgrade plugin-existing plugin-fetched \
-    plugin-existing-ok plugin-fetched-ok; do
+    plugin-existing-setfail plugin-fetched-setfail plugin-existing-ok plugin-fetched-ok; do
     : > "$workdir/forbidden"; rm -f "$workdir/continued"; status=0; want=1
-    case "$mode" in *-ok) want=0 ;; esac
+    case "$mode" in *-ok) want=0 ;; *-setfail) want=42 ;; esac
     case "$mode" in plugin-fetched*)
         mv "$root/releases/$IOC_TEST_RELEASE" "$workdir/release-stash" ;;
     esac
@@ -112,6 +115,9 @@ for mode in start update upgrade plugin-existing plugin-fetched \
         ! grep -q 'safe template dataset name' "$workdir/$mode.log"; then
         echo "FAIL: native $mode hid the legacy migration rejection"
         failed=1
+    elif [ "$want" = 42 ] && \
+        ! grep -q 'fixture release write failure' "$workdir/$mode.log"; then
+        echo "FAIL: native $mode hid the release write failure"; failed=1
     elif [ "$want" = 0 ] && [ ! -s "$workdir/continued" ]; then
         echo "FAIL: native $mode skipped normal plugin completion"
         failed=1
@@ -121,6 +127,11 @@ for mode in start update upgrade plugin-existing plugin-fetched \
     else
         echo "PASS: native $mode preserves status and migration phase boundaries"
     fi
+    case "$mode" in plugin-fetched|plugin-fetched-setfail)
+        grep -q '^  ERROR:' "$workdir/$mode.log" || {
+            echo "FAIL: native $mode wrote diagnostics on the spinner line"; failed=1;
+        } ;;
+    esac
     case "$mode" in plugin-fetched*)
         [ -s "$workdir/spinner-pids" ] || {
             echo "FAIL: native $mode did not exercise the release-fetch spinner"

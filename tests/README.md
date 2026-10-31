@@ -6,6 +6,7 @@ Run the portable regression tests from the repository root:
 sh tests/clone-snapshot.sh
 sh tests/rollback.sh
 sh tests/pkg-install.sh
+sh tests/plugin-release.sh
 sh tests/create-pkg.sh
 sh tests/template-toggle.sh
 sh tests/send-safety.sh
@@ -93,6 +94,13 @@ an actual OS upgrade or plugin installation. Git must be installed for plugin
 caller fixtures. Failed start/update/upgrade and both plugin release paths
 must stop at the same rejection without changing config, canaries or GUIDs.
 Plugin success controls and release-fetch spinner cleanup are also checked.
+
+`plugin-release.sh` and authorized `plugin-release-zfs.sh` exercise failed-fetch
+cleanup. Only a mounted, empty release parent/root pair can be removed, using
+nonrecursive dataset destroys. Snapshots, additional datasets, parent data and
+unmounted roots cause refusal without removing protected state. Plugin caller
+tests also inject release-property failures and check that spinner diagnostics
+start on their own line after the spinner is stopped.
 
 ## rc boot and shutdown selection
 

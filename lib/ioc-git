@@ -1,9 +1,45 @@
 #!/bin/sh
 
+# Remove only the mounted, empty parent/root pair of a failed plugin fetch.
+# Nonrecursive destroys retain native protection against new children/snapshots.
+__remove_empty_plugin_release () {
+    local _release _dataset _path _target _mountpoint _mounted _entries _entry _count
+    _release="$1"
+    case "${_release}" in
+        ''|.|..|*[!A-Za-z0-9_.-]*) __error 'invalid plugin release name'; return 1 ;;
+    esac
+    _dataset="${pool}/iocell/releases/${_release}"
+    _path="${iocroot}/releases/${_release}"
+    for _target in "${_dataset}" "${_dataset}/root" ; do
+        _mountpoint=$(zfs get -H -o value mountpoint "${_target}") || return $?
+        _mounted=$(zfs get -H -o value mounted "${_target}") || return $?
+        if [ "${_mountpoint}" != "${iocroot}/${_target#${pool}/iocell/}" ] ||
+            [ "${_mounted}" != yes ] ; then
+            __error 'plugin release is not mounted at its expected path'; return 1
+        fi
+    done
+    _entries=$(ls -A "${_path}/root") || return $?
+    [ -z "${_entries}" ] || { __error 'plugin release root is not empty'; return 1; }
+    _entries=$(ls -A "${_path}") || return $?
+    [ "${_entries}" = root ] || { __error 'plugin release parent is not empty'; return 1; }
+    _entries=$(zfs list -rH -t filesystem,volume,snapshot -o name "${_dataset}") \
+        || return $?
+    _count=0
+    for _entry in ${_entries} ; do
+        case "${_entry}" in
+            "${_dataset}"|"${_dataset}/root") _count=$((_count + 1)) ;;
+            *) __error 'plugin release has snapshots or other descendants'; return 1 ;;
+        esac
+    done
+    [ "${_count}" = 2 ] || return 1
+    zfs destroy "${_dataset}/root" || return $?
+    zfs destroy "${_dataset}"
+}
+
 __fetch_plugin () {
     local _gitlocation _jail_path _prop _pname _repocheck _host_version \
           _branch_version _branch_list _branch_rel _release _dataset \
-          _spinner_pid _status
+          _spinner_pid _errors
 
     _gitlocation="$(__get_default_prop gitlocation)"
     _plugin="$(echo $1 | awk 'BEGIN { FS = "/" } ; { print $2 }')"
@@ -52,7 +88,7 @@ __fetch_plugin () {
     # does not exist yet.
     if [ -d "${iocroot}/releases/${_release}" ] ; then
         if [ -z "$(ls -A ${iocroot}/releases/${_release}/root)" ] ; then
-            zfs destroy "${iocroot}/releases/${_release}"
+            __remove_empty_plugin_release "${_release}" || return $?
         fi
     fi
 
@@ -135,7 +171,7 @@ __fetch_plugin () {
         if [ "${_branch_rel}" != "${_release}" ] ; then
             if [ -d "${iocroot}/releases/${_branch_rel}" ] ; then
                 if [ -z "$(ls -A ${iocroot}/releases/${_branch_rel}/root)" ] ; then
-                    zfs destroy "${iocroot}/releases/${_branch_rel}"
+                    __remove_empty_plugin_release "${_branch_rel}" || return $?
                 fi
             fi
 
@@ -143,6 +179,18 @@ __fetch_plugin () {
                 export iocset_release="${_branch_rel}"
                 # Isolate the spinner trap, including backends that exit.
                 (
+                    _errors=$(mktemp /tmp/iocell-plugin.XXXXXX) || exit $?
+                    __plugin_fetch_finish () {
+                        local _status _pid _file
+                        _status="$1"; _pid="$2"; _file="$3"
+                        kill "${_pid}" 2>/dev/null || :
+                        wait "${_pid}" 2>/dev/null || :
+                        if [ "${_status}" = 0 ]; then printf '\b%1s\n' 'done!'
+                        else printf '\b%1s\n' 'failed!'; fi
+                        cat "${_file}" >&2
+                        rm -f "${_file}"
+                        exit "${_status}"
+                    }
                     _spinner='/-\|'
                     printf "  INFO: different RELEASE specified than host\n"
                     printf "  INFO: fetching RELEASE ${_branch_rel}:  "
@@ -152,23 +200,20 @@ __fetch_plugin () {
                         sleep .1
                     done &
                     _spinner_pid=$!
-                    trap "kill ${_spinner_pid} 2>/dev/null || :
-                        wait ${_spinner_pid} 2>/dev/null || :" EXIT
+                    trap "__plugin_fetch_finish \$? ${_spinner_pid} '${_errors}'" EXIT
                     trap 'exit 129' HUP
                     trap 'exit 130' INT
                     trap 'exit 143' TERM
-                    __fetch_release > /dev/null 2>&1 &&
-                        __set_jail_prop release="${_branch_rel}" "${uuid}" \
-                            "${_dataset}" &&
-                        __check_basejail "${uuid}" "${_dataset}" > /dev/null || {
-                            _status=$?
-                            printf "\b%1s\n" "failed!"
-                            exit "${_status}"
-                        }
-                    printf "\b%1s\n" "done!"
+                    {
+                        __fetch_release > /dev/null &&
+                            __set_jail_prop release="${_branch_rel}" "${uuid}" \
+                                "${_dataset}" &&
+                            __check_basejail "${uuid}" "${_dataset}" > /dev/null
+                    } 2> "${_errors}" || exit $?
                 ) || return $?
             else
-                __set_jail_prop release="${_branch_rel}" "${uuid}" "${_dataset}"
+                __set_jail_prop release="${_branch_rel}" "${uuid}" "${_dataset}" \
+                    || return $?
                 __check_basejail "${uuid}" "${_dataset}" > /dev/null || return $?
             fi
         fi
