@@ -125,7 +125,7 @@ __configure_jail () {
             if [ "$1" != "generate" ] ; then
                 _mountpoint="$(__get_jail_prop mountpoint ${_fulluuid} \
                     ${_dataset})"
-                echo "** ${prop_name}=${_value}"
+                echo "** ${_prop_name}=${_value}"
                 __ucl_set "${_mountpoint}" "${_prop_name}" "${_value}" || return $?
                 unset _value
             elif [ "$1" = "generate" ] ; then
@@ -138,7 +138,7 @@ __configure_jail () {
                 fi
 
                 if [ -z "${_dataset}" ] ; then
-                    _dataset="${pool}${_mountpoint}"
+                    _dataset="${pool}/iocell/jails/${_fulluuid}"
                 fi
 
                 __ucl_set "${_mountpoint}" "${_prop_name}" "${_value}" "1" || return $?

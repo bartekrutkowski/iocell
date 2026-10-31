@@ -12,7 +12,12 @@ notes=new-notes; owner=new-owner
 uuid=11111111-1111-1111-1111-111111111111
 pool=tank; ds="tank/iocell/jails/$uuid"
 __get_jail_prop () { [ "$1" = mountpoint ] || return 99; echo "$mp"; }
-zfs () { echo "zfs $*" >> "$trace"; return 43; }
+zfs () {
+    echo "zfs $*" >> "$trace"
+    if [ "$mode" = altroot ]; then
+        [ "$*" = "set compression=lz4 $ds" ] || return 99
+    else return 43; fi
+}
 uclcmd () {
     input=''; output=''; shift
     while [ "$#" -gt 0 ]; do
@@ -27,15 +32,21 @@ uclcmd () {
     mv "$input.fake" "$output"
 }
 failed=0
-for mode in generate-failure reset-failure native-failure success; do
-    mp="$workdir/$mode"; mkdir "$mp"; iocroot="$workdir"
+for mode in generate-failure reset-failure native-failure success altroot; do
+    mp="$workdir/$mode"; iocroot="$workdir"
+    if [ "$mode" = altroot ]; then
+        iocroot="$workdir/altroot/iocell"; mp="$iocroot/jails/$uuid"
+    fi
+    mkdir -p "$mp"
     trace="$mp/actions"; : > "$trace"; CONF_ZFS=''; want=42
     printf 'notes=old\nowner=old\n' > "$mp/config"; cp "$mp/config" "$mp/before"
     case "$mode" in native-failure) CONF_ZFS='compression quota'; compression=lz4; quota=none; want=43 ;;
-        success) want=0 ;; esac
+        success) want=0 ;;
+        altroot) CONF_ZFS=compression; compression=lz4; want=0 ;; esac
     status=0
     (
         if [ "$mode" = reset-failure ]; then __configure_jail "$uuid" "$ds"
+        elif [ "$mode" = altroot ]; then __configure_jail generate "$uuid"
         else __configure_jail generate "$uuid" "$ds" "$mp"; fi
     ) > "$mp/log" 2>&1 || status=$?
     if [ "$status" != "$want" ]; then
@@ -53,7 +64,7 @@ for mode in generate-failure reset-failure native-failure success; do
                     echo 'FAIL: config continued native writes after failure'; failed=1
                 fi
             fi ;;
-        success) grep -qx 'notes=new-notes' "$mp/config"; grep -qx 'owner=new-owner' "$mp/config" ;;
+        success|altroot) grep -qx 'notes=new-notes' "$mp/config"; grep -qx 'owner=new-owner' "$mp/config" ;;
     esac
     echo "PASS: config generation $mode"
 done

@@ -95,6 +95,12 @@ and reset helpers, including native-property errors. With native authorization,
 and clone. Neither command may publish success or create a tag alias; partial
 datasets remain inspectable. Source config/data/GUIDs and activation are checked.
 
+`create-altroot-zfs.sh` runs real create/clone backends in an owned altroot
+pool. It verifies canonical dataset selection, native compression, config UUIDs,
+relative aliases and source preservation. It selects the backend pool/root
+explicitly; the separate CLI bootstrap issue with a simultaneous `/iocell` is
+not hidden by this test.
+
 ## Migration failure boundaries
 
 `migrate-callers.sh` tests the real layout checker and start/update/upgrade
