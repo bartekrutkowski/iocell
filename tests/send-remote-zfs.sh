@@ -167,5 +167,24 @@ iocell send -c -r -h "${peer#*@}" -u "${peer%@*}" "$dst" > "$workdir/remote-clea
 [ "$(zfs get -H -o value guid "$dst/iocell@ioc-send-local-keep")" = "$local_guid" ]
 [ "$(cat "$workdir/local-shadow/marker")" = local-preserved ]
 echo 'PASS: remote clean send preserves same-named local backup snapshot/data'
+base=$(zfs list -H -d1 -t snapshot -o name -s creation "$src/iocell" | grep "^$src/iocell@ioc-send-" | tail -1)
+[ -n "$base" ] || { echo 'FAIL: remote -c deleted its common replication base'; exit 1; }
+[ "$(zfs list -H -d1 -t snapshot -o name "$src/iocell" | grep -c '@ioc-send-')" = 1 ]
+zfs list "$src/iocell@plain-inc1" >/dev/null
+[ "$(zfs get -H -o value guid "$base")" = \
+    "$(remote "zfs get -H -o value guid $dst/iocell@${base#*@}")" ]
+status=0
+iocell send -c -r -h "${peer#*@}" -u "${peer%@*}" "$dst" \
+    > "$workdir/failed-clean.log" 2>&1 || status=$?
+[ "$status" != 0 ]
+zfs list "$base" >/dev/null
+[ "$(read_remote)" = remote-clean ]
+echo 'PASS: refused clean full send retains the previous common base and receiver data'
+echo after-clean > "$mp/marker"
+zfs snapshot -r "$src/iocell@after-clean"
+iocell send -r -h "${peer#*@}" -u "${peer%@*}" -i "$base" \
+    -i "$src/iocell@after-clean" "$dst" > "$workdir/after-clean.log" 2>&1
+[ "$(read_remote)" = after-clean ]
+echo 'PASS: remote clean send retains a common GUID and permits the next incremental send'
 zpool status -x
 remote zpool status -x

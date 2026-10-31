@@ -146,7 +146,7 @@ __clean_jails () {
         fi
     fi
 
-    __clean_snapshots || return $?
+    __clean_snapshots "${pool}/iocell/jails" || return $?
     __stop_jail_all > /dev/null || return $?
     __spinner "  INFO: destroying ${pool}/iocell/jails:  " \
               "zfs destroy -rRf ${pool}/iocell/jails" || return $?
@@ -194,11 +194,10 @@ __clean_templates () {
     zfs destroy "${_flags}" "${pool}/iocell/templates"
 }
 
-__clean_snapshots () {
-    local _snapshots _snap _pool _status
-    _pool="${1:-${pool}}"
-    # Enumerating the pool also handles an empty destination without confusing
-    # a missing iocell tree with a failed snapshot query.
+__send_snapshots () {
+    local _root _snapshots _snap _pool _status
+    _root="${1:-${pool}/iocell}"; _pool="${_root%%/*}"
+    # Pool enumeration permits a fresh destination without an iocell dataset.
     _snapshots=$(zfs list -Hrt snapshot -o name "${_pool}") || {
         _status=$?
         __error "cannot enumerate send snapshots in ${_pool}"
@@ -206,11 +205,21 @@ __clean_snapshots () {
     }
     while IFS= read -r _snap ; do
         case "${_snap}" in
-            "${_pool}/iocell@ioc-send-"*|"${_pool}/iocell/"*@ioc-send-*)
-                # Each snapshot is listed explicitly: never enable -R or
-                # remove clones to make cleanup succeed.
-                zfs destroy "${_snap}" || return $? ;;
+            "${_root}@ioc-send-"*|"${_root}/"*@ioc-send-*) printf '%s\n' "${_snap}" ;;
         esac
+    done <<EOF
+${_snapshots}
+EOF
+}
+
+__clean_snapshots () {
+    local _snapshots _snap _keep
+    _keep="${2:-}"
+    _snapshots=$(__send_snapshots "${1:-${pool}/iocell}") || return $?
+    while IFS= read -r _snap ; do
+        [ -n "${_snap}" ] && [ "${_snap#*@}" != "${_keep}" ] || continue
+        # Never recurse or remove clones to make cleanup succeed.
+        zfs destroy "${_snap}" || return $?
     done <<EOF
 ${_snapshots}
 EOF
@@ -1462,12 +1471,12 @@ __send () {
         fi
     fi
 
-    # Never clean a same-named local pool on behalf of a remote destination.
-    # Remote -c still only cleans sender retention; receiver cleanup is manual.
+    # Check enumeration before allocating a snapshot, but defer deletion until
+    # success: a refused full receive must not erase the previous common base.
     if [ "${_clean}" -eq 1 ] ; then
-        __clean_snapshots || return $?
+        __send_snapshots "${_source_dataset}" >/dev/null || return $?
         if [ "${_remote}" = 0 ] ; then
-            __clean_snapshots "${_dest}" || return $?
+            __send_snapshots "${_dest}/iocell" >/dev/null || return $?
         fi
     fi
 
@@ -1512,9 +1521,9 @@ __send () {
     fi
 
     if [ "${_clean}" -eq 1 ] ; then
-        __clean_snapshots || return $?
+        __clean_snapshots "${_source_dataset}" "${_full_snapshot#*@}" || return $?
         if [ "${_remote}" = 0 ] ; then
-            __clean_snapshots "${_dest}" || return $?
+            __clean_snapshots "${_dest}/iocell" "${_full_snapshot#*@}" || return $?
         fi
     fi
 

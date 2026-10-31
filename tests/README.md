@@ -447,6 +447,8 @@ It preserves unmanaged snapshot/data GUIDs, propagates an injected enumeration
 failure without changing the namespace, and verifies native clone protection.
 Only the test's own blocker is explicitly removed to exercise successful cleanup.
 The pool/vdev and remaining fixtures are retained; activation is unchanged.
+The real jail-cleanup caller must preserve parent/release send points and a
+release snapshot's outside clone while removing the jails namespace.
 
 For real remote and buffered pipelines, prepare a second disposable FreeBSD
 host with root public-key SSH authentication and `mbuffer` installed on both
@@ -469,7 +471,9 @@ receiver parser, intermediate snapshots, and identical pool names across hosts.
 A second full receive into a snapshot-bearing destination must fail without
 changing its data/GUID or source data. Actual local/remote buffer failures must
 return 42 with the injected diagnostic and a retained recovery snapshot.
-Remote ``-c`` must preserve a same-named local backup's snapshot/data. It creates a matching local receiver
+Remote ``-c`` must preserve a same-named local backup's snapshot/data, retain
+a matching source/receiver GUID, prune older managed points, and permit the next
+incremental send. A refused clean full send must retain the previous base. It creates a matching local receiver
 pool name because the separate, pre-existing remote-pool validation bug has
 not been changed. Only the test's own receiver namespaces are reset between
 full-stream cases; existing user data and VM disks are not deleted.

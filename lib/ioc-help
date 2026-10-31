@@ -381,9 +381,10 @@ SUBCOMMANDS
     authentication. If using incremental (-i) or Incremental (-I) be sure to
     supply the flag for each snapshot.
 
-    Clean (-c) removes only reserved ioc-send-* snapshots below iocell,
-    before and after transfer. Other snapshots and dependent clones are not
-    destroyed to make cleanup succeed; cleanup failures are returned.
+    Clean (-c) removes older reserved ioc-send-* snapshots below iocell only
+    after a successful transfer, keeping the new common replication point.
+    Failed transfers retain earlier bases. Other snapshots and dependent
+    clones are not destroyed to make cleanup succeed; failures are returned.
     Local transfers clean both ends. Remote -c cleans only the sender;
     manage receiver retention separately. Do not combine clean with incrementals.
     Remote destination validation still incorrectly requires a matching local

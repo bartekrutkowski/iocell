@@ -55,7 +55,8 @@ A full receive can be refused by ZFS when the destination already has snapshots.
 Use incremental streams or a fresh destination, not an automatic destructive
 replacement. Remote sends still incorrectly require a matching local pool name.
 Remote ``-c`` cleans only sender retention; manage receiver snapshots separately.
-Cleanup removes only reserved ``ioc-send-*`` snapshots, without deleting clones.
+Cleanup removes older reserved ``ioc-send-*`` snapshots after success, keeping
+the new replication point and never deleting dependent clones.
 Failed full transfers retain and name their source snapshot for recovery.
 
 Normal snapshots cover root only; recursive snapshots include configuration and

@@ -511,9 +511,10 @@ Remote (\fB-r\fP) requires a user (\fB-u\fP), host (\fB-h\fP), and publickey
 authentication. If using incremental (\fB-i\fP) or Incremental (\fB-I\fP) be sure to
 supply the flag for each snapshot.
 .PP
-Clean (\fB-c\fP) removes only reserved ioc-\fIsend\fP-* snapshots below \fBiocell\fP,
-before and after transfer. Other snapshots and dependent clones are not
-destroyed to make cleanup succeed; cleanup failures are returned.
+Clean (\fB-c\fP) removes older reserved ioc-\fIsend\fP-* snapshots below \fBiocell\fP only
+after a successful transfer, keeping the new common replication point.
+Failed transfers retain earlier bases. Other snapshots and dependent
+clones are not destroyed to make cleanup succeed; failures are returned.
 Local transfers \fIclean\fP both ends. Remote \fB-c\fP cleans only the sender;
 manage receiver retention separately. Do not combine \fIclean\fP with incrementals.
 Remote destination validation still incorrectly requires a matching local

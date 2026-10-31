@@ -283,8 +283,9 @@ failures are errors. A failed activation retains data but may have relocated
 the source mountpoint; inspect state and explicitly reactivate the source
 before resuming operations.
 
-``-c`` removes only reserved ``ioc-send-*`` snapshots under the iocell tree,
-without deleting dependent clones. Local transfers clean both ends; remote
+After a successful transfer, ``-c`` removes older reserved ``ioc-send-*``
+snapshots under the iocell tree, keeping the new common replication point.
+Failed transfers retain earlier bases. Cleanup does not delete dependent clones. Local transfers clean both ends; remote
 transfers clean only the sender, leaving receiver retention to the operator.
 A failed full transfer reports and retains its source snapshot for recovery.
 

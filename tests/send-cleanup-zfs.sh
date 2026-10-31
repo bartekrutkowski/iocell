@@ -62,6 +62,31 @@ fi
 zfs list "$root@ioc-clone-keep" "$p/other@ioc-send-keep" >/dev/null
 [ "$(cat "$mp/marker")" = preserved ]
 echo 'PASS: native cleanup removes only owned send points and preserves user snapshots/data'
+release="$p/iocell/releases/retained/root"
+zfs create "$p/iocell/templates"
+zfs create -p "$release"
+release_mp=$(zfs get -H -o value mountpoint "$release")
+echo release-preserved > "$release_mp/marker"
+zfs snapshot "$release@ioc-send-release"
+zfs clone "$release@ioc-send-release" "$p/outside-release"
+zfs snapshot "$p/iocell@ioc-send-parent"
+release_guid=$(zfs get -H -o value guid "$release@ioc-send-release")
+parent_guid=$(zfs get -H -o value guid "$p/iocell@ioc-send-parent")
+(
+    . ./lib/ioc-globals
+    . ./lib/ioc-common
+    . ./lib/ioc-info
+    . ./lib/ioc-rc
+    . ./lib/ioc-zfs
+    pool="$p"; iocroot="$workdir/tree"; _force=1
+    __clean_jails
+) > "$workdir/clean-jails.log" 2>&1
+if zfs list "$p/iocell/jails" >/dev/null 2>&1; then exit 1; fi
+[ "$(zfs get -H -o value guid "$release@ioc-send-release")" = "$release_guid" ]
+[ "$(zfs get -H -o value guid "$p/iocell@ioc-send-parent")" = "$parent_guid" ]
+zfs list "$p/outside-release" >/dev/null
+[ "$(cat "$release_mp/marker")" = release-preserved ]
+echo 'PASS: native clean-jails preserves parent/release send points, release clone and data'
 [ "$(uclcmd get -qf "$IOC_TEST_ROOT/.default" pool)" = "$IOC_TEST_POOL" ]
 echo 'PASS: snapshot cleanup preserves original activation'
 zpool status -x

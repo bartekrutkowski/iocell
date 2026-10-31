@@ -13,6 +13,8 @@ zfs () {
             [ "$fault" != query ] || return 8
             printf '%s\n' tank/iocell@ioc-send-old \
                 tank/iocell/jails/fixture/root@ioc-send-old \
+                tank/iocell/releases/test/root@ioc-send-old \
+                tank/iocell@ioc-send-current \
                 tank/iocell@user-ioc-note tank/iocell@ioc-clone-keep \
                 tank/iocell/other@prefix-ioc-send-user \
                 tank/other@ioc-send-keep
@@ -26,23 +28,38 @@ zfs () {
             case "$last" in
                 tank/iocell@ioc-send-old) rm -f "$state/managed-root" ;;
                 tank/iocell/jails/fixture/root@ioc-send-old) rm -f "$state/managed-child" ;;
+                tank/iocell/releases/test/root@ioc-send-old) rm -f "$state/release" ;;
+                tank/iocell@ioc-send-current) rm -f "$state/current" ;;
                 *) rm -f "$state/unrelated" ;;
             esac ;;
     esac
 }
 failed=0
-for fault in none query clone; do
+for fault in none query clone jails keep; do
     state="$workdir/$fault"; mkdir "$state"
-    for file in managed-root managed-child unrelated clone; do echo preserved > "$state/$file"; done
+    for file in managed-root managed-child unrelated clone release current; do echo preserved > "$state/$file"; done
     : > "$state/trace"; status=0
-    ( __clean_snapshots ) > "$state/log" 2>&1 || status=$?
+    args=''
+    case "$fault" in jails) args=tank/iocell/jails ;; keep) args='tank/iocell ioc-send-current' ;; esac
+    ( __clean_snapshots $args ) > "$state/log" 2>&1 || status=$?
     want=0; case "$fault" in query) want=8 ;; clone) want=9 ;; esac
     if [ "$status" != "$want" ] || [ ! -e "$state/unrelated" ] || [ ! -e "$state/clone" ]; then
         echo "FAIL: send cleanup $fault lost unrelated data or masked status=$status"; failed=1; continue
     fi
     case "$fault" in
+        jails)
+            if [ -e "$state/managed-child" ] || [ ! -e "$state/managed-root" ] ||
+                [ ! -e "$state/release" ] || [ ! -e "$state/current" ]; then
+                echo 'FAIL: jail cleanup modified points outside jails'; failed=1; continue
+            fi ;;
+        keep)
+            if [ ! -e "$state/current" ] || [ -e "$state/managed-root" ] ||
+                [ -e "$state/managed-child" ] || [ -e "$state/release" ]; then
+                echo 'FAIL: cleanup lost its replication base or kept older managed points'; failed=1; continue
+            fi ;;
         none)
-            if [ -e "$state/managed-root" ] || [ -e "$state/managed-child" ]; then
+            if [ -e "$state/release" ] || [ -e "$state/current" ] ||
+                [ -e "$state/managed-root" ] || [ -e "$state/managed-child" ]; then
                 echo 'FAIL: managed snapshots were not removed'; failed=1; continue
             fi ;;
         query|clone)
