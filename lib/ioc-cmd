@@ -303,7 +303,7 @@ __parse_cmd () {
                             shift
                         fi
                         for _jdel in "$@" ; do
-                            __destroy_jail "${_jdel}"
+                            __destroy_jail "${_jdel}" || exit $?
                             unset uuid jail_zfs_dataset _fs _jail_type
                         done
                         exit

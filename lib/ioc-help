@@ -176,11 +176,14 @@ SUBCOMMANDS
     commands. Explicit creation properties take precedence; existing jails
     and configurations copied by clone/import are not rewritten.
 
-  destroy [-f] UUID|TAG
+  destroy [-f] UUID|TAG [...]
 
-    Destroy the given jail irreversibly. Without -f, confirmation is required
+    Destroy the given jails irreversibly. Without -f, confirmation is required
     and a running jail is refused. With -f, confirmation is bypassed and a
-    running jail can be stopped before destruction. Verify identity/backups.
+    running jail must stop successfully before destruction. A failed target
+    stops the remaining targets and returns an error. Nonempty host-side
+    directories left after dataset removal are retained, not recursively
+    erased. Verify identity/backups.
 
   df
 

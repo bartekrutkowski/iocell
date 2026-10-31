@@ -219,13 +219,16 @@ Historical chroot, record, package and show commands remain undispatched.
 
 .fam T
 .fi
-\fIdestroy\fP [\fB-f\fP] UUID|TAG
+\fIdestroy\fP [\fB-f\fP] UUID|TAG [\.\.\.]
 .PP
 .nf
 .fam C
-    Destroy the given jail irreversibly. Without -f, confirmation is required
+    Destroy the given jails irreversibly. Without -f, confirmation is required
     and a running jail is refused. With -f, confirmation is bypassed and a
-    running jail can be stopped before destruction. Verify identity/backups.
+    running jail must stop successfully before destruction. A failed target
+    stops the remaining targets and returns an error. Nonempty host-side
+    directories left after dataset removal are retained, not recursively
+    erased. Verify identity/backups.
 
 .fam T
 .fi

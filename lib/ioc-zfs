@@ -920,8 +920,8 @@ __destroy_jail () {
         __die "${_name} not found!"
     fi
 
-    _origin="$(zfs get -H -o value origin ${_dataset})"
-    _jail_path="$(__get_jail_prop mountpoint ${_fulluuid} ${_dataset})"
+    _origin=$(zfs get -H -o value origin "${_dataset}") || return $?
+    _jail_path=$(zfs get -H -o value mountpoint "${_dataset}") || return $?
     _state="$(__is_running ${_fulluuid})"
     _jail_type="$(__get_jail_prop type ${_fulluuid} ${_dataset})"
 
@@ -946,7 +946,7 @@ __destroy_jail () {
         fi
     else
         if [ ! -z ${_state} ] ; then
-            __stop_jail ${_fulluuid} ${_dataset}
+            __stop_jail "${_fulluuid}" "${_dataset}" || return $?
         fi
 
         __destroy_func ${_fulluuid} ${_dataset} ${_origin} ${_jail_type} ${_jail_path}
@@ -954,41 +954,38 @@ __destroy_jail () {
 }
 
 __destroy_func () {
-    local _fulluuid _dataset _origin _jail_type _base_inuse _jail_path
+    local _fulluuid _dataset _origin _base_inuse _jail_path _origins
 
-    _fulluuid="$1"
-    _dataset="$2"
-    _origin="$3"
-    _jail_type="$4"
-    _jail_path="$5"
-    _base_inuse="$(zfs get -r -H -o value origin ${pool} | \
-                 grep ${pool}/iocell/base > \
-                 /dev/null 2>&1 ; echo $?)"
+    _fulluuid="$1"; _dataset="$2"; _origin="$3"; _jail_path="$5"
+    case "${_jail_path}" in
+        ''|/) __error 'invalid destroy mountpoint'; return 1 ;;
+        /*) ;; *) __error 'invalid destroy mountpoint'; return 1 ;;
+    esac
+    # Keep the legacy unused-base cleanup, but absence is not a destroy error.
+    _origins=$(zfs get -rH -o name,value origin "${pool}") || return $?
+    _base_inuse=$(printf '%s\n' "${_origins}" | awk -F '\t' \
+        -v base="${pool}/iocell/base" '
+        $1 == base {exists=1}
+        index($2, base "@") == 1 || index($2, base "/") == 1 {used=1}
+        END {print (exists && !used) ? 1 : 0}')
 
     echo "  Destroying: ${_fulluuid}"
-
-    __unlink_tag ${_dataset}
-
-    zfs destroy -fr ${_dataset}
-
-    if [ "${_origin}" != "-" ] ; then
+    zfs destroy -fr "${_dataset}" || return $?
+    # The dataset no longer exists; use its captured native mountpoint.
+    __unlink_tag "${_dataset}" "${_jail_path}" || return $?
+    if [ "${_origin}" != '-' ] ; then
         echo "  Destroying clone origin: ${_origin}"
-        zfs destroy -r ${_origin}
-
-        if [ -d "${_jail_path}" ] ; then
-            rm -rf ${_jail_path}
-        fi
+        zfs destroy -r "${_origin}" || return $?
     fi
-
-    if [ ${_jail_type} = "basejail" ] ; then
-        if [ -d "${_jail_path}" ] ; then
-            rm -rf ${_jail_path}
-        fi
+    if [ -d "${_jail_path}" ]; then
+        rmdir "${_jail_path}" || {
+            __error "leftover directory retained: ${_jail_path}"; return 1;
+        }
     fi
-
-    if [ "${_base_inuse}" = "1" ] ; then
-        zfs destroy -fr ${pool}/iocell/base > /dev/null 2>&1
+    if [ "${_base_inuse}" = 1 ] ; then
+        zfs destroy -fr "${pool}/iocell/base" || return $?
     fi
+    return 0
 }
 
 # check if our datasets exist, if not create them

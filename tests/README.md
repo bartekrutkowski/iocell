@@ -25,6 +25,7 @@ sh tests/migrate-safety.sh
 sh tests/migrate-callers.sh
 sh tests/tag-links.sh
 sh tests/destroy-guard-safety.sh
+sh tests/destroy-status.sh
 sh tests/import.sh
 sh tests/defaults.sh
 sh tests/cli-args.sh
@@ -76,6 +77,15 @@ a diagnostic and stop before fixtures or host configuration are changed.
 
 Scratch pool names use UUIDs rather than PIDs. Native tests retain their logs,
 file vdevs and fixtures; their printed paths identify what they leave behind.
+
+## Destroy failure boundaries
+
+`destroy-status.sh` checks returned/exiting dispatcher failures and the real
+backend's query/ZFS error boundaries. Failure must stop later targets and retain
+aliases and data; leftover host-side files are not recursively erased.
+Authorized `destroy-status-zfs.sh` verifies these boundaries with real kernel
+jails, datasets, config bytes, aliases and canaries. A successful deletion must
+also return zero when no legacy base dataset exists.
 
 ## Configuration generation failures
 
