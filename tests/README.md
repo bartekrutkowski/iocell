@@ -18,6 +18,7 @@ sh tests/bulk-jails.sh
 sh tests/rc-jails.sh
 sh tests/template-forward-safety.sh
 sh tests/clean-template-safety.sh
+sh tests/clean-dispatch.sh
 sh tests/dependent-clones.sh
 sh tests/migrate-safety.sh
 sh tests/migrate-callers.sh
@@ -113,6 +114,10 @@ an owned scratch pool with real ZFS/UCL metadata and minimal kernel persist
 jails. It exercises rc selection and kernel creation/removal, not full jail
 userland startup. Config bytes, canaries, dataset GUIDs and activation must
 remain unchanged. Only that test's jails are stopped; pool and logs are retained.
+
+`clean-dispatch.sh` keeps validation, dispatch and cleanup scanning real.
+Separate and clustered cleanup flags retain order and the shared force setting;
+empty/force-only calls fail, and handler errors stop subsequent cleanup modes.
 
 ## CLI syntax and native entrypoint tests
 

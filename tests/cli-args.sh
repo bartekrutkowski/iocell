@@ -77,6 +77,10 @@ valid () {
         echo "PASS: CLI preserves $label"
     fi
 }
+valid all-clean-flags '__clean
+-j
+-t
+-f' clean -j -t -f
 valid forced-start '__start_jail
 example' start -f example
 valid multi-start '__start_jail
@@ -139,7 +143,6 @@ accept version --version
 accept active-pool-query activate
 accept force-clean clean -tf
 accept combined-clean clean -rj
-accept clean-no-selection clean
 accept list-templates list -t
 accept list-releases list -r
 accept list-warden list --warden

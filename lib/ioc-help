@@ -106,7 +106,11 @@ SUBCOMMANDS
 
     Reapply resource limits on jail while it is running.
 
-  clean [-f] [-a|-r|-j|-t]
+  clean [-f] (-a|-r|-j|-t) [...]
+
+    At least one cleanup mode is required. Modes may be combined; -f applies
+    to all selected modes regardless of its position. Invalid syntax is rejected
+    before cleanup, and a failed mode stops the remaining modes.
 
     This removes the ZFS datasets associated with the flag called. The -a flag
     will destroy everything associated with iocell. The -r flag will destroy

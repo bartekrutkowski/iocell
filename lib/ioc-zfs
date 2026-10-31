@@ -61,47 +61,28 @@ __activate () {
 }
 
 __clean () {
-    local _answer _force _opt
-
-    _force=0
-
-    # Check for any combination of a clean argument + force
+    local _force _opt _actions OPTIND OPTARG
+    _force=0; _actions=''; OPTIND=1
+    # Remember only validated action letters; force may follow any action.
     while getopts :arjtf _opt "$@" ; do
         case "${_opt}" in
-            f)
-                _force=1
-            ;;
+            f) _force=1 ;;
+            a|r|j|t) _actions="${_actions} ${_opt}" ;;
+            *) __error 'invalid clean option'; return 1 ;;
         esac
     done
-
-    # Reset so we can check again
-    OPTIND=1
-
-    # Repeat same thing, this time looking for only clean arguments as force
-    # will be set properly by now.
-    while getopts :arjtf _opt "$@" ; do
-        case "${_opt}" in
-            f) # Needed to avoid not a switch below
-            ;;
-            a)
-                __clean_all
-            ;;
-            r)
-                __clean_releases
-            ;;
-            j)
-                __clean_jails
-            ;;
-            t)
-                __clean_templates || return $?
-            ;;
-            ?)
-                __die "-${OPTARG} is not a valid switch!"
-        esac
-    done
-
-    # Cleanup
     shift $((OPTIND - 1))
+    if [ "$#" -ne 0 ] || [ -z "${_actions}" ]; then
+        __error 'clean requires at least one cleanup action'; return 1
+    fi
+    for _opt in ${_actions} ; do
+        case "${_opt}" in
+            a) __clean_all || return $? ;;
+            r) __clean_releases || return $? ;;
+            j) __clean_jails || return $? ;;
+            t) __clean_templates || return $? ;;
+        esac
+    done
 }
 
 __clean_all () {

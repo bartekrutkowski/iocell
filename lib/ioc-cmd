@@ -150,6 +150,7 @@ __validate_cmd () {
             while getopts "${_props}" _opt "$@" ; do
                 case "${_opt}" in
                     \?|:) __cli_args_error "${_cmd}"; return 1 ;;
+                    a|r|j|t) _targets=clean ;;
                     u|U)
                         if [ -n "${_targets}" ] &&
                             [ "${_targets}" != "${_opt}" ] ; then
@@ -163,6 +164,7 @@ __validate_cmd () {
             shift $((OPTIND - 1))
             if [ "${_cmd}" = clean ] ; then
                 __cli_arity 0 0 "${_cmd}" "$@" || return $?
+                [ "${_targets}" = clean ] || { __cli_args_error clean; return 1; }
             else
                 # Remaining arguments belong to jexec, not the iocell parser.
                 __cli_targets "${1:-}" || return $?
@@ -222,7 +224,8 @@ __parse_cmd () {
             cap)        __rctl_limits "$2"
                         exit
                 ;;
-            clean)      __clean "$2" "$3"
+            clean)      shift
+                        __clean "$@"
                         exit
                 ;;
             clone)      __export_props "$@"

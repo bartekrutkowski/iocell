@@ -41,6 +41,8 @@ cli_invalid_cases () {
     reject create-late-option create -e tag=guard -z
     reject create-bare-argument create -e not-a-property
     reject create-unknown-property create -e unknown_property=value
+    reject clean-no-selection clean
+    reject clean-force-only clean -f
     reject clean-option clean -z
     reject clean-late-option clean -a -z
     reject clean-extra clean -t ignored
