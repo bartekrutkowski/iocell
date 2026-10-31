@@ -123,7 +123,7 @@ __update () {
                     fi
 
                     # Re-clone required filesystems
-                    __check_basejail "${_fulluuid}" "${_dataset}"
+                    __check_basejail "${_fulluuid}" "${_dataset}" || return $?
                     __umount_basejail "${_fulluuid}" "${_dataset}"
                     echo "* ${_name} updated successfully"
                     ;;
@@ -251,7 +251,7 @@ __upgrade () {
         done
 
         __set_jail_prop release="${_release}" "${_fulluuid}" "${_dataset}"
-        __check_basejail ${_fulluuid} > /dev/null 2>&1
+        __check_basejail "${_fulluuid}" "${_dataset}" > /dev/null || return $?
         cp -Rp ${_mountpoint}/root/etc \
                ${_mountpoint}/etc.old
         zfs snapshot ${_dataset}/root@ioc-upgrade_${_date}
@@ -285,7 +285,7 @@ __upgrade () {
             rm -rf ${_mountpoint}/root/etc
             mv ${_mountpoint}/etc.old \
                ${_mountpoint}/root/etc
-            __check_basejail "${_fulluuid}"
+            __check_basejail "${_fulluuid}" "${_dataset}" || return $?
             __umount_basejail "${_fulluuid}" "${_dataset}"
             exit 1
         fi

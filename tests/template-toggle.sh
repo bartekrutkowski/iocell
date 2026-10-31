@@ -57,6 +57,9 @@ __link_tag () {
 
 __check_basejail () {
     printf 'check %s %s\n' "$1" "$2" >> "${trace}"
+    [ "${check_failure:-no}" != yes ] || {
+        echo 'injected basejail migration failure' >&2; return 42;
+    }
 }
 
 __umount_basejail () {
@@ -120,7 +123,7 @@ run_case () {
     rename_failure=no
     query_failure=no
     origin_failure=no
-    type_failure=no; link_failure=no; source_mode=template
+    type_failure=no; link_failure=no; check_failure=no; source_mode=template
     source_dataset="${pool}/iocell/templates/${tag}"
 
     case "${_label}" in
@@ -137,6 +140,7 @@ run_case () {
         origin-failure) origin_failure=yes ;;
         type-failure) type_failure=yes; data_mode=on ;;
         link-failure) link_failure=yes; data_mode=on ;;
+        check-failure) check_failure=yes ;;
         base-tag-collision)
             source_mode=jail; data_mode=on
             source_dataset="${target_dataset}"
@@ -172,6 +176,12 @@ run_case () {
         [ ! -d "${iocroot}/templates/${tag}" ] || return 1
         ! grep -q ' istemplate no' "${writes}" || return 1
         ! grep -Eq '^(check|umount) ' "${trace}" || return 1
+    elif [ "${_label}" = check-failure ] ; then
+        [ -d "${iocroot}/jails/${original_uuid}" ] || return 1
+        ! grep -q ' istemplate no' "${writes}" || return 1
+        ! grep -q '^umount ' "${trace}" || return 1
+        grep -q 'injected basejail migration failure' \
+            "${workdir}/${_label}.log" || return 1
     elif [ "${_label}" = base-tag-collision ] ; then
         [ -d "${iocroot}/templates/${tag}" ] || return 1
         [ -d "${iocroot}/jails/${original_uuid}" ] || return 1
@@ -214,6 +224,7 @@ run_case origin-failure 8 || failed=1
 run_case type-failure 6 || { echo 'FAIL: post-rename type failure was ignored'; failed=1; }
 run_case link-failure 6 || { echo 'FAIL: post-rename alias failure was ignored'; failed=1; }
 run_case base-tag-collision 1 || failed=1
+run_case check-failure 42 || { echo 'FAIL: reverse conversion hid migration failure'; failed=1; }
 
 # The CLI must not mask a failed conversion or apply later properties/jails.
 source_dataset="${pool}/iocell/templates/${tag}"

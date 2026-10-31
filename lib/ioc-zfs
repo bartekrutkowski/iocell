@@ -450,7 +450,7 @@ __check_basejail () {
 
     # If the length is over this, it's an old-style basejail
     if [ "${_old_base_check}" -gt "15" ] ; then
-        __migrate_basejail "${_fulluuid}" "${_jail_release}"
+        __migrate_basejail "${_fulluuid}" "${_jail_release}" || return $?
         # We will have a stale entry here.
         _template=$(__get_jail_prop template "${_fulluuid}" "${_dataset}")
     fi

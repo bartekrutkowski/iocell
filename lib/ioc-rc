@@ -134,7 +134,7 @@ __start_jail () {
 
     if [ "${_jail_type}" = "basejail" ] ; then
         # Check the required filesystems
-        __check_basejail "${_fulluuid}" "${_dataset}"
+        __check_basejail "${_fulluuid}" "${_dataset}" || return $?
     fi
 
     if [ "${_jail_type}" = "clonejail" ] ; then

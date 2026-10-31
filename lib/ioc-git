@@ -2,7 +2,8 @@
 
 __fetch_plugin () {
     local _gitlocation _jail_path _prop _pname _repocheck _host_version \
-          _branch_version _branch_list _branch_rel _release _dataset
+          _branch_version _branch_list _branch_rel _release _dataset \
+          _spinner_pid _status
 
     _gitlocation="$(__get_default_prop gitlocation)"
     _plugin="$(echo $1 | awk 'BEGIN { FS = "/" } ; { print $2 }')"
@@ -140,27 +141,35 @@ __fetch_plugin () {
 
             if [ ! -d "${iocroot}/releases/${_branch_rel}" ] ; then
                 export iocset_release="${_branch_rel}"
-                # __spinner needs to be recreated here as we redirect
-                # with __fetch
-                _spinner='/-\|'
-                printf "  INFO: different RELEASE specified than host\n"
-                printf "  INFO: fetching RELEASE ${_branch_rel}:  "
-
-                while true; do
-                    printf '\b%.1s' "${_spinner}"
-                    _spinner=${_spinner#?}${_spinner%???}
-                    sleep .1
+                # Isolate the spinner trap, including backends that exit.
+                (
+                    _spinner='/-\|'
+                    printf "  INFO: different RELEASE specified than host\n"
+                    printf "  INFO: fetching RELEASE ${_branch_rel}:  "
+                    while true; do
+                        printf '\b%.1s' "${_spinner}"
+                        _spinner=${_spinner#?}${_spinner%???}
+                        sleep .1
                     done &
-
-                    trap "kill $!" 2 3
-                    __fetch_release > /dev/null 2>&1
-                    __set_jail_prop release="${_branch_rel}" "${uuid}" \
-                        "${_dataset}"
-                    __check_basejail ${uuid} ${_dataset} > /dev/null 2>&1
-                    printf "\b%1s\n" "done!" ; kill $! && trap " " 2 3
+                    _spinner_pid=$!
+                    trap "kill ${_spinner_pid} 2>/dev/null || :
+                        wait ${_spinner_pid} 2>/dev/null || :" EXIT
+                    trap 'exit 129' HUP
+                    trap 'exit 130' INT
+                    trap 'exit 143' TERM
+                    __fetch_release > /dev/null 2>&1 &&
+                        __set_jail_prop release="${_branch_rel}" "${uuid}" \
+                            "${_dataset}" &&
+                        __check_basejail "${uuid}" "${_dataset}" > /dev/null || {
+                            _status=$?
+                            printf "\b%1s\n" "failed!"
+                            exit "${_status}"
+                        }
+                    printf "\b%1s\n" "done!"
+                ) || return $?
             else
                 __set_jail_prop release="${_branch_rel}" "${uuid}" "${_dataset}"
-                __check_basejail ${uuid} ${_dataset} > /dev/null 2>&1
+                __check_basejail "${uuid}" "${_dataset}" > /dev/null || return $?
             fi
         fi
     else

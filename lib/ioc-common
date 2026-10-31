@@ -374,7 +374,7 @@ __set_jail_prop () {
                     || return $?
                 __link_tag "${_dataset}" "${_template_tag}" || return $?
                 __check_basejail "${_newuuid}" "${_dataset}" \
-                    > /dev/null 2>&1
+                    > /dev/null || return $?
                 __umount_basejail "${_newuuid}" "${_dataset}" \
                     > /dev/null 2>&1
             fi

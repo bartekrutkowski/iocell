@@ -19,6 +19,7 @@ sh tests/template-forward-safety.sh
 sh tests/clean-template-safety.sh
 sh tests/dependent-clones.sh
 sh tests/migrate-safety.sh
+sh tests/migrate-callers.sh
 sh tests/tag-links.sh
 sh tests/destroy-guard-safety.sh
 sh tests/import.sh
@@ -72,6 +73,26 @@ a diagnostic and stop before fixtures or host configuration are changed.
 
 Scratch pool names use UUIDs rather than PIDs. Native tests retain their logs,
 file vdevs and fixtures; their printed paths identify what they leave behind.
+
+## Migration failure boundaries
+
+`migrate-callers.sh` tests the real layout checker and start/update/upgrade
+callers. Returned and exiting failures must preserve their status and stop
+later work, including upgrade backout. `template-toggle.sh` also checks that
+reverse conversion does not finalize its flag after a failed layout check.
+
+With native authorization set, run:
+
+```sh
+IOC_TEST_RELEASE=15.1-RELEASE sh tests/migrate-callers-zfs.sh
+```
+
+This uses real ZFS legacy-layout fixtures, UCL and the migration preflight.
+OS update, Git/network and kernel-operation boundaries are inert; this is not
+an actual OS upgrade or plugin installation. Git must be installed for plugin
+caller fixtures. Failed start/update/upgrade and both plugin release paths
+must stop at the same rejection without changing config, canaries or GUIDs.
+Plugin success controls and release-fetch spinner cleanup are also checked.
 
 ## rc boot and shutdown selection
 
