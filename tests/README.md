@@ -4,6 +4,7 @@ Run the portable regression tests from the repository root:
 
 ```sh
 sh tests/clone-snapshot.sh
+sh tests/configure-failures.sh
 sh tests/rollback.sh
 sh tests/pkg-install.sh
 sh tests/plugin-release.sh
@@ -75,6 +76,14 @@ a diagnostic and stop before fixtures or host configuration are changed.
 
 Scratch pool names use UUIDs rather than PIDs. Native tests retain their logs,
 file vdevs and fixtures; their printed paths identify what they leave behind.
+
+## Configuration generation failures
+
+`configure-failures.sh` checks first-error propagation through real generation
+and reset helpers, including native-property errors. With native authorization,
+`configure-failures-zfs.sh` injects a real UCL write failure through CLI create
+and clone. Neither command may publish success or create a tag alias; partial
+datasets remain inspectable. Source config/data/GUIDs and activation are checked.
 
 ## Migration failure boundaries
 

@@ -637,7 +637,7 @@ __create_jail () {
     touch "${iocroot}/jails/${uuid}/config"
     # Work around the different UUID for jail datasets at creation.
     export jail_zfs_dataset="iocell/jails/${uuid}/data"
-    _zfsconfig="$(__configure_jail generate ${uuid})"
+    _zfsconfig="$(__configure_jail generate "${uuid}")" || return $?
     _configured="1"
 
     touch ${iocroot}/jails/${uuid}/fstab

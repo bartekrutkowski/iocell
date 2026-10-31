@@ -126,7 +126,7 @@ __configure_jail () {
                 _mountpoint="$(__get_jail_prop mountpoint ${_fulluuid} \
                     ${_dataset})"
                 echo "** ${prop_name}=${_value}"
-                __ucl_set "${_mountpoint}" "${_prop_name}" "${_value}"
+                __ucl_set "${_mountpoint}" "${_prop_name}" "${_value}" || return $?
                 unset _value
             elif [ "$1" = "generate" ] ; then
                 _fulluuid="$2"
@@ -141,7 +141,7 @@ __configure_jail () {
                     _dataset="${pool}${_mountpoint}"
                 fi
 
-                __ucl_set "${_mountpoint}" "${_prop_name}" "${_value}" "1"
+                __ucl_set "${_mountpoint}" "${_prop_name}" "${_value}" "1" || return $?
             fi
         fi
     done
@@ -152,7 +152,7 @@ __configure_jail () {
 
         if [ ! -z "${_prop}" ] && [ "${_prop}" != "readonly" ] ; then
             _value="${_prop}"
-            zfs set ${_prop_name}="${_value}" ${_dataset}
+            zfs set "${_prop_name}=${_value}" "${_dataset}" || return $?
         fi
 
     done
