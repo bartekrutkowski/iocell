@@ -79,7 +79,7 @@ aliases () {
         for path; do printf "%s=%s\n" "$path" "$(readlink "$path")"; done
     ' sh {} + | sort
 }
-mkdir "$workdir/writer-bin" "$workdir/link-bin" "$workdir/move-bin"
+mkdir "$workdir/writer-bin" "$workdir/link-bin" "$workdir/move-bin" "$workdir/signal-bin"
 cat > "$workdir/writer-bin/uclcmd" <<'WRAPPER'
 #!/bin/sh
 operation=$1; previous=''
@@ -108,21 +108,39 @@ if [ "$target" = "$IOC_TAG_CONFIG" ] && [ ! -e "$IOC_TAG_MOVED" ]; then
 fi
 exec /bin/mv "$@"
 WRAPPER
-chmod +x "$workdir/writer-bin/uclcmd" "$workdir/link-bin/ln" "$workdir/move-bin/mv"
-for fault in writer link source-writer collision-source-writer after-write new-link; do
-    status=0; bin="$fault"; config="$newmp/config"; requested=shared; newlink=no
+cat > "$workdir/signal-bin/uclcmd" <<'WRAPPER'
+#!/bin/sh
+previous=''
+for arg; do
+    if [ "$1" = set ] && [ "$previous" = -f ] && [ "$arg" = "$IOC_TAG_CONFIG" ]; then
+        echo 'injected tag-update interruption' >&2
+        kill -TERM "$PPID"
+        exit 42
+    fi
+    previous=$arg
+done
+exec /usr/local/bin/uclcmd "$@"
+WRAPPER
+chmod +x "$workdir/writer-bin/uclcmd" "$workdir/link-bin/ln" \
+    "$workdir/move-bin/mv" "$workdir/signal-bin/uclcmd"
+for fault in writer link source-writer collision-source-writer after-write new-link signal dangling; do
+    status=0; want=42; bin="$fault"; config="$newmp/config"; requested=shared; newlink=no
     case "$fault" in
         source-writer) bin=writer; config="$candidate_mp/config"; requested=unused-tag ;;
         collision-source-writer) bin=writer; config="$candidate_mp/config" ;;
         after-write) bin=move; config="$candidate_mp/config" ;;
         new-link) bin=link; requested=unused-link; newlink=yes ;;
+        signal) config="$candidate_mp/config"; want=143 ;;
+        dangling)
+            bin=writer; config="$candidate_mp/config"; requested=stale-fault
+            ln -s ../missing "$root/tags/$requested" ;;
     esac
     aliases > "$workdir/$fault.aliases-before"
     env PATH="$workdir/$bin-bin:$PATH" IOC_TAG_CONFIG="$config" \
         IOC_TAG_MOVED="$workdir/$fault.injected" IOC_TAG_NEWLINK_FAULT="$newlink" IOC_TAG_POOL="$p" IOC_TAG_ROOT="$root" \
         sh "$workdir/set.sh" "tag=$requested" "$candidate" \
         > "$workdir/$fault.log" 2>&1 || status=$?
-    [ "$status" = 42 ]
+    [ "$status" = "$want" ]
     grep -q injected "$workdir/$fault.log"
     cmp "$newmp/config" "$workdir/owner-before"
     cmp "$candidate_mp/config" "$workdir/candidate-before"
@@ -161,6 +179,11 @@ cmp "$workdir/unmanaged.before" "$workdir/unmanaged/config"
 cmp "$candidate_mp/config" "$workdir/candidate-before"
 [ "$(readlink "$root/tags/another-candidate")" = "$linkbase/$candidate" ]
 echo 'PASS: native foreign alias rejection preserves both configurations and source alias'
+ln -s ../missing "$root/tags/stale"
+backend_set stale "$candidate"
+[ "$(readlink "$root/tags/stale")" = "$linkbase/$candidate" ]
+[ "$(uclcmd get -qf "$candidate_mp/config" tag)" = stale ]
+echo 'PASS: native tag assignment replaces a dangling alias'
 backend_set another-candidate "$candidate"
 [ "$(readlink "$root/tags/another-candidate")" = "$linkbase/$candidate" ]
 backend_set 'new[1]*?' "$candidate"

@@ -383,12 +383,13 @@ errors, foreign-target rejection and unchanged original defaults. A preexisting
 source alias must survive rejection or a failed link/config write. Old source
 aliases are removed only after the replacement link and config write succeed;
 the new alias is retained even when its name contains literal glob characters.
-Returned link/write failures restore both active configurations and the alias
-namespace, including a fault after the source config has been replaced. Another
-jail must still be able to reassign the tag afterward. Literal mountpoint and
-tag characters are covered. A rollback I/O failure must report and retain its
-recovery backups rather than discard them. This is not concurrent-writer or
-crash atomicity. The altroot mode does not validate the separate CLI bootstrap
+Returned link/write failures and interrupted updates restore both active configs
+and the alias namespace, including a fault after source config replacement.
+The helper reuses the normal config.old backup and one exit handler; there are
+no per-tag work directories. Tests cover reassignment afterward, replacement of
+dangling aliases, and literal mountpoint/tag characters. A failed rollback must
+report its recovery location and retain its config.old backup. Concurrent-writer
+and crash atomicity are not provided. The altroot mode does not validate the separate CLI bootstrap
 path while `/iocell` already exists. Fixtures and logs are retained.
 
 ## Real template round-trip integration test

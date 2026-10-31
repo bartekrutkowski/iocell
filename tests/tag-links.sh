@@ -31,13 +31,14 @@ uclcmd () {
     done
     if [ "$operation" = get ]; then awk -F= '$1=="tag" {print $2}' "$input"; return; fi
     [ "$fault" != writer ] || return 6
-    if [ "$fault" = source-writer ] || [ "$fault" = rollback ]; then
+    if [ "$fault" = source-writer ]; then
         [ "$input" != "$new/config" ] || return 6
     fi
     [ -n "$output" ] || output="$input"
     printf 'tag=%s\n' "$2" > "$output"
 }
 ln () {
+    [ "$fault" != rollback ] || [ "$1" != -sfn ] || return 6
     [ "$fault" != link ] || [ "$1" != -sfn ] || return 7
     [ "$fault" != new-link ] || [ "$1" != -s ] || return 7
     command ln "$@"
@@ -61,7 +62,7 @@ mv () {
 }
 failed=0
 for label in absolute relative path-glob relative-glob collision same literal writer source-writer \
-    collision-source-writer same-writer after-write link new-link foreign broken file bad-mount; do
+    collision-source-writer same-writer after-write link new-link foreign broken broken-writer file bad-mount; do
     iocroot="$workdir/$label/iocell"; altroot=-; fault=none; requested=shared
     case "$label" in *-glob) iocroot="$workdir/$label[ab]/iocell" ;; esac
     old="$iocroot/jails/$oldid"; new="$iocroot/jails/$newid"
@@ -81,14 +82,14 @@ for label in absolute relative path-glob relative-glob collision same literal wr
         foreign)
             mkdir "$workdir/unmanaged"; echo tag=untouched > "$workdir/unmanaged/config"
             ln -s "$workdir/unmanaged" "$iocroot/tags/shared" ;;
-        broken) ln -s ../missing "$iocroot/tags/shared" ;;
+        broken|broken-writer) ln -s ../missing "$iocroot/tags/shared" ;;
         file) echo canary > "$iocroot/tags/shared" ;;
         *) ln -s "$old" "$iocroot/tags/shared" ;;
     esac
     aliases > "$workdir/$label.aliases-before"
     case "$label" in
         writer|source-writer|link|new-link) fault="$label" ;;
-        collision-source-writer|same-writer) fault=source-writer ;;
+        collision-source-writer|same-writer|broken-writer) fault=source-writer ;;
         after-write) fault=after-write ;;
         bad-mount) fault=bad-mount ;;
     esac
@@ -100,9 +101,9 @@ for label in absolute relative path-glob relative-glob collision same literal wr
         exit "$result"
     ) > "$workdir/$label.log" 2>&1 || status=$?
     case "$label" in
-        writer|source-writer|collision-source-writer|same-writer|after-write|link|new-link|foreign|broken|file|bad-mount)
+        writer|source-writer|collision-source-writer|same-writer|after-write|link|new-link|foreign|broken-writer|file|bad-mount)
             want=1
-            case "$label" in writer|source-writer|collision-source-writer|same-writer|after-write) want=6 ;;
+            case "$label" in writer|source-writer|collision-source-writer|same-writer|after-write|broken-writer) want=6 ;;
                 link|new-link) want=7 ;; esac
             if [ "$status" != "$want" ] || \
                 ! cmp -s "$new/config" "$workdir/$label.before" || \
@@ -134,7 +135,7 @@ for label in absolute relative path-glob relative-glob collision same literal wr
             if [ "$requested" != original ] && [ -L "$iocroot/tags/original" ]; then
                 echo "FAIL: tag $label retained an obsolete absolute alias"; failed=1; continue
             fi
-            case "$label" in same|literal) : ;; *)
+            case "$label" in same|literal|broken) : ;; *)
                 oldtag=$(awk -F= '{print $2}' "$old/config")
                 [ "$oldtag" != shared ] && [ -L "$iocroot/tags/$oldtag" ] && \
                     [ "$(cd "$iocroot/tags/$oldtag" && pwd -P)" = "$(cd "$old" && pwd -P)" ] || {
@@ -167,8 +168,8 @@ ln -s "$new" "$iocroot/tags/original"; ln -s "$old" "$iocroot/tags/shared"
 fault=rollback; status=0
 ( __set_jail_prop tag=shared "$newid" "tank/iocell/jails/$newid" ) \
     > "$workdir/recovery.log" 2>&1 || status=$?
-backup=$(find "$old" -name '.iocell-tag.*' -type f -print)
-if [ "$status" != 6 ] || ! grep -q 'rollback incomplete; backups retained' "$workdir/recovery.log" || \
+backup="$old/config.old"
+if [ "$status" != 6 ] || ! grep -q 'rollback incomplete' "$workdir/recovery.log" || \
     [ ! -f "$backup" ] || [ "$(cat "$backup")" != tag=shared ] || \
     [ "$(cat "$new/config")" != tag=original ] || \
     [ "$(readlink "$iocroot/tags/original")" != "$new" ]; then
