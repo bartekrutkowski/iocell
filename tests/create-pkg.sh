@@ -159,9 +159,10 @@ run_case () {
         fi
     elif [ "${_label}" = legacy-best-effort ] ; then
         # This calls only the mount helper, not package orchestration.
-        grep -q 'fixture mount failure:' "${workdir}/${_label}.log" || {
-            echo 'FAIL: legacy mount failure was not diagnosed' >&2; return 1;
-        }
+        if grep -q 'fixture mount failure:' "${workdir}/${_label}.log"; then
+            echo 'FAIL: non-strict mount emitted a native error' >&2; return 1
+        fi
+        grep -q 'mount nullfs .*usr/lib' "$trace" || return 1
     elif [ "${_want_status}" -eq 43 ] ; then
         if grep -q '^pkg$' "${trace}" ; then
             echo 'FAIL: pkg ran after a mount failure' >&2

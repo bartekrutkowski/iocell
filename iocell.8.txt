@@ -139,7 +139,8 @@ SUBCOMMANDS
 
     Execute login to open a shell inside the jail. With -f, start a stopped
     jail first; if startup fails, return the error without attempting login.
-    An already running jail is not restarted.
+    An already running jail is not restarted. A stopped template cannot be
+    started through console; convert it back to a jail first.
 
   create [-e] [release=RELEASE] [pkglist=file] [property=value] [count=value]
 

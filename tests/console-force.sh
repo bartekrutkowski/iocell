@@ -8,7 +8,8 @@ uuid=11111111-1111-1111-1111-111111111111
 __find_jail () { echo "tank/iocell/jails/$uuid"; }
 __check_name () { echo "$uuid"; }
 __get_jail_prop () {
-    case "$1" in login_flags) echo '-f root' ;; exec_fib) echo 0 ;; esac
+    case "$1" in login_flags) echo '-f root' ;; exec_fib) echo 0 ;;
+        istemplate) echo "$template" ;; esac
 }
 __is_running () { [ "$running" != yes ] || echo 1; }
 __start_jail () {
@@ -18,11 +19,13 @@ __start_jail () {
 }
 jexec () { printf 'login %s\n' "$*" >> "$trace"; }
 failed=0
-for label in forced running stopped start-failure; do
+for label in forced running stopped start-failure template running-template; do
     trace="$workdir/$label.trace"; : > "$trace"
-    running=no; _force=1; start_failure=no; want=0
+    running=no; _force=1; start_failure=no; want=0; template=no
     case "$label" in running) running=yes ;; stopped) _force=0; want=1 ;;
-        start-failure) start_failure=yes; want=42 ;; esac
+        start-failure) start_failure=yes; want=42 ;;
+        template) template=yes; want=1 ;;
+        running-template) template=yes; running=yes ;; esac
     status=0
     ( __console example-tag ) > "$workdir/$label.log" 2>&1 || status=$?
     if [ "$status" != "$want" ]; then
@@ -35,11 +38,14 @@ for label in forced running stopped start-failure; do
         echo 'FAIL: running console unnecessarily started a jail'; failed=1; continue
     fi
     case "$label" in
-        forced|running)
+        forced|running|running-template)
             grep -Fx "login ioc-$uuid login -f root" "$trace" >/dev/null || { failed=1; continue; } ;;
         *) if grep -q '^login ' "$trace"; then
             echo "FAIL: console $label attempted login"; failed=1; continue; fi ;;
     esac
+    if [ "$label" = template ] && [ -s "$trace" ]; then
+        echo 'FAIL: forced console started or logged into a stopped template'; failed=1; continue
+    fi
     echo "PASS: console $label"
 done
 exit "$failed"

@@ -193,8 +193,11 @@ IOC_TEST_POOL=YOUR_TEST_POOL IOC_TEST_RELEASE=15.1-RELEASE \
 
 The native fixture starts through the real `console -f` path. Only interactive
 login is replaced; the wrapper requires that its kernel jail actually exists.
-A second console invocation must retain the same jail ID. Cleanup stops the
-fixture and retains its datasets and logs.
+A second console invocation must retain the same jail ID. Stopped templates
+must not be started by `console -f`. Cleanup stops the fixture and retains its
+datasets and logs. `mount-diagnostics-zfs.sh` checks real nullfs errors: legacy
+best-effort mode stays quiet and continues; strict package setup reports the
+error and stops before later mounts.
 
 ## Literal property-value tests
 
