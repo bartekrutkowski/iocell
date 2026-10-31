@@ -943,23 +943,24 @@ __info () {
 
 # Takes two arguments one is which text gets displayed and the other
 # is the command
-__spinner () {
-    local _spinner
-    _spinner='/-\|'
-
-    printf "${1}"
-
+__spinner () (
+    _sp_chars='/-\|'
+    printf '%s' "$1"
     while true; do
-        printf '\b%.1s' "${_spinner}"
-        _spinner=${_spinner#?}${_spinner%???}
+        printf '\b%.1s' "${_sp_chars}"
+        _sp_chars=${_sp_chars#?}${_sp_chars%???}
         sleep .1
     done &
-
-    trap "kill $!" 2 3
-    $2
-    printf "\b%1s\n" "done!" ; kill $! && trap " " 2 3
-    return $?
-}
+    _sp_pid=$!
+    trap "kill ${_sp_pid} 2>/dev/null || :; wait ${_sp_pid} 2>/dev/null || :" EXIT
+    trap 'exit 129' HUP
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+    if $2; then _sp_status=0; else _sp_status=$?; fi
+    if [ "${_sp_status}" = 0 ]; then printf '\b%1s\n' 'done!'
+    else printf '\b%1s\n' 'failed!'; fi
+    exit "${_sp_status}"
+)
 
 # The make.conf entries needed for read-only ports in a jail
 __ports_make_conf () {

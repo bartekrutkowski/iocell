@@ -31,7 +31,9 @@ __remove_empty_plugin_release () {
             *) __error 'plugin release has snapshots or other descendants'; return 1 ;;
         esac
     done
-    [ "${_count}" = 2 ] || return 1
+    [ "${_count}" = 2 ] || {
+        __error 'plugin release layout is incomplete'; return 1;
+    }
     zfs destroy "${_dataset}/root" || return $?
     zfs destroy "${_dataset}"
 }

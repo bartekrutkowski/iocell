@@ -772,9 +772,6 @@ __restart_jail () {
 }
 
 __rc_jails () (
-    local _action _jails _boot_list _name _boot _jail_hostid _priority \
-          _boot_order _shutdown_order _jail _dataset _state
-
     _action=$1
     _jails=$(__find_jail ALL) || return $?
     _jails=$(printf '%s\n' "${_jails}" | \

@@ -16,7 +16,8 @@ zfs () {
             [ "$mode" = unmounted ] && echo no || echo yes ;;
         "list -rH -t filesystem,volume,snapshot -o name $ds")
             [ "$mode" != query ] || return 42
-            printf '%s\n' "$ds" "$ds/root"
+            printf '%s\n' "$ds"
+            [ "$mode" = incomplete ] || printf '%s\n' "$ds/root"
             case "$mode" in snapshot) echo "$ds/root@saved" ;; child) echo "$ds/other" ;; esac ;;
         "destroy $ds/root")
             echo "$*" >> "$state/actions"
@@ -27,7 +28,7 @@ zfs () {
     esac
 }
 failed=0
-for mode in empty snapshot child data parent-data unmounted query destroy-failure; do
+for mode in empty snapshot child data parent-data unmounted query destroy-failure incomplete; do
     state="$workdir/$mode"; iocroot="$state/tree"
     mkdir -p "$iocroot/releases/$release/root"; : > "$state/actions"
     case "$mode" in data) echo keep > "$iocroot/releases/$release/root/canary" ;;
@@ -37,6 +38,9 @@ for mode in empty snapshot child data parent-data unmounted query destroy-failur
     ( __remove_empty_plugin_release "$release" ) > "$state/log" 2>&1 || status=$?
     if [ "$status" != "$want" ]; then
         echo "FAIL: plugin release $mode status=$status expected=$want"; failed=1; continue
+    fi
+    if [ "$mode" = incomplete ] && [ ! -s "$state/log" ]; then
+        echo 'FAIL: incomplete plugin release layout has no diagnostic'; failed=1; continue
     fi
     if [ "$mode" = empty ]; then
         printf 'destroy %s/root\ndestroy %s\n' "$ds" "$ds" > "$state/expected"

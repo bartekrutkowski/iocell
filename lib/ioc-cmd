@@ -60,6 +60,7 @@ __cli_properties () {
 
 __validate_cmd () {
     local _cmd _arg _props _targets _repo _thick _opt OPTIND OPTARG
+    local _clean_seen _optstring
     [ "$#" -gt 0 ] || return 0
     _cmd="$1"
     shift
@@ -144,13 +145,13 @@ __validate_cmd () {
                 return 1
             fi ;;
         clean|exec)
-            OPTIND=1; _targets=''
-            if [ "${_cmd}" = clean ] ; then _props=':arjtf'
-            else _props=':u:U:'; fi
-            while getopts "${_props}" _opt "$@" ; do
+            OPTIND=1; _targets=''; _clean_seen=0
+            if [ "${_cmd}" = clean ] ; then _optstring=':arjtf'
+            else _optstring=':u:U:'; fi
+            while getopts "${_optstring}" _opt "$@" ; do
                 case "${_opt}" in
                     \?|:) __cli_args_error "${_cmd}"; return 1 ;;
-                    a|r|j|t) _targets=clean ;;
+                    a|r|j|t) _clean_seen=1 ;;
                     u|U)
                         if [ -n "${_targets}" ] &&
                             [ "${_targets}" != "${_opt}" ] ; then
@@ -164,7 +165,7 @@ __validate_cmd () {
             shift $((OPTIND - 1))
             if [ "${_cmd}" = clean ] ; then
                 __cli_arity 0 0 "${_cmd}" "$@" || return $?
-                [ "${_targets}" = clean ] || { __cli_args_error clean; return 1; }
+                [ "${_clean_seen}" = 1 ] || { __cli_args_error clean; return 1; }
             else
                 # Remaining arguments belong to jexec, not the iocell parser.
                 __cli_targets "${1:-}" || return $?

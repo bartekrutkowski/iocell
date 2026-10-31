@@ -34,10 +34,9 @@ __unlink_tag () {
 zfs () {
     echo "zfs $*" >> "$trace"
     case "$*" in
-        'get -rH -o name,value origin tank')
+        'get -rH -t filesystem,volume -o name,value origin tank')
             [ "$mode" != query ] || return 44
             printf 'tank\t-\n%s\t-\n' "$ds" ;;
-        'get -r -H -o value origin tank') echo - ;;
         "destroy -fr $ds")
             [ "$mode" != native ] || return 43
             if [ "$mode" = leftover ]; then rm "$mp/data/canary"

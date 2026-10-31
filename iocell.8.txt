@@ -105,7 +105,8 @@ SUBCOMMANDS
   clean [-f] (-a|-r|-j|-t) [...]
 
     At least one cleanup mode is required. Modes may be combined; -f applies
-    to all selected modes regardless of its position. Invalid syntax is rejected
+    to all selected modes regardless of its position. The -a mode takes
+    precedence over other modes and runs once. Invalid syntax is rejected
     before cleanup, and a failed mode stops the remaining modes.
 
     This removes the ZFS datasets associated with the flag called. The -a flag

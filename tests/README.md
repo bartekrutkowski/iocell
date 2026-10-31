@@ -143,6 +143,9 @@ remain unchanged. Only that test's jails are stopped; pool and logs are retained
 `clean-dispatch.sh` keeps validation, dispatch and cleanup scanning real.
 Separate and clustered cleanup flags retain order and the shared force setting;
 empty/force-only calls fail, and handler errors stop subsequent cleanup modes.
+`-a` subsumes other modes and runs only once. The authorized `clean-all-zfs.sh`
+checks actual combined-mode wipes and preserves data/GUIDs on stop or storage
+failure. Cleanup spinners must return the command's status and reap their child.
 
 ## CLI syntax and native entrypoint tests
 

@@ -75,6 +75,7 @@ __clean () {
     if [ "$#" -ne 0 ] || [ -z "${_actions}" ]; then
         __error 'clean requires at least one cleanup action'; return 1
     fi
+    case " ${_actions} " in *' a '*) _actions=a ;; esac
     for _opt in ${_actions} ; do
         case "${_opt}" in
             a) __clean_all || return $? ;;
@@ -100,16 +101,11 @@ __clean_all () {
         fi
     fi
 
-    __stop_jail_all > /dev/null 2>&1
-
-    if [ $? -eq 0 ] ; then
-        __spinner "  INFO: destroying ${pool}/iocell:  " \
-                  "zfs destroy -rRf ${pool}/iocell"
-        rm -rf "${iocroot}"
-        return 0
-    else
-        __die "some jails were unable to be stopped."
-    fi
+    __stop_jail_all > /dev/null || return $?
+    __spinner "  INFO: destroying ${pool}/iocell:  " \
+              "zfs destroy -rRf ${pool}/iocell" || return $?
+    [ ! -d "${iocroot}" ] || rmdir "${iocroot}" || return $?
+    return 0
 }
 
 __clean_releases () {
@@ -128,13 +124,11 @@ __clean_releases () {
         fi
     fi
 
-    if [ $? -eq 0 ] ; then
-        __spinner "  INFO: destroying ${pool}/iocell/download:  " \
-                  "zfs destroy -rRf ${pool}/iocell/download"
-        __spinner "  INFO: destroying ${pool}/iocell/releases:  " \
-                  "zfs destroy -rRf ${pool}/iocell/releases"
-        return 0
-    fi
+    __stop_jail_all > /dev/null || return $?
+    __spinner "  INFO: destroying ${pool}/iocell/download:  " \
+              "zfs destroy -rRf ${pool}/iocell/download" || return $?
+    __spinner "  INFO: destroying ${pool}/iocell/releases:  " \
+              "zfs destroy -rRf ${pool}/iocell/releases"
 }
 
 __clean_jails () {
@@ -153,17 +147,10 @@ __clean_jails () {
     fi
 
     __clean_snapshots || return $?
-    __stop_jail_all > /dev/null 2>&1
-
-    if [ $? -eq 0 ] ; then
-        __spinner "  INFO: destroying ${pool}/iocell/jails:  " \
-                  "zfs destroy -rRf ${pool}/iocell/jails"
-        __spinner "  INFO: cleaning TAGs at ${pool}/iocell/tags:  " \
-                  "rm -rf ${iocroot}/tags"
-        return 0
-    else
-        __die "some jails were unable to be stopped."
-    fi
+    __stop_jail_all > /dev/null || return $?
+    __spinner "  INFO: destroying ${pool}/iocell/jails:  " \
+              "zfs destroy -rRf ${pool}/iocell/jails" || return $?
+    rm -rf "${iocroot}/tags"
 }
 
 __clean_templates () {
@@ -962,7 +949,8 @@ __destroy_func () {
         /*) ;; *) __error 'invalid destroy mountpoint'; return 1 ;;
     esac
     # Keep the legacy unused-base cleanup, but absence is not a destroy error.
-    _origins=$(zfs get -rH -o name,value origin "${pool}") || return $?
+    _origins=$(zfs get -rH -t filesystem,volume -o name,value origin "${pool}") \
+        || return $?
     _base_inuse=$(printf '%s\n' "${_origins}" | awk -F '\t' \
         -v base="${pool}/iocell/base" '
         $1 == base {exists=1}
