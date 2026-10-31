@@ -517,8 +517,8 @@ Failed transfers retain earlier bases. Other snapshots and dependent
 clones are not destroyed to make cleanup succeed; failures are returned.
 Local transfers \fIclean\fP both ends. Remote \fB-c\fP cleans only the sender;
 manage receiver retention separately. Do not combine \fIclean\fP with incrementals.
-Remote destination validation still incorrectly requires a matching local
-pool name. Identical names on different hosts are valid, not self-\fIsend\fP.
+Remote destinations are validated on the receiver, not locally.
+Identical names on different hosts are valid, not self-\fIsend\fP.
 .PP
 Local Example: \fBiocell\fP \fIsend\fP newpool
 Incremental Example: \fBiocell\fP \fIsend\fP \fB-i\fP oldpool/\fBiocell\fP@snap1 \fB-i\fP oldpool/\fBiocell\fP@snap2 newpool

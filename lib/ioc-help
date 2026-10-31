@@ -387,8 +387,8 @@ SUBCOMMANDS
     clones are not destroyed to make cleanup succeed; failures are returned.
     Local transfers clean both ends. Remote -c cleans only the sender;
     manage receiver retention separately. Do not combine clean with incrementals.
-    Remote destination validation still incorrectly requires a matching local
-    pool name. Identical names on different hosts are valid, not self-send.
+    Remote destinations are validated on the receiver, not locally.
+    Identical names on different hosts are valid, not self-send.
 
     Local Example: iocell send newpool
     Incremental Example: iocell send -i oldpool/iocell@snap1 -i oldpool/iocell@snap2 newpool

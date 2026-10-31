@@ -26,6 +26,8 @@ ssh () {
     case "$*" in
         *'which -s mbuffer'*) [ "$fault" != missing-buffer ] ;;
         exit|*'which -s'*) return 0 ;;
+        "/sbin/zfs get -H -o value creation 'dst'"|\
+        "/sbin/zfs get -H -o value creation 'src'") return 0 ;;
         '/bin/sh -c '*) eval "set -- $*"; ( eval "$3" ) ;;
         *) ( eval "$*" ) ;;
     esac

@@ -186,5 +186,12 @@ iocell send -r -h "${peer#*@}" -u "${peer%@*}" -i "$base" \
     -i "$src/iocell@after-clean" "$dst" > "$workdir/after-clean.log" 2>&1
 [ "$(read_remote)" = after-clean ]
 echo 'PASS: remote clean send retains a common GUID and permits the next incremental send'
+only="${dst}only"
+remote "truncate -s 128M /var/tmp/$only.vdev; zpool create -O mountpoint=none $only /var/tmp/$only.vdev"
+if zpool list "$only" >/dev/null 2>&1; then exit 1; fi
+iocell send -r -h "${peer#*@}" -u "${peer%@*}" "$only" > "$workdir/remote-only.log" 2>&1
+remote "zfs list $only/iocell/jails/$u/root" >/dev/null
+echo "Retained receiver-only pool/vdev: $only /var/tmp/$only.vdev"
+echo 'PASS: remote send validates its destination on the receiver, not locally'
 zpool status -x
 remote zpool status -x

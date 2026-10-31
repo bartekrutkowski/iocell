@@ -1436,9 +1436,16 @@ __send () {
     done
     shift $((OPTIND - 1))
     _dest="$1"
-    zfs get -H -o value creation "${_dest}" >/dev/null 2>&1 || {
-        _exit=$?; __error "please specify a valid pool"; return "${_exit}";
-    }
+    if [ "${_remote}" = 0 ] ; then
+        zfs get -H -o value creation "${_dest}" >/dev/null 2>&1 || {
+            _exit=$?; __error "please specify a valid pool"; return "${_exit}";
+        }
+    else
+        # Only native dataset-name characters may enter the SSH command.
+        case "${_dest}" in *[!a-zA-Z0-9_./:-]*)
+            __error 'invalid remote destination name'; return 1 ;;
+        esac
+    fi
     if [ "${_remote}" = 0 ] &&
         [ "${_dest}/iocell" = "${_source_dataset}" ] ; then
         __error "source and destination pools must differ"
@@ -1462,6 +1469,10 @@ __send () {
             __error "zfs is needed on receiving ${_remotehost} side"
             return 1
         fi
+        ssh "${_peer}" "/sbin/zfs get -H -o value creation '${_dest}'" \
+            >/dev/null 2>&1 || {
+            _exit=$?; __error 'please specify a valid remote pool'; return "${_exit}";
+        }
         if which -s mbuffer ; then
             if ! ssh "${_peer}" '/usr/bin/which -s mbuffer' ; then
                 __error "mbuffer also needed on receiving ${_remotehost} side"

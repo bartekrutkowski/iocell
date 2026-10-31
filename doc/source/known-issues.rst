@@ -53,7 +53,7 @@ internal clones; only explicit force permits destruction of outside clones.
 
 A full receive can be refused by ZFS when the destination already has snapshots.
 Use incremental streams or a fresh destination, not an automatic destructive
-replacement. Remote sends still incorrectly require a matching local pool name.
+replacement. Remote sends validate their destination on the receiver.
 Remote ``-c`` cleans only sender retention; manage receiver snapshots separately.
 Cleanup removes older reserved ``ioc-send-*`` snapshots after success, keeping
 the new replication point and never deleting dependent clones.

@@ -273,8 +273,8 @@ full receive:
 ``iocell send -i source-pool/iocell@before -i source-pool/iocell@after backup-pool``
 
 Use ``-I`` on both endpoints to include intermediate snapshots. Remote mode
-requires ``-r -u USER -h HOST`` and public-key SSH. Destination validation still
-incorrectly requires a matching local pool name, even for remote sends.
+requires ``-r -u USER -h HOST`` and public-key SSH. The destination pool is
+validated on the receiver; no same-named local pool is needed.
 
 ``iocell send -m new-pool`` is local only and requires stopped jails. The
 original source is removed only after successful transfer, destination

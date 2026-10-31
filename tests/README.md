@@ -473,7 +473,6 @@ changing its data/GUID or source data. Actual local/remote buffer failures must
 return 42 with the injected diagnostic and a retained recovery snapshot.
 Remote ``-c`` must preserve a same-named local backup's snapshot/data, retain
 a matching source/receiver GUID, prune older managed points, and permit the next
-incremental send. A refused clean full send must retain the previous base. It creates a matching local receiver
-pool name because the separate, pre-existing remote-pool validation bug has
-not been changed. Only the test's own receiver namespaces are reset between
+incremental send. A refused clean full send must retain the previous base.
+A receiver-only pool must also accept a full transfer without a local namesake. Only the test's own receiver namespaces are reset between
 full-stream cases; existing user data and VM disks are not deleted.
