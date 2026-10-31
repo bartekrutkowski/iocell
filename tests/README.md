@@ -455,8 +455,14 @@ verification VMs used 2 GiB each temporarily):
 
 ```sh
 IOC_TEST_POOL=YOUR_TEST_POOL IOC_TEST_REMOTE=root@PRIVATE_TEST_RECEIVER \
+    IOC_TEST_REMOTE_DESTRUCTIVE=yes IOC_TEST_REMOTE_POOL=RECEIVER_TEST_POOL \
     sh tests/send-remote-zfs.sh
 ```
+
+Before running, explicitly mark an existing disposable receiver pool with
+`zfs set org.freebsd.iocell:test=yes RECEIVER_TEST_POOL` on that receiver.
+The suite requires this local (not inherited) marker and root/FreeBSD over SSH
+before creating any receiver directories, vdevs, or pools.
 
 This checks actual plain/buffered full and incremental streams, a real csh
 receiver parser, intermediate snapshots, and identical pool names across hosts.

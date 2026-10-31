@@ -56,6 +56,31 @@ ioc_test_require_pool () {
     export IOC_TEST_ROOT
 }
 
+# Receiver authorization is read-only and precedes vdev/directory creation.
+ioc_test_require_remote () {
+    [ "${IOC_TEST_REMOTE_DESTRUCTIVE:-}" = yes ] &&
+        [ -n "${IOC_TEST_REMOTE:-}" ] || {
+        ioc_test_error 'set IOC_TEST_REMOTE and IOC_TEST_REMOTE_DESTRUCTIVE=yes'
+        return 1
+    }
+    case "${IOC_TEST_REMOTE_POOL:-}" in
+        ''|-*|*[!a-zA-Z0-9_.:-]*)
+            ioc_test_error 'set IOC_TEST_REMOTE_POOL to a marked disposable receiver pool'
+            return 1 ;;
+    esac
+    ssh "$IOC_TEST_REMOTE" "/bin/sh -s -- '$IOC_TEST_REMOTE_POOL'" <<'REMOTE'
+if [ "$(uname -s)" != FreeBSD ] || [ "$(id -u)" != 0 ]; then
+    echo 'Native receiver refused: root on FreeBSD is required' >&2; exit 1
+fi
+marker=$(zfs get -H -s local -o value org.freebsd.iocell:test "$1") || {
+    echo 'Native receiver refused: cannot read the test marker' >&2; exit 1
+}
+if [ "$marker" != yes ]; then
+    echo 'Native receiver refused: disposable pool needs a local test marker' >&2; exit 1
+fi
+REMOTE
+}
+
 ioc_test_pool_name () {
     local _id
     _id=$(uuidgen) || return $?

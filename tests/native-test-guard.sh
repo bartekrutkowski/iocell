@@ -54,4 +54,33 @@ for label in opt-in missing-pool platform credentials unmarked query wrong-mount
     esac
     echo "PASS: native guard $label"
 done
+# Execute the receiver program in a subshell, keeping only system boundaries fake.
+ssh () {
+    printf 'ssh %s\n' "$*" >> "$trace"
+    ( set -- "$IOC_TEST_REMOTE_POOL"; . /dev/stdin )
+}
+for label in opt-in missing-peer missing-pool unsafe-pool platform credentials unmarked query accepted; do
+    trace="$workdir/remote-$label.trace"; : > "$trace"
+    test_os=FreeBSD; test_uid=0; marker=yes; property_error=no; want=1
+    IOC_TEST_REMOTE_DESTRUCTIVE=yes; IOC_TEST_REMOTE=root@disposable
+    IOC_TEST_REMOTE_POOL=tank
+    case "$label" in
+        opt-in) unset IOC_TEST_REMOTE_DESTRUCTIVE ;;
+        missing-peer) unset IOC_TEST_REMOTE ;;
+        missing-pool) unset IOC_TEST_REMOTE_POOL ;;
+        unsafe-pool) IOC_TEST_REMOTE_POOL='tank;exit' ;;
+        platform) test_os=Linux ;; credentials) test_uid=1000 ;;
+        unmarked) marker=- ;; query) property_error=yes ;; accepted) want=0 ;;
+    esac
+    status=0
+    ( ioc_test_require_remote ) > "$workdir/remote-$label.out" \
+        2> "$workdir/remote-$label.err" || status=$?
+    if [ "$status" != "$want" ]; then
+        echo "FAIL: receiver guard $label returned $status expected $want"; failed=1; continue
+    fi
+    case "$label" in opt-in|missing-peer|missing-pool|unsafe-pool)
+        if [ -s "$trace" ]; then echo "FAIL: receiver $label made SSH contact"; failed=1; continue; fi ;;
+    esac
+    echo "PASS: receiver guard $label"
+done
 exit "$failed"

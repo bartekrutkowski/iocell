@@ -4,6 +4,7 @@ set -eu
 cd "$(dirname "$0")/.."
 . ./tests/native-common.sh
 ioc_test_require_pool
+ioc_test_require_remote
 : "${IOC_TEST_REMOTE:?Set root@private-disposable-FreeBSD-receiver}"
 peer="$IOC_TEST_REMOTE"
 iocell () { env PATH="$PATH" sh ./iocell "$@"; }
