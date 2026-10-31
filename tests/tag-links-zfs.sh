@@ -17,7 +17,7 @@ case "${IOC_TAG_ALTROOT:-yes}" in
         target=/iocell ;;
     no)
         zpool create -O mountpoint=none "$p" "$workdir/pool.vdev"
-        target="$workdir/tree" ;;
+        target="$workdir/tree[ab]" ;;
     *) ioc_test_error 'IOC_TAG_ALTROOT must be yes or no'; exit 1 ;;
 esac
 zfs create -o mountpoint="$target" "$p/iocell"
@@ -73,7 +73,13 @@ backend_set another-candidate "$candidate"
 cp "$candidate_mp/config" "$workdir/candidate-before"
 candidate_guid=$(zfs get -H -o value guid "$p/iocell/jails/$candidate/root")
 echo preserved > "$candidate_mp/root/canary"
-mkdir "$workdir/writer-bin" "$workdir/link-bin"
+cp "$newmp/config" "$workdir/owner-before"
+aliases () {
+    find "$root/tags" -type l -exec sh -c '
+        for path; do printf "%s=%s\n" "$path" "$(readlink "$path")"; done
+    ' sh {} + | sort
+}
+mkdir "$workdir/writer-bin" "$workdir/link-bin" "$workdir/move-bin"
 cat > "$workdir/writer-bin/uclcmd" <<'WRAPPER'
 #!/bin/sh
 operation=$1; previous=''
@@ -92,21 +98,37 @@ if [ "$1" = -sfn ] || { [ "${IOC_TAG_NEWLINK_FAULT:-no}" = yes ] && [ "$1" = -s 
 fi
 exec /bin/ln "$@"
 WRAPPER
-chmod +x "$workdir/writer-bin/uclcmd" "$workdir/link-bin/ln"
-for fault in writer link source-writer new-link; do
+cat > "$workdir/move-bin/mv" <<'WRAPPER'
+#!/bin/sh
+for target; do :; done
+if [ "$target" = "$IOC_TAG_CONFIG" ] && [ ! -e "$IOC_TAG_MOVED" ]; then
+    /bin/mv "$@" || exit $?
+    touch "$IOC_TAG_MOVED"
+    echo 'injected failure after config replacement' >&2; exit 42
+fi
+exec /bin/mv "$@"
+WRAPPER
+chmod +x "$workdir/writer-bin/uclcmd" "$workdir/link-bin/ln" "$workdir/move-bin/mv"
+for fault in writer link source-writer collision-source-writer after-write new-link; do
     status=0; bin="$fault"; config="$newmp/config"; requested=shared; newlink=no
     case "$fault" in
         source-writer) bin=writer; config="$candidate_mp/config"; requested=unused-tag ;;
+        collision-source-writer) bin=writer; config="$candidate_mp/config" ;;
+        after-write) bin=move; config="$candidate_mp/config" ;;
         new-link) bin=link; requested=unused-link; newlink=yes ;;
     esac
+    aliases > "$workdir/$fault.aliases-before"
     env PATH="$workdir/$bin-bin:$PATH" IOC_TAG_CONFIG="$config" \
-        IOC_TAG_NEWLINK_FAULT="$newlink" IOC_TAG_POOL="$p" IOC_TAG_ROOT="$root" \
+        IOC_TAG_MOVED="$workdir/$fault.injected" IOC_TAG_NEWLINK_FAULT="$newlink" IOC_TAG_POOL="$p" IOC_TAG_ROOT="$root" \
         sh "$workdir/set.sh" "tag=$requested" "$candidate" \
         > "$workdir/$fault.log" 2>&1 || status=$?
     [ "$status" = 42 ]
     grep -q injected "$workdir/$fault.log"
-    [ "$(uclcmd get -qf "$newmp/config" tag)" = shared ]
+    cmp "$newmp/config" "$workdir/owner-before"
     cmp "$candidate_mp/config" "$workdir/candidate-before"
+    aliases > "$workdir/$fault.aliases-after"
+    cmp "$workdir/$fault.aliases-before" "$workdir/$fault.aliases-after"
+    [ -z "$(find "$root/jails" -name '.iocell-tag.*' -print)" ]
     [ "$(readlink "$root/tags/shared")" = "$linkbase/$new" ]
     [ "$(readlink "$root/tags/another-candidate")" = "$linkbase/$candidate" ] || {
         echo "FAIL: native tag $fault removed the source's original alias" >&2; exit 1;
@@ -115,6 +137,18 @@ for fault in writer link source-writer new-link; do
     [ "$(zfs get -H -o value guid "$p/iocell/jails/$candidate/root")" = "$candidate_guid" ]
     echo "PASS: native tag $fault failure retains source aliases, config, data and GUID"
 done
+retry=$(make_fixture retry-candidate)
+retry_mp=$(zfs get -H -o value mountpoint "$p/iocell/jails/$retry")
+backend_set retry-candidate "$retry"
+status=0
+env PATH="$workdir/writer-bin:$PATH" IOC_TAG_CONFIG="$retry_mp/config" \
+    IOC_TAG_POOL="$p" IOC_TAG_ROOT="$root" sh "$workdir/set.sh" tag=shared "$retry" \
+    > "$workdir/retry.log" 2>&1 || status=$?
+[ "$status" = 42 ]
+grep -q injected "$workdir/retry.log"
+cmp "$newmp/config" "$workdir/owner-before"
+[ "$(readlink "$root/tags/shared")" = "$linkbase/$new" ]
+echo 'PASS: native failed retag does not block reassignment by another jail'
 mkdir "$workdir/unmanaged"
 echo 'tag = "untouched";' > "$workdir/unmanaged/config"
 cp "$workdir/unmanaged/config" "$workdir/unmanaged.before"

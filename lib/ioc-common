@@ -148,7 +148,9 @@ __set_jail_prop () {
 
     case "${_pname}" in
         tag)
-            __link_tag "${_dataset}" "${_pval}" || return $?
+            __link_tag "${_dataset}" "${_pval}" update || return $?
+            __unlink_tag "${_dataset}" "" "${_pval}"
+            return $?
             ;;
         jail_zfs)
             if [ "${jail_zfs}" = "on" ] ; then
@@ -429,10 +431,6 @@ __set_jail_prop () {
         _mountpoint="$(__get_jail_prop mountpoint \
             "${_fulluuid}" "${_dataset}")" || return $?
         __ucl_set "${_mountpoint}" "${_pname}" "${_pval}" || return $?
-        if [ "${_pname}" = tag ] ; then
-            # Keep old aliases until both the new link and metadata exist.
-            __unlink_tag "${_dataset}" "" "${_pval}" || return $?
-        fi
     elif [ "${_type}" = "native" ] ; then
         zfs set ${_pname}="${_pval}" ${_dataset}
     fi
@@ -799,65 +797,132 @@ __fetch_release () {
 }
 
 # reads tag property from given jail dataset
-# creates symlink from $iocroot/jails/<uuid> to $iocroot/tags/<tag>
-__link_tag () {
+# Creates an alias; optional "update" also commits its source tag property.
+# Returned link/write failures restore both active configs and the old alias.
+__link_tag () (
     local _dataset _mountpoint _tag _tagpath _oldlink _oldmount _newmount
-    local _root _relative _tag_date _datebase _suffix _altroot _newlink _oldtag _status
-    _dataset="$1"; _tag="${2:-${tag:-}}"
+    local _root _relative _tag_date _datebase _suffix _altroot _newlink _oldtag
+    local _update _existing=no _replace=yes _collision=no _work='' _oldbackup=''
+    local _old_edit=no _source_edit=no _link_edit=no _dated='' _dated_owned=no
+    _dataset="$1"; _tag="${2:-${tag:-}}"; _update="${3:-}"
     case "${_tag}" in ''|.|..|*/*) __error "invalid tag alias: ${_tag}"; return 1 ;; esac
     _mountpoint=$(zfs get -H -o value mountpoint "${_dataset}") || return $?
+    case "${_mountpoint}" in
+        /*) ;; *) __error 'invalid tag configuration mountpoint'; return 1 ;;
+    esac
     _newmount=$(cd -P "${_mountpoint}" && pwd -P) || return $?
+    [ "${_newmount}" != / ] || { __error 'invalid tag configuration mountpoint'; return 1; }
     _altroot=$(zpool get -H -o value altroot "${pool}") || return $?
     mkdir -p "${iocroot}/tags" || return $?
-    _tagpath="${iocroot}/tags/${_tag}"
-    _newlink="${_mountpoint}"
+    _tagpath="${iocroot}/tags/${_tag}"; _newlink="${_mountpoint}"
     if [ "${_altroot}" != - ] ; then
         case "${_mountpoint}" in
-            "${iocroot}/"*) _newlink="../${_mountpoint#${iocroot}/}" ;;
+            "${iocroot}/"*) _newlink="../${_mountpoint#"${iocroot}/"}" ;;
         esac
     fi
-    if [ ! -e "${_tagpath}" ] && [ ! -L "${_tagpath}" ] ; then
+    if [ -e "${_tagpath}" ] || [ -L "${_tagpath}" ] ; then
+        [ -L "${_tagpath}" ] || {
+            __error "tag alias is not a symbolic link: ${_tagpath}"; return 1;
+        }
+        _existing=yes
+        _oldlink=$(readlink "${_tagpath}") || return $?
+        case "${_oldlink}" in /*) _oldmount="${_oldlink}" ;;
+            *) _oldmount="${iocroot}/tags/${_oldlink}" ;; esac
+        _oldmount=$(cd -P "${_oldmount}" 2>/dev/null && pwd -P) || {
+            __error "tag alias has a missing target: ${_tagpath}"; return 1;
+        }
+        if [ "${_oldmount}" = "${_newmount}" ] ; then
+            _replace=no
+        else
+            _collision=yes
+            _root=$(cd -P "${iocroot}" && pwd -P) || return $?
+            case "${_oldmount}" in
+                "${_root}/jails/"*|"${_root}/templates/"*)
+                    _relative="${_oldmount#"${_root}/"}"; _relative="${_relative#*/}"
+                    case "${_relative}" in */*) __error 'invalid old tag target'; return 1 ;; esac ;;
+                *) __error 'tag alias is outside the active jail namespace'; return 1 ;;
+            esac
+            _oldtag=$(uclcmd get -qf "${_oldmount}/config" tag) || return $?
+            [ "${_oldtag}" = "${_tag}" ] || {
+                __error 'tag alias disagrees with its target configuration'; return 1;
+            }
+        fi
+    fi
+    # Creation callers publish links only; setters also commit source metadata.
+    if [ "${_update}" != update ] && [ "${_collision}" = no ] ; then
+        [ "${_replace}" = yes ] || return 0
         ln -s "${_newlink}" "${_tagpath}"
         return $?
     fi
-    if [ ! -L "${_tagpath}" ] ; then
-        __error "tag alias is not a symbolic link: ${_tagpath}"
-        return 1
+    _work=$(mktemp -d "${_mountpoint}/.iocell-tag.XXXXXX") || return $?
+    __tag_discard () {
+        [ -z "${_oldbackup}" ] || rm -f "${_oldbackup}"
+        rm -f "${_work}/source"
+        rmdir "${_work}" || __error "tag recovery directory retained: ${_work}"
+    }
+    __tag_abort () {
+        local _failure _recovery=0 _current
+        _failure="$1"
+        if [ "${_old_edit}" = yes ]; then
+            mv -f "${_oldbackup}" "${_oldmount}/config" || _recovery=1
+        fi
+        if [ "${_source_edit}" = yes ]; then
+            mv -f "${_work}/source" "${_mountpoint}/config" || _recovery=1
+        fi
+        if [ "${_link_edit}" = yes ] && [ "${_recovery}" = 0 ]; then
+            _current=$(readlink "${_tagpath}") || _current=''
+            if [ "${_existing}" = yes ] && [ "${_current}" != "${_oldlink}" ]; then
+                if [ -L "${_tagpath}" ] || [ ! -e "${_tagpath}" ]; then
+                    rm -f "${_tagpath}" && mv "${_dated}" "${_tagpath}" || _recovery=1
+                else _recovery=1; fi
+            elif [ "${_existing}" = no ]; then
+                if [ -L "${_tagpath}" ]; then
+                    [ "${_current}" = "${_newlink}" ] && rm -f "${_tagpath}" || _recovery=1
+                elif [ -e "${_tagpath}" ]; then _recovery=1; fi
+            fi
+        fi
+        if [ "${_recovery}" = 0 ]; then
+            [ "${_dated_owned}" != yes ] || rm -f "${_dated}"
+            __tag_discard
+        else
+            __error "tag rollback incomplete; backups retained: ${_work} ${_oldbackup}"
+        fi
+        return "${_failure}"
+    }
+    if [ "${_update}" = update ]; then
+        cp -p "${_mountpoint}/config" "${_work}/source" || {
+            __tag_abort "$?"; return $?;
+        }
     fi
-    _oldlink=$(readlink "${_tagpath}") || return $?
-    case "${_oldlink}" in /*) _oldmount="${_oldlink}" ;;
-        *) _oldmount="${iocroot}/tags/${_oldlink}" ;; esac
-    _oldmount=$(cd -P "${_oldmount}" 2>/dev/null && pwd -P) || {
-        __error "tag alias has a missing target: ${_tagpath}"; return 1;
-    }
-    [ "${_oldmount}" != "${_newmount}" ] || return 0
-    _root=$(cd -P "${iocroot}" && pwd -P) || return $?
-    case "${_oldmount}" in
-        "${_root}/jails/"*|"${_root}/templates/"*)
-            _relative="${_oldmount#${_root}/}"; _relative="${_relative#*/}"
-            case "${_relative}" in */*) __error "invalid old tag target"; return 1 ;; esac ;;
-        *) __error "tag alias is outside the active jail namespace"; return 1 ;;
-    esac
-    _oldtag=$(uclcmd get -qf "${_oldmount}/config" tag) || return $?
-    if [ "${_oldtag}" != "${_tag}" ] ; then
-        __error "tag alias disagrees with its target configuration"; return 1
+    if [ "${_collision}" = yes ]; then
+        _oldbackup=$(mktemp "${_oldmount}/.iocell-tag.XXXXXX") || {
+            __tag_abort "$?"; return $?;
+        }
+        cp -p "${_oldmount}/config" "${_oldbackup}" || { __tag_abort "$?"; return $?; }
+        _datebase=$(date '+%F@%T'); _tag_date="${_datebase}"; _suffix=0
+        while [ -e "${iocroot}/tags/${_tag_date}" ] || [ -L "${iocroot}/tags/${_tag_date}" ]; do
+            _suffix=$((_suffix + 1)); _tag_date="${_datebase}_${_suffix}"
+        done
+        _dated="${iocroot}/tags/${_tag_date}"
+        echo "  WARNING: replacing tag ${_tag}; old tag becomes ${_tag_date}." >&2
+        ln -s "${_oldlink}" "${_dated}" || { __tag_abort "$?"; return $?; }
+        _dated_owned=yes; _old_edit=yes
+        __ucl_set "${_oldmount}" tag "${_tag_date}" || { __tag_abort "$?"; return $?; }
     fi
-    _datebase=$(date '+%F@%T'); _tag_date="${_datebase}"; _suffix=0
-    while [ -e "${iocroot}/tags/${_tag_date}" ] || [ -L "${iocroot}/tags/${_tag_date}" ]; do
-        _suffix=$((_suffix + 1)); _tag_date="${_datebase}_${_suffix}"
-    done
-    echo "  WARNING: replacing tag ${_tag}; old tag becomes ${_tag_date}." >&2
-    ln -s "${_oldlink}" "${iocroot}/tags/${_tag_date}" || return $?
-    __ucl_set "${_oldmount}" tag "${_tag_date}" || {
-        _status=$?; rm -f "${iocroot}/tags/${_tag_date}"; return "${_status}";
-    }
-    ln -sfn "${_newlink}" "${_tagpath}" || {
-        _status=$?
-        __ucl_set "${_oldmount}" tag "${_oldtag}" || __error "cannot restore old tag metadata"
-        rm -f "${iocroot}/tags/${_tag_date}"
-        return "${_status}"
-    }
-}
+    if [ "${_replace}" = yes ]; then
+        _link_edit=yes
+        if [ "${_existing}" = yes ]; then
+            ln -sfn "${_newlink}" "${_tagpath}" || { __tag_abort "$?"; return $?; }
+        else
+            ln -s "${_newlink}" "${_tagpath}" || { __tag_abort "$?"; return $?; }
+        fi
+    fi
+    if [ "${_update}" = update ]; then
+        _source_edit=yes
+        __ucl_set "${_mountpoint}" tag "${_tag}" || { __tag_abort "$?"; return $?; }
+    fi
+    __tag_discard
+)
 
 # Remove matching aliases; optional third argument keeps one literal tag name.
 __unlink_tag () {
@@ -871,19 +936,18 @@ __unlink_tag () {
             || return $?
     fi
     [ -d "${iocroot}/tags" ] || return 0
-    if [ -n "${3:-}" ] ; then
-        # -name/-path treat glob characters specially; test compares literally.
-        set -- ! -exec test '{}' = "${iocroot}/tags/$3" ';'
-    else
-        set --
-    fi
-    if [ -n "${_mountpoint}" ] ; then
-        find "${iocroot}/tags" -type l -lname "${_mountpoint}" \
-            "$@" -exec rm -f {} + || return $?
-        _mountpoint="..${_mountpoint#${iocroot}}"
-        find "${iocroot}/tags" -type l -lname "${_mountpoint}" \
-            "$@" -exec rm -f {} +
-    fi
+    [ -n "${_mountpoint}" ] || return 0
+    if [ -n "${3:-}" ]; then set -- "${iocroot}/tags/$3"; else set -- ''; fi
+    find "${iocroot}/tags" -type l -exec sh -c '
+        absolute=$1; relative=$2; keep=$3; shift 3
+        for path; do
+            [ "$path" != "$keep" ] || continue
+            target=$(readlink "$path") || exit $?
+            if [ "$target" = "$absolute" ] || [ "$target" = "$relative" ]; then
+                rm -f -- "$path" || exit $?
+            fi
+        done
+    ' sh "${_mountpoint}" "..${_mountpoint#"${iocroot}"}" "$1" {} +
 }
 
 # Log error to stderr
