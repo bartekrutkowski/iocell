@@ -51,10 +51,15 @@ status=0
 grep -F "$p/outside-data" "$workdir/data-guard.log"
 echo 'PASS: native shared guard protects an external data-only clone'
 
+zfs create "$p/outside-root/child"
+zfs snapshot "$p/outside-root/child@next"
+zfs clone "$p/outside-root/child@next" "$p/transitive-clone"
 clean_templates 1 > "$workdir/forced.log" 2>&1
 grep -F "$p/outside-root" "$workdir/forced.log"
 grep -F "$p/outside-data" "$workdir/forced.log"
-for ds in "$p/outside-root" "$p/outside-data" "$p/iocell/templates"; do
+grep -F "$p/transitive-clone" "$workdir/forced.log"
+grep -F "$p/outside-root/child" "$workdir/forced.log"
+for ds in "$p/outside-root" "$p/outside-data" "$p/iocell/templates" "$p/transitive-clone"; do
     if zfs list "$ds" >/dev/null 2>&1; then
         echo "FAIL: explicit force did not remove $ds" >&2; exit 1
     fi

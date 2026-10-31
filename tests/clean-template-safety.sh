@@ -23,6 +23,10 @@ zfs () {
             fi
             ;;
         destroy)
+            if [ "$2" = -nvrRf ]; then
+                printf '%s\n' 'would destroy tank/iocell/jails/fixture/root'
+                return 0
+            fi
             [ "$fault" != destroy ] || return 9
             [ "$fault" != race ] || dependent=yes
             if [ "$dependent" = yes ]; then

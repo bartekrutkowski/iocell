@@ -185,10 +185,8 @@ __clean_templates () {
 
     if [ "${_force}" = 1 ] ; then
         _flags=-rRf
-        if [ -n "${_clones}" ] ; then
-            printf '  WARNING: forced cleanup destroys dependent clones:\n%s\n' \
-                "${_clones}" >&2
-        fi
+        __info 'forced cleanup preview, including dependent trees:'
+        zfs destroy -nvrRf "${pool}/iocell/templates" || return $?
     fi
     __info "cleaning templates at ${pool}/iocell/templates"
     # Without explicit force, ZFS itself must also refuse external clones,
