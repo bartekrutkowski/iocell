@@ -259,23 +259,14 @@ __set_jail_prop () {
                     __error "cannot make ${_tag} a template - jail is running!"
                     return 1
                 fi
-                if ! __is_template_tag "${_tag}" ; then
-                    __error "tag is not a safe template dataset name; retag first"
-                    return 1
-                fi
                 if [ "${_dataset}" != \
                     "${pool}/iocell/jails/${_fulluuid}" ] ; then
                     __error "${_tag} is already a template"
                     return 1
                 fi
-                if zfs get -H creation "${pool}/iocell/templates/${_tag}" \
-                    >/dev/null 2>&1 ; then
-                    __error "template destination already exists: ${_tag}"
-                    return 1
-                fi
+                __template_preflight "${_dataset}" "${_tag}" || return $?
                 _old_mountpoint="$(__get_jail_prop mountpoint \
                     "${_fulluuid}" "${_dataset}")" || return $?
-                __check_children "${_dataset}" || return $?
 
                 _jailed_dataset="${_dataset}/data"
                 _jailed_dataset_check="$(zfs get -H creation \

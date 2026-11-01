@@ -254,15 +254,8 @@ __migrate_basejail () (
     if [ "${_oldtemplate}" = yes ] ; then
         _tag=$(__get_jail_prop tag "${_fulluuid}" \
             "${pool}/iocell/jails/${_fulluuid}") || return $?
-        if ! __is_template_tag "${_tag}" ; then
-            __error "tag is not a safe template dataset name; retag before migration"
-            return 1
-        fi
-        if zfs get -H creation "${pool}/iocell/templates/${_tag}" >/dev/null 2>&1 ; then
-            __error "template destination already exists: ${_tag}"
-            return 1
-        fi
-        __check_children "${pool}/iocell/jails/${_fulluuid}" || return $?
+        __template_preflight "${pool}/iocell/jails/${_fulluuid}" "${_tag}" \
+            || return $?
     fi
     _bfs_list="bin
                boot
@@ -1109,6 +1102,21 @@ __external_clones () {
         ($1 != tree && index($1, tree "/") != 1) &&
         (index($2, tree "@") == 1 || index($2, tree "/") == 1) { print $1 }
     '
+}
+
+# Shared by normal template conversion and legacy template migration.
+__template_preflight () {
+    local _dataset _tag
+    _dataset="$1"; _tag="$2"
+    if ! __is_template_tag "${_tag}"; then
+        __error 'tag is not a safe template dataset name; retag first'
+        return 1
+    fi
+    if zfs get -H creation "${pool}/iocell/templates/${_tag}" >/dev/null 2>&1; then
+        __error "template destination already exists: ${_tag}"
+        return 1
+    fi
+    __check_children "${_dataset}"
 }
 
 __check_children () {
