@@ -7,8 +7,8 @@ backups. See :doc:`known-issues` for current command and storage limitations.
 Identify and back up jails
 --------------------------
 
-Use meaningful tags and record full UUIDs. Do not rely on partial UUID prefixes
-for jail operations. Template tags must be safe ZFS components, not generated
+Use meaningful tags and record full UUIDs. Template tags must be safe ZFS
+components, not generated
 timestamp names containing ``@``. Quote notes for the invoking shell; property
 values preserve spaces, apostrophes and equals signs.
 
@@ -36,8 +36,7 @@ you. Do not blindly bridge a public NIC or disable bridge filtering globally.
 
 Per-jail firewall availability depends on the host kernel, permissions and
 device exposure. Keep a working host firewall and management access while
-testing changes. Historical FreeBSD 10 VNET/PF/ALTQ reports are not a current
-kernel compatibility guarantee.
+testing changes.
 
 Resource limits and templates
 -----------------------------
@@ -47,9 +46,8 @@ and enforce limits only after measuring the workload. Empty limit queries and
 ``uncap`` have known exit-status quirks; inspect actual kernel rules.
 
 Templates are useful for repeatable deployment. Stop a template and convert it
-back with ``istemplate=no`` for normal start/console maintenance. The historical
-``iocell chroot`` command is not dispatched. Do not casually substitute a host
-``chroot(8)`` without understanding mounts and its lack of jail isolation.
+back with ``istemplate=no`` for normal start/console maintenance; see
+:doc:`templates`.
 
 Clean up explicitly
 -------------------

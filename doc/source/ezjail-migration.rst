@@ -24,6 +24,5 @@ Treat migration as a backup/restore and compatibility exercise:
    addresses and automatic boot disabled until validation is complete.
 7. Retain the original data and a rollback plan until the migration is accepted.
 
-Use full UUIDs or tags when operating on the target. Do not rely on short UUID
-lookup or an unverified zero exit status. Creation defaults do not change
-existing jails. See :doc:`basic-use`, :doc:`jailtypes` and :doc:`known-issues`.
+Inspect the target's actual configuration and data after each migration step.
+See :doc:`basic-use`, :doc:`jailtypes` and :doc:`known-issues`.

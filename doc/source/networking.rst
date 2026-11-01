@@ -50,8 +50,7 @@ restart; changing a creation default does not reconfigure their networking.
 VNET
 ----
 
-Use a kernel with VNET support. Current GENERIC kernels commonly include it;
-check your host rather than rebuilding from a historical FreeBSD 10 recipe.
+Use a kernel with VNET support; check the capabilities of your host kernel.
 RACCT/RCTL are resource-limit features, not prerequisites for VNET itself.
 
 An isolated private bridge example on the host is:

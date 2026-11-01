@@ -4,8 +4,7 @@ Basic usage
 
 Use an existing dedicated jail pool. These examples call it ``jailpool`` and
 use ``www01`` as a tag; replace pool/release names, interfaces and addresses.
-Use a full UUID or tag, not a short UUID prefix. See :doc:`known-issues` for
-remaining command limitations.
+See :doc:`known-issues` for command restrictions and storage boundaries.
 
 Activate a pool and fetch a release
 -----------------------------------
@@ -18,9 +17,7 @@ Then request an available release explicitly:
 
 ``iocell fetch release=15.1-RELEASE``
 
-The interactive ``iocell fetch`` menu is obsolete and can reject its own
-current-host default. An explicit release avoids that selection path. If the
-legacy default mirror/path is unavailable, specify both, for example:
+If the default mirror/path is unavailable, specify both, for example:
 
 ``iocell fetch release=15.1-RELEASE ftphost=download.freebsd.org ftpdir=/releases/amd64/amd64/15.1-RELEASE``
 
@@ -110,10 +107,8 @@ without an interactive console:
 
 ``iocell exec www01 /bin/sh -c 'echo ready'``
 
-The historical ``iocell chroot`` subcommand is not dispatched. A manually
-prepared ``chroot(8)`` is not a replacement for jail isolation and requires
-careful mount/dependency handling. For a stopped template, convert it back to
-a jail before normal start/console operations; see :doc:`templates`.
+For a stopped template, convert it back to a jail before normal start/console
+operations; see :doc:`templates`.
 
 Properties and defaults
 -----------------------

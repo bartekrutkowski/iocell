@@ -1552,7 +1552,7 @@ HINTS
   automatically configure that NAT. Preserve management access while testing.
 
   Per-jail firewall support depends on the host kernel, permissions and device
-  exposure. Historical FreeBSD 10 PF/ALTQ reports are not current guarantees.
+  exposure; verify these capabilities on the host.
   Do not blindly disable bridge filtering or IPv6 duplicate-address detection.
 
   Validate actual properties and kernel behavior for your host release.

@@ -15,6 +15,8 @@ sh tests/send-args.sh
 sh tests/send-cleanup.sh
 sh tests/send-csh.sh
 sh tests/discovery-safety.sh
+sh tests/discovery-callers.sh
+sh tests/autoip-discovery.sh
 sh tests/bulk-jails.sh
 sh tests/rc-jails.sh
 sh tests/template-forward-safety.sh
@@ -53,6 +55,10 @@ Child stdin is isolated from the package list. Failure coverage includes each
 template release/lower, template overlay and writable jail overlay mount.
 Template tests cover stored UUID selection, delegated state, validation, clone
 and running-jail guards, rename errors, and propagation through the CLI.
+Send tests check literal snapshot operands and one shared parser per public
+validation/direct-backend boundary without retaining parsed state. The csh test
+executes plain/buffered receiver commands, checks transferred bytes and both
+failure statuses, and verifies temporary-directory cleanup; it is not syntax-only.
 Safety tests additionally cover fresh full-send snapshots, every pipeline stage
 (including both buffers), activation failures, source identity across moves,
 read-only discovery, legacy-config preservation, forward conversion failures,
@@ -238,6 +244,8 @@ failures without relying on pipelines that can hide discovery status.
 reset, show/disk and upgrade consumers with partial output followed by failure.
 `discovery-callers-zfs.sh` injects a native enumeration error through those real
 callers and verifies unchanged configuration, data and dataset GUIDs.
+`autoip-discovery.sh` checks both network modes and their startup callers, plus
+selection of an unused address when another jail already owns the first one.
 
 ## Real-ZFS clone integration test
 

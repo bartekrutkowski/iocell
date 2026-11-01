@@ -40,8 +40,7 @@ FAQ
 **Can I use templates and clones?**
     Yes. Use ``istemplate=yes/no`` for conversion and ``clone`` for deployment.
     Template tags must be safe ZFS components. See :doc:`templates` and
-    :doc:`jailtypes`. The historical differential ``record``/``package`` commands
-    are not available.
+    :doc:`jailtypes`.
 
 **Are clones independent?**
     A ZFS clone depends on its source snapshot. Promotion reverses that
@@ -54,8 +53,7 @@ FAQ
     ``limits`` and resource use with ``inuse``. See :doc:`advanced-use`.
 
 **Can I use short UUIDs?**
-    Use tags or full UUIDs for jail commands. Short UUID lookup is currently
-    unreliable. Import's unique image-prefix selector is a separate mechanism.
+    See the identity and import-selector restrictions in :doc:`known-issues`.
 
 **Where is configuration stored?**
     In UCL files under the selected iocell dataset, plus native ZFS properties.

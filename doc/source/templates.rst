@@ -1,9 +1,7 @@
 How to create and use templates
 ===============================
 
-**Templates can save you precious time!**
-
-Set up a jail any way you like, and create a template from it. All packages and pre-configured settings will be available for deployment next time within seconds.
+Templates preserve a configured jail for deployment through ZFS clones.
 
 A stopped basejail can be converted to a template and back again using the
 ``istemplate`` property. Templates are not started automatically. Converting a
@@ -41,10 +39,7 @@ Done!
 
 Stop it if it was started for maintenance, convert it back with
 ``iocell set istemplate=no TAG-of-template``, then start the jail as usual.
-After maintenance, stop it and convert it to a template again. The historical
-``iocell chroot`` subcommand is not dispatched. Manually using host
-``chroot(8)`` requires appropriate mounts and is not equivalent to jail
-isolation; it is not an automatic stopped-template maintenance interface.
+After maintenance, stop it and convert it to a template again.
 
 Conversion back is refused if the stored UUID is invalid, the template is
 running, or its root/data datasets have clones outside the template tree. A failed ZFS rename (for
@@ -58,8 +53,9 @@ renames before changing metadata or aliases, and preserves both ``on`` and
 
 ``iocell clean -t`` includes clones inside the templates tree, but refuses
 clones outside it. ZFS dependency protection remains enabled if an outside clone
-appears after the preflight check. ``iocell clean -f -t`` lists those outside
-clones before explicitly permitting their destruction.
+appears after the preflight check. ``iocell clean -f -t`` prints ZFS's
+complete destruction preview for the templates tree and its dependent trees
+before destroying them.
 
 A failed metadata or alias update after a successful conversion rename returns
 an error; the dataset may already have moved. The final template flag is not
