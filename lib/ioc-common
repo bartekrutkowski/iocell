@@ -505,10 +505,8 @@ __console () {
     if [ "${_state}" ] ; then
         ${_jexec} ioc-${_fulluuid} login ${_login_flags}
     elif [ "${_force}" = "1" ] ; then
-        case "${_dataset}" in "${pool}/iocell/templates/"*)
-            __error 'cannot start a template through console'; return 1 ;;
-        esac
-        if [ "$(__get_jail_prop istemplate "${_fulluuid}" "${_dataset}")" = yes ]; then
+        if [ "${_dataset#"${pool}/iocell/templates/"}" != "${_dataset}" ] ||
+            [ "$(__get_jail_prop istemplate "${_fulluuid}" "${_dataset}")" = yes ]; then
             __error 'cannot start a template through console'; return 1
         fi
         __start_jail "${_fulluuid}" || return $?

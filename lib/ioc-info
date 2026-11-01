@@ -79,7 +79,7 @@ __discover_missing_config () (
 # Find direct jail/template identities, including ones needing operator repair.
 __find_jail () {
     local _name _jlist _jail _tag _mountpoint _candidates _jails _count
-    local _name_lower _uuid_candidates
+    local _name_lower _identity_matches _uuid_candidates
     _name="$1"; _jlist=''
     _name_lower=$(printf '%s' "${_name}" | tr '[:upper:]' '[:lower:]')
     case "${_name}" in
@@ -89,10 +89,15 @@ __find_jail () {
         "${pool}/iocell/jails" "${pool}/iocell/templates") || return $?
     # Never reinterpret a root, backup or delegated descendant as its parent.
     _jails=$(printf '%s\n' "${_candidates}" | awk -F/ 'NF == 4')
+    _identity_matches=$(printf '%s\n' "${_jails}" | awk -F/ \
+        -v name="${_name_lower}" 'tolower($NF)==name {printf " %s ", $0}')
     if __is_jail_uuid "${_name_lower}" ; then
-        _uuid_candidates=$(printf '%s\n' "${_jails}" | awk -F/ \
-            -v root="${pool}/iocell/jails/" -v name="${_name_lower}" \
-            'index($0,root)==1 && tolower($NF)==name')
+        _uuid_candidates=''
+        for _jail in ${_identity_matches}; do
+            case "${_jail}" in "${pool}/iocell/jails/"*)
+                _uuid_candidates="${_uuid_candidates} ${_jail}" ;;
+            esac
+        done
         [ -z "${_uuid_candidates}" ] || _jails="${_uuid_candidates}"
     fi
     for _jail in ${_jails} ; do
@@ -114,10 +119,10 @@ __find_jail () {
             _tag=$(zfs get -H -o value org.freebsd.iocell:tag \
                 "${_jail}" 2>/dev/null) || _tag=''
         fi
-        if [ "${_name_lower}" = "$(printf '%s' "${_jail##*/}" | \
-            tr '[:upper:]' '[:lower:]')" ] || [ "${_name}" = "${_tag}" ] ; then
-            _jlist="${_jlist} ${_jail}"
-        fi
+        case "${_identity_matches}" in
+            *" ${_jail} "*) _jlist="${_jlist} ${_jail}" ;;
+            *) [ "${_name}" != "${_tag}" ] || _jlist="${_jlist} ${_jail}" ;;
+        esac
     done
     [ "${_name}" != ALL ] || return 0
     _count=$(printf '%s\n' "${_jlist}" | wc -w | tr -d ' ')

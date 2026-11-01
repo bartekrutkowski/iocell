@@ -54,6 +54,15 @@ for name in ALL original ; do
         echo "PASS: discovery $name preserves parent config"
     fi
 done
+tr () {
+    [ "$*" != '[:upper:] [:lower:]' ] || echo fold >> "$workdir/casefold.trace"
+    command tr "$@"
+}
+: > "$workdir/casefold.trace"
+__find_jail original > "$workdir/casefold.out"
+if [ "$(wc -l < "$workdir/casefold.trace" | command tr -d ' ')" -gt 1 ]; then
+    echo 'FAIL: lookup case-folds separately for every candidate'; failed=1
+else echo 'PASS: lookup case-folding has constant subprocess cost'; fi
 status=0
 ( set +e; __find_jail database-template ) > "$workdir/find" 2> "$workdir/error" || status=$?
 if [ "$status" -ne 0 ] || [ "$(cat "$workdir/find")" != "$template" ]; then
