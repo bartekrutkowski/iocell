@@ -234,6 +234,10 @@ fixtures after success; failed fixtures, valid jails, and logs are retained.
 and ambiguous names without changing configuration bytes or dataset GUIDs.
 Portable bulk tests cover start/stop/reboot/restart continuation and enumeration
 failures without relying on pipelines that can hide discovery status.
+`discovery-callers.sh` also checks list/warden, resource reporting, auto-IP,
+reset, show/disk and upgrade consumers with partial output followed by failure.
+`discovery-callers-zfs.sh` injects a native enumeration error through those real
+callers and verifies unchanged configuration, data and dataset GUIDs.
 
 ## Real-ZFS clone integration test
 

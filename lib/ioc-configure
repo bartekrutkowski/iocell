@@ -241,7 +241,7 @@ __reset_jail_props () {
         if [ "$answer" = "Y" -o "$answer" = "y" ] ; then
             echo "  Resetting all jails."
 
-            __reset_jail_props_all
+            __reset_jail_props_all || return $?
 
             exit 0
         else
@@ -286,12 +286,13 @@ __reset_jail_props () {
 
 __reset_jail_props_all () {
     local _jails _fulluuid
-    _jails="$(__find_jail ALL | \
-            awk 'BEGIN { FS = "/" } ; { if (length($NF)==36) { print }}')"
+    _jails=$(__find_jail ALL) || return $?
+    _jails=$(printf '%s\n' "${_jails}" | \
+            awk 'BEGIN { FS = "/" } ; { if (length($NF)==36) { print }}')
 
     for _jail in ${_jails} ; do
         # _jail is actually a dataset, so fulluuid needs to be faked.
         _fulluuid=$(__check_name "name" ${_jail} 2> /dev/null)
-        __reset_jail_props "${_fulluuid} ${_jail}"
+        __reset_jail_props "${_fulluuid}" || return $?
     done
 }

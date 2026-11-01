@@ -112,7 +112,8 @@ __rctl_inuse_all () {
     local _jails _fulluuid _tag _print_head\
           _line _res _jail _header
 
-    _jails=$(__find_jail ALL | \
+    _jails=$(__find_jail ALL) || return $?
+    _jails=$(printf '%s\n' "${_jails}" | \
             awk 'BEGIN { FS = "/" } ; { if (length($NF)==36) { print }}')
     _print_head=1
 

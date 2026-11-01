@@ -142,7 +142,7 @@ __list_jails () {
     _grepmatch='RELEASE$|STABLE$|PRERELEASE$|CURRENT$|BETA$'
 
     if [ ! -z "${_switch}" ] && [ "${_switch}" = "--warden" ] ; then
-        __list_jails_warden
+        __list_jails_warden || return $?
         exit 0
     fi
 
@@ -162,13 +162,14 @@ __list_jails () {
         __die "invalid switch ${_switch}"
     fi
 
+    _jails=$(__find_jail ALL) || return $?
     # If the -t switch is given, show templates otherwise show the jails
     if [ "${_switch}" = "-t" ] ; then
-        _jails=$(__find_jail "ALL" | \
+        _jails=$(printf '%s\n' "${_jails}" | \
             awk -v temp="${pool}/iocell/templates" \
             '$0 ~ temp { if (!/releases\/[0-9]/) { print }}')
     else
-        _jails=$(__find_jail "ALL" | \
+        _jails=$(printf '%s\n' "${_jails}" | \
             awk 'BEGIN { FS = "/" } ; { if (length($NF)==36) { print }}')
     fi
 
@@ -313,7 +314,8 @@ __list_jails_warden () {
           _vnet1_mac _vnet2_mac _vnet3_mac _vnet4_mac _vnet5_mac _vnet6_mac \
 		  _vnet7_mac _vnet8_mac _vnet9_mac _type
 
-    _jails=$(__find_jail "ALL" | \
+    _jails=$(__find_jail ALL) || return $?
+    _jails=$(printf '%s\n' "${_jails}" | \
             awk 'BEGIN { FS = "/" } ; { if (length($NF)==36) { print }}')
 
     for _jail in ${_jails} ; do
@@ -365,7 +367,7 @@ __print_disk () {
   local _datasets _fulluuid _compressratio _reservation _quota _used \
         _available _tag
 
-    _datasets=$(__find_jail "ALL")
+    _datasets=$(__find_jail ALL) || return $?
 
     {
     printf "%s^%s^%s^%s^%s^%s^%s\n" "UUID" "CRT" "RES" "QTA" "USE" "AVA" "TAG"

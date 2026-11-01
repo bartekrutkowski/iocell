@@ -232,7 +232,8 @@ __get_autoip4 () {
     _autostart=$(__get_jail_prop ip4_autostart default)
     _autoend=$(__get_jail_prop ip4_autoend default)
     _autosubnet=$(__get_jail_prop ip4_autosubnet default)
-    _jails=$(__find_jail ALL | \
+    _jails=$(__find_jail ALL) || return $?
+    _jails=$(printf '%s\n' "${_jails}" | \
            egrep -v "${pool}/iocell/releases/[0-9].?\>")
 
     # Do some basic sanity checking

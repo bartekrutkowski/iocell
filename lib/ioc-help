@@ -1610,7 +1610,7 @@ __usage () {
 __show () {
     local _datasets _prop _fulluuid _tag _value _dataset
 
-    _datasets=$(__find_jail ALL)
+    _datasets=$(__find_jail ALL) || return $?
     _prop="$1"
 
     {
