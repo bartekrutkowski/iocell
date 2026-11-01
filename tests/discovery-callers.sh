@@ -62,7 +62,7 @@ for label in list templates warden warden-dispatch rctl rctl-dispatch autoip res
                 warden) __list_jails_warden ;;
                 warden-dispatch) __list_jails --warden ;; rctl) __rctl_inuse_all ;;
                 rctl-dispatch) __rctl_inuse '' ;;
-                autoip) __get_autoip4 fixture "$ds" ;;
+                autoip) __get_autoip4 ;;
                 reset) __reset_jail_props_all ;; show) __show notes ;;
                 disk) __print_disk ;; upgrade) __upgrade fixture ;;
             esac

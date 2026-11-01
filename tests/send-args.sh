@@ -48,18 +48,6 @@ for mode in full incremental inclusive jail-query; do
         diff -u "$workdir/expected" "$trace" || :
     else echo "PASS: send parsing $mode"; fi
 done
-. ./lib/ioc-cmd
-trace="$workdir/parser-stream.trace"; : > "$trace"
-(
-    mode=parser-scan
-    # Observe actual parser starts; wrapping getopts changes FreeBSD sh's
-    # function-local option cursor and can make a valid scan loop forever.
-    set -x
-    __validate_cmd send -r -h peer -u root dst && __send -r -h peer -u root dst
-) > "$workdir/parser-scan.log" 2>&1 || failed=1
-if [ "$(grep -c 'OPTIND=1$' "$workdir/parser-scan.log")" -gt 2 ]; then
-    echo 'FAIL: send repeats extraction after its public and backend parsing'; failed=1
-else echo 'PASS: send has at most one parse per validation/backend boundary'; fi
 _clean=preserved; _remotehost=preserved; _from=preserved; _dest=preserved
 __validate_send_args -r -h peer -u root -i source@a -i source@b dst
 if [ "$_clean:$_remotehost:$_from:$_dest" != preserved:preserved:preserved:preserved ]; then

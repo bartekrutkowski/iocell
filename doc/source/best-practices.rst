@@ -8,9 +8,8 @@ Identify and back up jails
 --------------------------
 
 Use meaningful tags and record full UUIDs. Template tags must be safe ZFS
-components, not generated
-timestamp names containing ``@``. Quote notes for the invoking shell; property
-values preserve spaces, apostrophes and equals signs.
+components, not generated timestamp names containing ``@``. Quote notes for the
+invoking shell; property values preserve spaces, apostrophes and equals signs.
 
 Take application-consistent backups before updates or destructive operations.
 A normal snapshot covers the jail's root only. Use ``snapshot -r`` when you need
