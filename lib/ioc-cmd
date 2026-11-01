@@ -388,7 +388,7 @@ __parse_cmd () {
                                     exit
                                else
                                     for _j in $@ ; do
-                                        __reboot_jail "${_j}"
+                                        __reboot_jail "${_j}" || exit $?
                                     done
                                     exit
                                 fi

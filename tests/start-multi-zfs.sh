@@ -15,9 +15,15 @@ iocell create "release=$IOC_TEST_RELEASE" "tag=$tag" vnet=off ip4_addr=none \
     ip6_addr=none > "$workdir/create-good.log" 2>&1
 good=$(iocell get host_hostuuid "$tag")
 cleanup () {
+    exit_status=$?
     for uuid in "$first" "$second" "$good"; do
-        iocell stop "$uuid" >/dev/null 2>&1 || :
+        iocell stop "$uuid" > "$workdir/stop-$uuid.log" 2>&1 || :
+        if jls -j "ioc-$uuid" jid >/dev/null 2>&1; then
+            echo "FAIL: test jail still running: $uuid" >&2
+            [ "$exit_status" -ne 0 ] || exit_status=1
+        fi
     done
+    exit "$exit_status"
 }
 trap cleanup EXIT
 trap 'exit 1' HUP INT TERM
@@ -43,6 +49,9 @@ WRAPPER
 chmod +x "$workdir/bin/jail"
 for mode in interfaces returned multiple late; do
     iocell stop "$good" > "$workdir/$mode-stop.log" 2>&1 || :
+    if jls -j "ioc-$good" jid >/dev/null 2>&1; then
+        echo 'FAIL: valid jail was not stopped before this attempt' >&2; exit 1
+    fi
     if [ "$mode" = interfaces ]; then iocell set interfaces=malformed "$first"
     else iocell set interfaces=vnet0:bridge0 "$first"; fi
     cp "$first_mp/config" "$workdir/first-before"

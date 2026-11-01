@@ -248,8 +248,8 @@ __start_jail () {
 # Use captured identity/type; cleanup must not replace the startup error.
 __cleanup_start_mounts () {
     case "$1" in
-        basejail|clonejail) __umount_basejail "$2" "$3" >&2 ;;
-        template) __umount_istemplate "$4" >&2 ;;
+        basejail|clonejail) __umount_basejail "$2" "$3" >&2 || : ;;
+        template) __umount_istemplate "$4" >&2 || : ;;
     esac
 }
 
@@ -812,7 +812,7 @@ __rc_jails () (
                     && cat "/var/tmp/${_jail}" &
                 sleep 1
             else
-                __start_jail "${_jail}"
+                __start_jail "${_jail}" || return $?
             fi
 
         done

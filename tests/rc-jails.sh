@@ -72,6 +72,7 @@ jls () {
 }
 __start_jail () {
     [ "$fault" != backend-exit ] || exit 42
+    if [ "$fault" = backend-return ] && [ "$1" = "$first" ]; then return 43; fi
     [ "$#" = 1 ] && [ -f "$workdir/$1/config" ] || return 99
     touch "$workdir/running/$1"
     echo "$1" >> "$workdir/actions"
@@ -124,6 +125,11 @@ fi
 fault=backend-exit; status=0
 ( __rc_jails boot ) > "$workdir/backend.log" 2>&1 || status=$?
 [ "$status" = 42 ] || { echo 'FAIL: rc lost an exiting backend failure'; failed=1; }
+fault=backend-return; : > "$workdir/actions"; status=0
+( __rc_jails boot ) > "$workdir/backend-return.log" 2>&1 || status=$?
+if [ "$status" != 43 ] || [ -s "$workdir/actions" ]; then
+    echo 'FAIL: rc boot masked a returned start error or attempted later starts'; failed=1
+else echo 'PASS: rc boot preserves returned startup failure and stops later work'; fi
 fault=none; hostid=no-matching-host; : > "$workdir/actions"; status=0
 ( __rc_jails boot ) > "$workdir/empty.log" 2>&1 || status=$?
 if [ "$status" != 0 ] || [ -s "$workdir/actions" ] || \
