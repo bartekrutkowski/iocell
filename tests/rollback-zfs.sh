@@ -84,7 +84,7 @@ zfs list -H "${dataset}/new-child" >/dev/null
 echo 'PASS: missing child snapshot prevents every rollback; child survives'
 
 expect_failure "${uuid}@missing" 'root@missing not found'
-expect_failure "${uuid}" 'snapshot'
+expect_failure "${uuid}" '^  ERROR: expected UUID or TAG followed by @snapshot$'
 [ "$(cat "${mountpoint}/root/marker")" = 'root unchanged' ]
 echo 'PASS: missing snapshots and missing snapshot names are rejected'
 zfs list -rH -t all -o name "${dataset}" > "${workdir}/before-lookup"

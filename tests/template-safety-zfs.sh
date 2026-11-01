@@ -93,7 +93,8 @@ status=0
     __migrate_basejail "$legacy" 15.1-RELEASE
 ) > "$workdir/migration-preflight.log" 2>&1 || status=$?
 [ "$status" = 1 ]
-grep -q 'retag before migration' "$workdir/migration-preflight.log"
+grep -Fq 'tag is not a safe template dataset name; retag first' \
+    "$workdir/migration-preflight.log"
 [ "$(zfs get -H -o value guid "$legacy_ds/root/bin")" = "$guid" ]
 [ "$(cat "$legacy_mp/root/bin/migration-marker")" = preserved ]
 echo 'PASS: native migration refuses unsafe template tag before destroying old datasets'
