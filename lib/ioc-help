@@ -115,14 +115,17 @@ SUBCOMMANDS
     before cleanup, and a failed mode stops the remaining modes.
 
     This removes the ZFS datasets associated with the flag called. The -a flag
-    will destroy everything associated with iocell. The -r flag will destroy
-    all RELEASEs that have been fetched. Basejails rely on these to exist,
-    so be sure you don't use this flag if you have any. The -j flag will
+    will destroy everything associated with iocell. The -r flag stops all
+    jails first and refuses cleanup if any cannot be stopped. It then removes
+    downloaded archives and fetched RELEASE datasets. Basejails rely on these
+    releases; do not use -r while you still need them. The -j flag will
     destroy the jails dataset. The -t flag will destroy the templates dataset.
     Same warning applies here as with cleaning the RELEASE dataset.
     Template cleanup includes clones inside the templates tree. Without -f,
-    it refuses clones outside that tree. With -f, it lists the outside clones
-    and permits their destruction.
+    it refuses clones outside that tree. With -f, it prints ZFS's destruction
+    preview for the templates tree and all dependent trees, then destroys them.
+    If -a removes the datasets but cannot remove the leftover host directory,
+    it reports both facts and returns an error; it does not erase host files.
 
   clone UUID|TAG[@snapshot] [property=value]
 
@@ -421,6 +424,11 @@ SUBCOMMANDS
     batch transaction. Reset-to-saved-defaults behavior is not restored here.
     Quote values for your invoking shell. Spaces, apostrophes and equals
     signs within a property value are preserved literally.
+
+    Per-jail configuration writes retain config.old as a last-write backup.
+    Later writes overwrite that one file rather than accumulating backups.
+    Tag recovery may consume it. This is not a backup of the jail or of an
+    entire multi-property command.
 
   snaplist UUID|TAG
 

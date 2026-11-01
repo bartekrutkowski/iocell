@@ -126,6 +126,10 @@ Set and inspect a per-jail property:
 
 ``iocell get all www02``
 
+Per-jail configuration writes retain one ``config.old`` last-write backup
+beside ``config``. Later writes overwrite it; tag recovery may consume it.
+It is not a jail backup or a backup of an entire multi-property command.
+
 ``iocell defaults`` displays configured defaults. Set defaults for subsequent
 ``create`` commands with ``iocell set vnet=off default``, and inspect one with
 ``iocell get vnet default``. Explicit creation properties override saved

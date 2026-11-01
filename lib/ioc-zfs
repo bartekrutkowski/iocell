@@ -87,7 +87,7 @@ __clean () {
 }
 
 __clean_all () {
-    local _answer
+    local _answer _status
 
     if [ "${_force}" != "1" ] ; then
         echo " "
@@ -104,7 +104,14 @@ __clean_all () {
     __stop_jail_all > /dev/null || return $?
     __spinner "  INFO: destroying ${pool}/iocell:  " \
               "zfs destroy -rRf ${pool}/iocell" || return $?
-    [ ! -d "${iocroot}" ] || rmdir "${iocroot}" || return $?
+    if [ -d "${iocroot}" ]; then
+        rmdir "${iocroot}" || {
+            _status=$?
+            __error "datasets already destroyed: ${pool}/iocell"
+            __error "leftover directory retained: ${iocroot}"
+            return "${_status}"
+        }
+    fi
     return 0
 }
 

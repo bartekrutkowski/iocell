@@ -17,6 +17,12 @@ if [ "$1" = destroy ]; then
     echo "$*" >> "$CA_TRACE"
     if [ "$CA_MODE" = native ]; then echo 'injected cleanup destroy failure' >&2; exit 42; fi
 fi
+if [ "$1" = destroy ] && [ "$CA_MODE" = leftover ]; then
+    /sbin/zfs "$@" || exit $?
+    mkdir -p "$CA_ROOT" || exit $?
+    echo host-leftover > "$CA_ROOT/canary"
+    exit 0
+fi
 exec /sbin/zfs "$@"
 WRAPPER
 cat > "$workdir/bin/rm" <<'WRAPPER'
@@ -37,7 +43,7 @@ if [ "$CA_MODE" = stop ]; then __stop_jail_all () { return 43; }; fi
 __validate_cmd clean "$@" && __parse_cmd clean "$@"
 HELPER
 failed=0
-for mode in first last repeated native stop; do
+for mode in first last repeated native stop leftover; do
     root="$workdir/$mode"
     zfs create -o mountpoint="$root" "$p/iocell"
     zfs create -p "$p/iocell/jails/fixture"
@@ -47,11 +53,17 @@ for mode in first last repeated native stop; do
     trace="$workdir/$mode.trace"; : > "$trace"; status=0; want=0
     case "$mode" in first) set -- -a -j -f ;; last) set -- -j -t -f -a ;;
         repeated) set -- -a -a -f ;; native) set -- -a -f; want=42 ;;
-        stop) set -- -a -f; want=43 ;; esac
+        stop) set -- -a -f; want=43 ;; leftover) set -- -a -f; want=1 ;; esac
     env PATH="$workdir/bin:$PATH" CA_POOL="$p" CA_ROOT="$root" CA_MODE="$mode" \
         CA_TRACE="$trace" sh "$workdir/clean.sh" "$@" > "$workdir/$mode.log" 2>&1 || status=$?
     if [ "$status" != "$want" ]; then
         echo "FAIL: native cleanup $mode status=$status expected=$want"; failed=1
+    elif [ "$mode" = leftover ]; then
+        if zfs list "$p/iocell" >/dev/null 2>&1; then exit 1; fi
+        [ "$(cat "$root/canary")" = host-leftover ]
+        grep -Fq "datasets already destroyed: $p/iocell" "$workdir/$mode.log"
+        grep -Fq "leftover directory retained: $root" "$workdir/$mode.log"
+        echo 'PASS: native full cleanup reports destroyed datasets and retains host leftovers'
     elif [ "$want" = 0 ]; then
         printf 'destroy -rRf %s/iocell\n' "$p" > "$workdir/expected"
         cmp "$trace" "$workdir/expected"
