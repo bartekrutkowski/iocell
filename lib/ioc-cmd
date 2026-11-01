@@ -447,7 +447,8 @@ __parse_cmd () {
             snapumount) __umount_snapshot "$2"
                         exit
                 ;;
-            start)      if [ "$2" = "-f" ] ; then
+            start)      local _start_status _failure
+                        if [ "$2" = "-f" ] ; then
                             export _force=1
                             shift 2
                         else
@@ -455,10 +456,16 @@ __parse_cmd () {
                             shift
                         fi
 
-                        for _j in $@ ; do
-                            __start_jail "${_j}"
+                        _start_status=0
+                        for _j in "$@" ; do
+                            if ( __start_jail "${_j}" ); then :
+                            else
+                                _failure=$?
+                                [ "${_start_status}" -ne 0 ] ||
+                                    _start_status="${_failure}"
+                            fi
                         done
-                        exit
+                        exit "${_start_status}"
                 ;;
             stop)       shift
                         for _j in $@ ; do

@@ -46,7 +46,7 @@
 \fBiocell\fP [\fB-v\fP] \fIsnapremove\fP UUID|TAG@snapshotname|ALL
 \fBiocell\fP [\fB-v\fP] snapshot|snap [\fB-f\fP] [\fB-r\fP] UUID|TAG[@snapshotname]
 \fBiocell\fP [\fB-v\fP] \fIsnapumount\fP UUID|TAG@snapshotname
-\fBiocell\fP [\fB-v\fP] \fIstart\fP [\fB-f\fP] UUID|TAG|ALL
+\fBiocell\fP [\fB-v\fP] \fIstart\fP [\fB-f\fP] UUID|TAG|ALL [UUID|TAG|ALL \.\.\.]
 \fBiocell\fP [\fB-v\fP] \fIstop\fP UUID|TAG|ALL
 \fBiocell\fP [\fB-v\fP] \fIuncap\fP UUID|TAG
 \fBiocell\fP [\fB-v\fP] \fIupdate\fP [\fB-p\fP|\fB-P\fP] UUID|TAG|RELEASE
@@ -620,13 +620,14 @@ snapshot|snap [\fB-f\fP] [\fB-r\fP] UUID|TAG[@snapshotname]
 
 .fam T
 .fi
-\fIstart\fP [\fB-f\fP] UUID|TAG|ALL
+\fIstart\fP [\fB-f\fP] UUID|TAG|ALL [UUID|TAG|ALL \.\.\.]
 .PP
 .nf
 .fam C
     Start jail identified by UUID or TAG. If the -f switch is supplied, it will
     force start a template for editing. This flag does not apply to normal
-    jails.
+    jails. With several targets, attempt each in order and return the first
+    nonzero status. Successful starts are not undone if another target fails.
 
 .fam T
 .fi

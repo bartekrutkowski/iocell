@@ -8,12 +8,12 @@ __start_jail () {
 
     if [ "$1" = "ALL" ] ; then
         __start_jail_all
-        exit $?
+        return $?
     fi
 
     _name=$1
-    _dataset="$(__find_jail ${_name})" || exit $?
-    _fulluuid="$(__check_name ${_name} ${_dataset})"
+    _dataset="$(__find_jail "${_name}")" || return $?
+    _fulluuid="$(__check_name "${_name}" "${_dataset}")"
 
     # Prepare the mounts and export _fulluuid
     __hack88_mount ${_fulluuid} ${_dataset} _fulluuid
@@ -67,7 +67,7 @@ __start_jail () {
             echo "  ERROR  : incorrect interfaces property format" >&2
             echo "  HINT   : check with \"iocell get interfaces ${_fulluuid}\"" >&2
             echo "  Example: vnet0:bridge0" >&2
-            exit 1
+            return 1
         fi
     done
 
@@ -86,7 +86,7 @@ __start_jail () {
             echo "ERROR: hostid mismatch, start failed!" >&2
             echo "    jail hostid: ${_jail_hostid}" >&2
             echo "  host's hostid: ${hostid}" >&2
-            exit 1
+            return 1
         fi
     fi
 
@@ -118,9 +118,11 @@ __start_jail () {
 
     if [ "${_dhcp}" = "on" ] ; then
         if [ "${_vnet}" != "on" ] ; then
-            __die "vnet is needed to use dhcp, please set vnet=on for ${_fulluuid}"
+            __error "vnet is needed to use dhcp, please set vnet=on for ${_fulluuid}"
+            return 1
         elif [ "${_bpf}" = "off" ] ; then
-            __die "bpf is needed to use dhcp, please set bpf=yes for ${_fulluuid}"
+            __error "bpf is needed to use dhcp, please set bpf=yes for ${_fulluuid}"
+            return 1
         fi
     fi
 
@@ -155,12 +157,8 @@ __start_jail () {
 
             if [ "${_start_status}" -ne 0 ] ; then
                 echo "  ! Start                FAILED" >&2
-
-                if [ "${_jail_type}" = "basejail" -o "${_jail_type}" = "clonejail" ] ; then
-                    __umount_basejail "${_fulluuid}" "${_dataset}" >&2
-                elif [ "${_jail_type}" = "template" ] ; then
-                    __umount_istemplate "${_tag}" >&2
-                fi
+                __cleanup_start_mounts "${_jail_type}" "${_fulluuid}" \
+                    "${_dataset}" "${_tag}"
                 return "${_start_status}"
             else
                 echo "  + Started                  OK"
@@ -172,12 +170,8 @@ __start_jail () {
 
             if [ "${_start_status}" -ne 0 ] ; then
                 echo "         FAILED" >&2
-
-                if [ "${_jail_type}" = "basejail" -o "${_jail_type}" = "clonejail" ] ; then
-                    __umount_basejail "${_fulluuid}" "${_dataset}" >&2
-                elif [ "${_jail_type}" = "template" ] ; then
-                    __umount_istemplate "${_tag}" >&2
-                fi
+                __cleanup_start_mounts "${_jail_type}" "${_fulluuid}" \
+                    "${_dataset}" "${_tag}"
                 return "${_start_status}"
             else
                 echo "         OK"
@@ -186,13 +180,9 @@ __start_jail () {
             echo "  ERROR: start failed for ${_fulluuid}" >&2
             echo "  vnet=on but kernel is not VNET capable!" >&2
             echo "  Turn vnet off for this jail or recompile kernel with VNET." >&2
-
-            if [ "${_jail_type}" = "basejail" -o "${_jail_type}" = "clonejail" ] ; then
-                __umount_basejail "${_fulluuid}" "${_dataset}" >&2
-            elif [ "${_jail_type}" = "template" ] ; then
-                __umount_istemplate "${_tag}" >&2
-            fi
-            exit 1
+            __cleanup_start_mounts "${_jail_type}" "${_fulluuid}" \
+                "${_dataset}" "${_tag}"
+            return 1
         fi
     else
         echo "* Starting ${_fulluuid} (${_tag})"
@@ -200,11 +190,8 @@ __start_jail () {
         __legacy_start "${_fulluuid}" "${_dataset}" || _start_status=$?
         if [ "${_start_status}" -ne 0 ] ; then
             echo "  ! Start                FAILED" >&2
-            if [ "${_jail_type}" = "basejail" -o "${_jail_type}" = "clonejail" ] ; then
-                __umount_basejail "${_fulluuid}" "${_dataset}" >&2
-            elif [ "${_jail_type}" = "template" ] ; then
-                __umount_istemplate "${_tag}" >&2
-            fi
+            __cleanup_start_mounts "${_jail_type}" "${_fulluuid}" \
+                "${_dataset}" "${_tag}"
             return "${_start_status}"
         else
             echo "  + Started (shared IP mode) OK"
@@ -218,15 +205,13 @@ __start_jail () {
     if [ "${_cpuset}" != "off" ] ; then
         echo -n "  + Appliyng CPU affinity"
         local jid="$(jls -j ioc-${_fulluuid} jid)"
-        cpuset -l "${_cpuset}" -j "${jid}"
-        if [ $? -eq 1 ] ; then
+        _start_status=0
+        cpuset -l "${_cpuset}" -j "${jid}" || _start_status=$?
+        if [ "${_start_status}" -ne 0 ] ; then
             echo "    FAILED" >&2
-            if [ "${_jail_type}" = "basejail" -o "${_jail_type}" = "clonejail" ] ; then
-                __umount_basejail "${_fulluuid}" "${_dataset}" >&2
-            elif [ "${_jail_type}" = "template" ] ; then
-                __umount_istemplate "${_tag}" >&2
-            fi
-            exit 1
+            __cleanup_start_mounts "${_jail_type}" "${_fulluuid}" \
+                "${_dataset}" "${_tag}"
+            return "${_start_status}"
         else
             echo "    OK"
         fi
@@ -244,22 +229,28 @@ __start_jail () {
 
     __resolv_conf ${_fulluuid} ${_dataset} > ${_jail_path}/root/etc/resolv.conf
     echo -n "  + Starting services"
+    _start_status=0
     setfib ${_exec_fib} jexec ioc-${_fulluuid} ${_exec_start} \
-     >> "${iocroot}/log/${_fulluuid}-console.log" 2>&1
+     >> "${iocroot}/log/${_fulluuid}-console.log" 2>&1 || _start_status=$?
 
-    if [ $? -eq 1 ] ; then
+    if [ "${_start_status}" -ne 0 ] ; then
         echo "        FAILED" >&2
-        if [ "${_jail_type}" = "basejail" -o "${_jail_type}" = "clonejail" ] ; then
-            __umount_basejail "${_fulluuid}" "${_dataset}" >&2
-        elif [ "${_jail_type}" = "template" ] ; then
-            __umount_istemplate "${_tag}" >&2
-        fi
-        exit 1
+        __cleanup_start_mounts "${_jail_type}" "${_fulluuid}" \
+            "${_dataset}" "${_tag}"
+        return "${_start_status}"
     else
         echo "        OK"
     fi
 
     __set_jail_prop last_started=$(date "+%F_%T") "${_fulluuid}" "${_dataset}" &
+}
+
+# Use captured identity/type; cleanup must not replace the startup error.
+__cleanup_start_mounts () {
+    case "$1" in
+        basejail|clonejail) __umount_basejail "$2" "$3" >&2 ;;
+        template) __umount_istemplate "$4" >&2 ;;
+    esac
 }
 
 # Start a VNET jail

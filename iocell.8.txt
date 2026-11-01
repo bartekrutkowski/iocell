@@ -42,7 +42,7 @@ SYNOPSIS
   iocell [-v] snapremove UUID|TAG@snapshotname|ALL
   iocell [-v] snapshot|snap [-f] [-r] UUID|TAG[@snapshotname]
   iocell [-v] snapumount UUID|TAG@snapshotname
-  iocell [-v] start [-f] UUID|TAG|ALL
+  iocell [-v] start [-f] UUID|TAG|ALL [UUID|TAG|ALL ...]
   iocell [-v] stop UUID|TAG|ALL
   iocell [-v] uncap UUID|TAG
   iocell [-v] update [-p|-P] UUID|TAG|RELEASE
@@ -461,11 +461,12 @@ SUBCOMMANDS
 
     Will unmount the specified jail's snapshot.
 
-  start [-f] UUID|TAG|ALL
+  start [-f] UUID|TAG|ALL [UUID|TAG|ALL ...]
 
     Start jail identified by UUID or TAG. If the -f switch is supplied, it will
     force start a template for editing. This flag does not apply to normal
-    jails.
+    jails. With several targets, attempt each in order and return the first
+    nonzero status. Successful starts are not undone if another target fails.
 
   stop UUID|TAG|ALL
 

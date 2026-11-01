@@ -18,6 +18,8 @@ sh tests/discovery-safety.sh
 sh tests/discovery-callers.sh
 sh tests/autoip-discovery.sh
 sh tests/bulk-jails.sh
+sh tests/start-dispatch.sh
+sh tests/start-failures.sh
 sh tests/rc-jails.sh
 sh tests/template-forward-safety.sh
 sh tests/clean-template-safety.sh
@@ -55,8 +57,8 @@ Child stdin is isolated from the package list. Failure coverage includes each
 template release/lower, template overlay and writable jail overlay mount.
 Template tests cover stored UUID selection, delegated state, validation, clone
 and running-jail guards, rename errors, and propagation through the CLI.
-Send tests check literal snapshot operands and one shared parser per public
-validation/direct-backend boundary without retaining parsed state. The csh test
+Send tests check literal snapshot operands and validation-state isolation.
+The csh test
 executes plain/buffered receiver commands, checks transferred bytes and both
 failure statuses, and verifies temporary-directory cleanup; it is not syntax-only.
 Safety tests additionally cover fresh full-send snapshots, every pipeline stage
@@ -186,6 +188,18 @@ cleanup stops its jail if a test fails. Existing jails/datasets are not deleted.
 
 This is CLI syntax coverage, not full property/kernel validation or a promise
 of atomic multi-target commands. Real SSH/send data-path tests are below.
+
+## Multi-target startup
+
+`start-dispatch.sh` checks ordered attempts, force propagation and the first
+failure status for returned and exiting backends. `start-failures.sh` keeps the
+real startup phases and checks that failures return to callers, stop later
+work, and select the correct mount cleanup without masking the original error.
+
+With native authorization and a fetched release, `start-multi-zfs.sh` starts a
+real valid jail after earlier targets fail. It checks first-error preservation,
+actual kernel state, unchanged failed-jail configs/data/GUIDs, and stops its own
+jails on exit. Fixtures and logs are retained.
 
 ## Forced console startup
 
