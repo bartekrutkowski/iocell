@@ -59,8 +59,9 @@ __cli_properties () {
 }
 
 __validate_cmd () {
-    local _cmd _arg _props _targets _repo _thick _opt OPTIND OPTARG
-    local _clean_seen _optstring
+    local _cmd _arg _props _targets _opt OPTIND OPTARG
+    local _clean_seen _optstring _exec_user
+    local _fetch_ports _fetch_repos _fetch_thick
     [ "$#" -gt 0 ] || return 0
     _cmd="$1"
     shift
@@ -145,7 +146,7 @@ __validate_cmd () {
                 return 1
             fi ;;
         clean|exec)
-            OPTIND=1; _targets=''; _clean_seen=0
+            OPTIND=1; _exec_user=''; _clean_seen=0
             if [ "${_cmd}" = clean ] ; then _optstring=':arjtf'
             else _optstring=':u:U:'; fi
             while getopts "${_optstring}" _opt "$@" ; do
@@ -153,12 +154,12 @@ __validate_cmd () {
                     \?|:) __cli_args_error "${_cmd}"; return 1 ;;
                     a|r|j|t) _clean_seen=1 ;;
                     u|U)
-                        if [ -n "${_targets}" ] &&
-                            [ "${_targets}" != "${_opt}" ] ; then
+                        if [ -n "${_exec_user}" ] &&
+                            [ "${_exec_user}" != "${_opt}" ] ; then
                             __cli_args_error "${_cmd}"
                             return 1
                         fi
-                        _targets="${_opt}"
+                        _exec_user="${_opt}"
                         __cli_targets "${OPTARG}" || return $? ;;
                 esac
             done
@@ -184,27 +185,28 @@ __validate_cmd () {
             __cli_arity 1 1 "${_cmd}" "$@" || return $?
             __cli_targets "$@" || return $? ;;
         fetch)
-            _repo=0; _thick=0; _targets=0
-            if [ "${1:-}" = -t ] ; then _thick=1; shift; fi
+            _fetch_repos=0; _fetch_thick=0; _fetch_ports=0
+            if [ "${1:-}" = -t ] ; then _fetch_thick=1; shift; fi
             for _arg in "$@" ; do
                 case "${_arg}" in
                     *=*) __cli_properties "${_arg}" || return $? ;;
-                    -p|-P) _targets=1 ;;
+                    -p|-P) _fetch_ports=1 ;;
                     -*) __cli_args_error "${_cmd}"; return 1 ;;
-                    */*) _repo=$((_repo + 1)) ;;
+                    */*) _fetch_repos=$((_fetch_repos + 1)) ;;
                     *) __cli_args_error "${_cmd}"; return 1 ;;
                 esac
             done
-            if [ "${_repo}" -gt 1 ] ||
-                { [ "${_thick}" -eq 1 ] && [ "${_repo}" -ne 1 ]; } ; then
+            if [ "${_fetch_repos}" -gt 1 ] ||
+                { [ "${_fetch_thick}" -eq 1 ] &&
+                  [ "${_fetch_repos}" -ne 1 ]; } ; then
                 __cli_args_error "${_cmd}"
                 return 1
             fi
-            if [ "${_repo}" -eq 1 ] ; then
+            if [ "${_fetch_repos}" -eq 1 ] ; then
                 case "${1:-}" in
                     ''|-*|*=*) __cli_args_error "${_cmd}"; return 1 ;;
                 esac
-                if [ "${_targets}" -eq 1 ] ; then
+                if [ "${_fetch_ports}" -eq 1 ] ; then
                     __cli_args_error "${_cmd}"
                     return 1
                 fi

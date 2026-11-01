@@ -1363,10 +1363,12 @@ __send_receive () {
     fi
 }
 
+# Populate caller-owned locals; validation-only callers isolate them below.
 # Reject syntax errors before cleanup, pool probing, snapshots or SSH.
-__validate_send_args () {
-    local _opt _clean _move _remote _host _user _i _I OPTIND OPTARG
-    _clean=0; _move=0; _remote=0; _host=''; _user=''; _i=0; _I=0
+__parse_send_args () {
+    local _opt _i _I OPTIND OPTARG
+    _clean=0; _move=0; _remote=0; _remotehost=''; _remoteuser=''
+    _kind=''; _from=''; _to=''; _i=0; _I=0
     OPTIND=1
     while getopts :ci:I:rmh:u: _opt "$@" ; do
         case "${_opt}" in
@@ -1379,10 +1381,14 @@ __validate_send_args () {
                         return 1 ;;
                 esac
                 case "${_opt}" in
-                    h) _host="${OPTARG}" ;;
-                    u) _user="${OPTARG}" ;;
-                    i) _i=$((_i + 1)) ;;
-                    I) _I=$((_I + 1)) ;;
+                    h) _remotehost="${OPTARG}" ;;
+                    u) _remoteuser="${OPTARG}" ;;
+                    i|I)
+                        _kind="${_opt}"
+                        if [ "${_opt}" = i ]; then _i=$((_i + 1))
+                        else _I=$((_I + 1)); fi
+                        if [ -z "${_from}" ]; then _from="${OPTARG}"
+                        else _to="${OPTARG}"; fi ;;
                 esac ;;
             *) __error "send: invalid option or missing option argument"
                 return 1 ;;
@@ -1398,6 +1404,7 @@ __validate_send_args () {
             __error "send: please specify a valid destination pool"
             return 1 ;;
     esac
+    _dest="$1"
     if { [ "${_i}" -ne 0 ] && [ "${_i}" -ne 2 ]; } ||
         { [ "${_I}" -ne 0 ] && [ "${_I}" -ne 2 ]; } ||
         { [ "${_i}" -ne 0 ] && [ "${_I}" -ne 0 ]; } ; then
@@ -1409,53 +1416,36 @@ __validate_send_args () {
         return 1
     fi
     if [ "${_remote}" -eq 1 ] ; then
-        if [ -z "${_host}" ] || [ -z "${_user}" ] ||
+        if [ -z "${_remotehost}" ] || [ -z "${_remoteuser}" ] ||
             [ "${_move}" -eq 1 ] ; then
             __error "send: remote sends need -h host and -u user, without -m"
             return 1
         fi
-    elif [ -n "${_host}" ] || [ -n "${_user}" ] ; then
+    elif [ -n "${_remotehost}" ] || [ -n "${_remoteuser}" ] ; then
         __error "send: -h and -u require -r"
         return 1
     fi
     return 0
 }
 
-__send () {
-    local _clean _date _dest _exit _kind _from _to _buffer _move _opt
-    local _remote _remotehost _remoteuser _peer _state _source_dataset
-    local _full_snapshot _spinner_pid _mountpoint OPTIND OPTARG
+__validate_send_args () (
+    # No parse cache or caller-visible assignments survive public preflight.
+    __parse_send_args "$@"
+)
 
-    # Direct internal callers retain their own syntax boundary.
-    __validate_send_args "$@" || return $?
+__send () {
+    local _clean _date _dest _exit _kind _from _to _buffer _move
+    local _remote _remotehost _remoteuser _peer _state _source_dataset
+    local _full_snapshot _spinner_pid _mountpoint
+
+    # Direct internal callers validate and extract in the same pass.
+    __parse_send_args "$@" || return $?
     _source_dataset="${pool}/iocell"
-    _full_snapshot=''; _buffer=0; _clean=0; _move=0; _remote=0
-    _kind=''; _from=''; _to=''; _peer=''; _remotehost=''; _remoteuser=''
-    OPTIND=1
-    while getopts :ci:I:rmh:u: _opt "$@" ; do
-        case "${_opt}" in
-            c) _clean=1 ;;
-            m) _move=1 ;;
-            r) _remote=1 ;;
-            h) _remotehost="${OPTARG}" ;;
-            u) _remoteuser="${OPTARG}" ;;
-            i|I)
-                _kind="${_opt}"
-                if [ -z "${_from}" ] ; then _from="${OPTARG}"
-                else _to="${OPTARG}"; fi ;;
-        esac
-    done
-    shift $((OPTIND - 1))
-    _dest="$1"
+    _full_snapshot=''; _buffer=0; _peer=''
     if [ "${_remote}" = 0 ] ; then
         zfs get -H -o value creation "${_dest}" >/dev/null 2>&1 || {
             _exit=$?; __error "please specify a valid pool"; return "${_exit}";
         }
-    else
-        # Only native dataset-name characters may enter the SSH command.
-        case "${_dest}" in *[!a-zA-Z0-9_./:-]*)
-            __error 'invalid remote destination name'; return 1 ;;
-        esac
     fi
     if [ "${_remote}" = 0 ] &&
         [ "${_dest}/iocell" = "${_source_dataset}" ] ; then
