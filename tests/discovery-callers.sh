@@ -12,6 +12,7 @@ cd "$(dirname "$0")/.."
 workdir=$(mktemp -d "${TMPDIR:-/tmp}/iocell-discovery-callers.XXXXXX")
 trap 'if [ "$failed" = 0 ]; then rm -rf "$workdir"; else echo "Retained: $workdir"; fi' EXIT
 pool=tank; uuid=11111111-1111-1111-1111-111111111111
+fixture_uuid="$uuid"
 ds="tank/iocell/jails/$uuid"
 iocroot="$workdir/tree"; mkdir -p "$iocroot/releases/15.1-RELEASE"
 __find_jail () {
@@ -24,7 +25,7 @@ __find_jail () {
         fi
     else echo "$ds"; fi
 }
-__check_name () { echo "$uuid"; }
+__check_name () { echo "$fixture_uuid"; }
 __get_jail_prop () {
     [ ! -f "$state/failed" ] || echo "read $1" >> "$trace"
     case "$1" in
@@ -48,7 +49,7 @@ rctl () { echo rctl >> "$trace"; }
 zfs () { echo "zfs $*" >> "$trace"; echo 0; }
 column () { cat; }
 failed=0
-for label in list templates warden warden-dispatch rctl autoip reset show disk upgrade; do
+for label in list templates warden warden-dispatch rctl rctl-dispatch autoip reset show disk upgrade; do
     for fault in yes no; do
         state="$workdir/$label-$fault"; mkdir "$state"
         trace="$state/trace"; : > "$trace"; status=0; want=0
@@ -60,6 +61,7 @@ for label in list templates warden warden-dispatch rctl autoip reset show disk u
                 list) __list_jails '' ;; templates) __list_jails -t ;;
                 warden) __list_jails_warden ;;
                 warden-dispatch) __list_jails --warden ;; rctl) __rctl_inuse_all ;;
+                rctl-dispatch) __rctl_inuse '' ;;
                 autoip) __get_autoip4 fixture "$ds" ;;
                 reset) __reset_jail_props_all ;; show) __show notes ;;
                 disk) __print_disk ;; upgrade) __upgrade fixture ;;
@@ -83,5 +85,29 @@ for label in list templates warden warden-dispatch rctl autoip reset show disk u
         fi
         echo "PASS: discovery consumer $label/$fault"
     done
+done
+# The reset entrypoint enumerates once before confirmation and again for work.
+# Its outer dispatcher must preserve the second enumeration/child failure too.
+for fault in yes no; do
+    state="$workdir/reset-public-$fault"; mkdir "$state"
+    trace="$state/trace"; : > "$trace"; echo 0 > "$state/count"
+    status=0; want=42; [ "$fault" != no ] || want=73
+    (
+        set +e
+        . ./lib/ioc-configure
+        __find_jail () {
+            if [ "$1" = ALL ]; then
+                n=$(cat "$state/count"); n=$((n+1)); echo "$n" > "$state/count"
+                echo "$ds"
+                if [ "$n" = 2 ] && [ "$fault" = yes ]; then return 42; fi
+            else echo "$ds"; fi
+        }
+        __configure_jail () { echo configure >> "$trace"; return 73; }
+        printf 'y\n' | __reset_jail_props ALL
+    ) > "$state/out" 2> "$state/err" || status=$?
+    if [ "$status" != "$want" ] ||
+        { [ "$fault" = yes ] && [ -s "$trace" ]; }; then
+        echo "FAIL: reset dispatcher masked discovery/child failure $fault ($status)"; failed=1
+    else echo "PASS: reset dispatcher preserves discovery/child failure $fault"; fi
 done
 exit "$failed"

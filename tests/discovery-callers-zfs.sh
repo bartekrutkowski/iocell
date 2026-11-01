@@ -50,12 +50,12 @@ __reset_jail_props () { echo 'unexpected reset' >> "$DC_STATE/actions"; return 9
 case "$1" in
     list) __list_jails '' ;; templates) __list_jails -t ;;
     warden) __list_jails_warden ;; warden-dispatch) __list_jails --warden ;;
-    rctl) __rctl_inuse_all ;; autoip) __get_autoip4 fixture "$DC_DATASET" ;;
+    rctl) __rctl_inuse_all ;; rctl-dispatch) __rctl_inuse '' ;; autoip) __get_autoip4 fixture "$DC_DATASET" ;;
     reset) __reset_jail_props_all ;; show) __show notes ;;
     disk) __print_disk ;; upgrade) __upgrade fixture ;;
 esac
 HELPER
-for label in list templates warden warden-dispatch rctl autoip reset show disk upgrade; do
+for label in list templates warden warden-dispatch rctl rctl-dispatch autoip reset show disk upgrade; do
     state="$workdir/$label"; mkdir "$state"; echo 0 > "$state/count"
     : > "$state/actions"; fail_at=1; status=0
     [ "$label" != upgrade ] || fail_at=2

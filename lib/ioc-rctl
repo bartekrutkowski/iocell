@@ -91,7 +91,7 @@ __rctl_inuse () {
     _name="$1"
 
     if [ -z ${_name} ] ; then
-        __rctl_inuse_all
+        __rctl_inuse_all || return $?
         exit 0
     fi
 
