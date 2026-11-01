@@ -173,7 +173,7 @@ __networking () {
         # Check if the user specified they wanted to use an automatic IP4 address
         echo "$ip4_addr" | grep -q "AUTOIP4"
         if [ $? -eq 0 ] ; then
-            __get_autoip4 $_dataset
+            __get_autoip4 || return $?
 
             if [ -z "$cur_ip4_iface" -o "$cur_ip4_iface" == "DEFAULT" ] ; then
                 new_iface="$default_iface"
@@ -222,10 +222,7 @@ __networking () {
 }
 
 __get_autoip4 () {
-    local _autobase _autostart _autoend _autoip _freeip _dataset _jails _juuid \
-          _jip4
-
-    _dataset="$2"
+    local _autobase _autostart _autoend _autoip _freeip _jails _juuid _jip4
     unset _auto_ip4
     _autobase=$(netstat -f inet -nrW | grep '^default' |\
               awk '{ print $2 }' | cut -d '.' -f 1-3)
@@ -258,7 +255,7 @@ __get_autoip4 () {
         for _jail in ${_jails} ; do
             # _jail is actually a dataset, so fulluuid needs to be faked.
             _juuid="$(__check_name "name" ${_jail} 2> /dev/null)"
-            _jip4="$(__get_jail_prop ip4_addr ${_juuid} ${_dataset})"
+            _jip4="$(__get_jail_prop ip4_addr "${_juuid}" "${_jail}")"
             _jip4=$(echo ${_jip4} | cut -d '|' -f 2 | cut -d '/' -f 1)
             if [ "${_jip4}" = "${_nextaddr}" ] ; then
                 _freeip="NO"

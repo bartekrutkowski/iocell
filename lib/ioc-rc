@@ -4,7 +4,7 @@ __start_jail () {
     local _name _dataset _fulluuid _jail_type  _tag _jail_hostid _jail_path \
           _jail_release _istemplate _cpuset _procfs _state _vnet _nics \
           _jail_zfs_datasets _jail_zfs _clone_check _exec_fib _exec_start _bpf \
-          _dhcp _devfs_string _linprocfs _zfs_dataset
+          _dhcp _devfs_string _linprocfs _zfs_dataset _start_status
 
     if [ "$1" = "ALL" ] ; then
         __start_jail_all
@@ -150,9 +150,10 @@ __start_jail () {
     if [ "${_vnet}" = "on" -o "${_vnet}" = "-" ] ; then
         if [ ! -z $(sysctl -qn kern.features.vimage) ] ; then
             echo "* Starting ${_fulluuid} (${_tag})"
-            __vnet_start "${_fulluuid}" "${_dataset}"
+            _start_status=0
+            __vnet_start "${_fulluuid}" "${_dataset}" || _start_status=$?
 
-            if [ $? -eq 1 ] ; then
+            if [ "${_start_status}" -ne 0 ] ; then
                 echo "  ! Start                FAILED" >&2
 
                 if [ "${_jail_type}" = "basejail" -o "${_jail_type}" = "clonejail" ] ; then
@@ -160,15 +161,16 @@ __start_jail () {
                 elif [ "${_jail_type}" = "template" ] ; then
                     __umount_istemplate "${_tag}" >&2
                 fi
-                exit 1
+                return "${_start_status}"
             else
                 echo "  + Started                  OK"
             fi
 
             echo -n "  + Configuring VNET"
-            __networking start "${_fulluuid}" "${_dataset}"
+            _start_status=0
+            __networking start "${_fulluuid}" "${_dataset}" || _start_status=$?
 
-            if [ $? -eq 1 ] ; then
+            if [ "${_start_status}" -ne 0 ] ; then
                 echo "         FAILED" >&2
 
                 if [ "${_jail_type}" = "basejail" -o "${_jail_type}" = "clonejail" ] ; then
@@ -176,7 +178,7 @@ __start_jail () {
                 elif [ "${_jail_type}" = "template" ] ; then
                     __umount_istemplate "${_tag}" >&2
                 fi
-                exit 1
+                return "${_start_status}"
             else
                 echo "         OK"
             fi
@@ -194,15 +196,16 @@ __start_jail () {
         fi
     else
         echo "* Starting ${_fulluuid} (${_tag})"
-        __legacy_start "${_fulluuid}" "${_dataset}"
-        if [ $? -eq 1 ] ; then
+        _start_status=0
+        __legacy_start "${_fulluuid}" "${_dataset}" || _start_status=$?
+        if [ "${_start_status}" -ne 0 ] ; then
             echo "  ! Start                FAILED" >&2
             if [ "${_jail_type}" = "basejail" -o "${_jail_type}" = "clonejail" ] ; then
                 __umount_basejail "${_fulluuid}" "${_dataset}" >&2
             elif [ "${_jail_type}" = "template" ] ; then
                 __umount_istemplate "${_tag}" >&2
             fi
-            exit 1
+            return "${_start_status}"
         else
             echo "  + Started (shared IP mode) OK"
         fi
@@ -399,7 +402,7 @@ __legacy_start () {
     # Check if the user specified they wanted to use an automatic IP4 address
     echo "${_ip4_addr}" | grep -q "AUTOIP4"
     if [ "$?" -eq 0 ] ; then
-        __get_autoip4
+        __get_autoip4 || return $?
         if [ -z "${_cur_ip4_iface}" -o "${_cur_ip4_iface}" = "DEFAULT" ] ; then
             _new_iface="DEFAULT"
             _ip4_addr_propline="ip4.addr=${_default_iface}|${auto_ip4}"

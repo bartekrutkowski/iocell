@@ -14,7 +14,7 @@ zfs create -o mountpoint="$workdir/tree" "$p/iocell"
 zfs create -p "$ds/root"
 zfs create "$p/iocell/templates"
 zfs create -p "$p/iocell/releases/15.1-RELEASE"
-printf 'tag="fixture"; type="basejail"; release="15.1-RELEASE"; host_hostuuid="%s";\n' "$u" > "$workdir/tree/jails/$u/config"
+printf 'tag="fixture"; type="basejail"; release="15.1-RELEASE"; host_hostuuid="%s"; ip4_addr="DEFAULT|AUTOIP4"; ip6_addr="none";\n' "$u" > "$workdir/tree/jails/$u/config"
 printf 'ip4_autostart="10"; ip4_autoend="20"; ip4_autosubnet="24";\n' > "$workdir/tree/.default"
 echo preserved > "$workdir/tree/jails/$u/root/canary"
 cp "$workdir/tree/jails/$u/config" "$workdir/config-before"
@@ -40,22 +40,29 @@ cat > "$workdir/bin/uclcmd" <<'WRAPPER'
 if [ "$1" != get ]; then echo 'unexpected UCL write' >> "$DC_STATE/actions"; exit 99; fi
 exec /usr/local/bin/uclcmd "$@"
 WRAPPER
-chmod +x "$workdir/bin/zfs" "$workdir/bin/uclcmd"
+cat > "$workdir/bin/jail" <<'WRAPPER'
+#!/bin/sh
+echo 'unexpected kernel jail creation' >> "$DC_STATE/actions"
+exit 99
+WRAPPER
+chmod +x "$workdir/bin/zfs" "$workdir/bin/uclcmd" "$workdir/bin/jail"
 cat > "$workdir/consumer.sh" <<'HELPER'
 #!/bin/sh
-for lib in globals common info help rctl network upgrade configure; do . "./lib/ioc-$lib"; done
+for lib in globals common info help rctl network rc upgrade configure; do . "./lib/ioc-$lib"; done
 pool="$DC_POOL"; iocroot="$DC_ROOT"
+__get_default_iface () { echo lo0; }
 __check_basejail () { echo 'unexpected migration/mount' >> "$DC_STATE/actions"; return 99; }
 __reset_jail_props () { echo 'unexpected reset' >> "$DC_STATE/actions"; return 99; }
 case "$1" in
     list) __list_jails '' ;; templates) __list_jails -t ;;
     warden) __list_jails_warden ;; warden-dispatch) __list_jails --warden ;;
-    rctl) __rctl_inuse_all ;; rctl-dispatch) __rctl_inuse '' ;; autoip) __get_autoip4 fixture "$DC_DATASET" ;;
+    rctl) __rctl_inuse_all ;; rctl-dispatch) __rctl_inuse '' ;; autoip) __get_autoip4 ;;
+    autoip-legacy) __legacy_start "${DC_DATASET##*/}" "$DC_DATASET" ;;
     reset) __reset_jail_props_all ;; show) __show notes ;;
     disk) __print_disk ;; upgrade) __upgrade fixture ;;
 esac
 HELPER
-for label in list templates warden warden-dispatch rctl rctl-dispatch autoip reset show disk upgrade; do
+for label in list templates warden warden-dispatch rctl rctl-dispatch autoip autoip-legacy reset show disk upgrade; do
     state="$workdir/$label"; mkdir "$state"; echo 0 > "$state/count"
     : > "$state/actions"; fail_at=1; status=0
     [ "$label" != upgrade ] || fail_at=2
