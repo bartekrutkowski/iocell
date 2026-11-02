@@ -19,7 +19,10 @@ git -C "$workdir/upstream" push -qu origin main
 git --git-dir="$workdir/origin" symbolic-ref HEAD refs/heads/main
 __find_jail () { echo tank/iocell/jails/fixture; }
 __check_name () { echo fixture; }
-__get_jail_prop () { echo "$mp"; }
+__get_jail_prop () {
+    case "$1" in mountpoint) echo "$mp" ;;
+        type) [ "$mode" != n-notgit ] && echo gitjail || echo basejail ;; esac
+}
 __update () { echo update > "$mp/updated"; return "$update_status"; }
 failed=0
 for mode in fetch merge update success; do
@@ -51,5 +54,21 @@ for mode in fetch merge update success; do
     elif [ ! -e "$mp/updated" ]; then
         echo "FAIL: pull $mode skipped the successful merge continuation"; failed=1
     else echo "PASS: pull $mode preserves continuation status"; fi
+done
+# Exercise the real read-only update path as well as pull's OS continuation.
+. ./lib/ioc-upgrade
+mp="$workdir/success"
+git -C "$mp/root" rev-parse HEAD > "$workdir/n.before"
+for mode in n-success n-error n-notgit; do
+    want=0; status=0
+    case "$mode" in
+        n-error) git -C "$mp/root" remote set-url origin "$mp/missing"; want=1 ;;
+        n-notgit) want=1 ;;
+    esac
+    ( __update -n fixture ) > "$workdir/$mode.log" 2>&1 || status=$?
+    git -C "$mp/root" rev-parse HEAD > "$workdir/n.after"
+    if [ "$status" != "$want" ] || ! cmp -s "$workdir/n.before" "$workdir/n.after"; then
+        echo "FAIL: update -n $mode lost status or changed checkout"; failed=1
+    else echo "PASS: update -n $mode preserves status and checkout"; fi
 done
 exit "$failed"

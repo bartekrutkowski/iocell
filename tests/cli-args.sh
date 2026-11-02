@@ -156,7 +156,6 @@ accept import-properties import image notes=restored
 accept upgrade-properties upgrade example release=15.1-RELEASE
 accept git-update update -n example
 accept fetch-interactive fetch
-accept fetch-ports fetch -p release=15.1-RELEASE
 accept fetch-plugin fetch owner/repo gitlocation=/local/plugins release=15.1-RELEASE
 accept fetch-thick-plugin fetch -t owner/repo
 accept exec-optional-shell exec example

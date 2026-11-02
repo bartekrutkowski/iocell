@@ -61,7 +61,7 @@ __cli_properties () {
 __validate_cmd () {
     local _cmd _arg _props _targets _opt OPTIND OPTARG
     local _clean_seen _optstring _exec_user
-    local _fetch_ports _fetch_repos _fetch_thick
+    local _fetch_repos _fetch_thick
     [ "$#" -gt 0 ] || return 0
     _cmd="$1"
     shift
@@ -72,7 +72,10 @@ __validate_cmd () {
             # Keep the existing no-operand active-pool query.
             __cli_arity 0 1 "${_cmd}" "$@" || return $?
             [ "$#" -eq 0 ] || __cli_targets "$@" || return $? ;;
-        cap|deactivate|export|promote|pull|push|reset|rollback|runtime|\
+        push)
+            __error "push is not supported; use git in an explicitly selected repository"
+            return 1 ;;
+        cap|deactivate|export|promote|pull|reset|rollback|runtime|\
         snaplist|snapremove|snapumount|uncap)
             __cli_arity 1 1 "${_cmd}" "$@" || return $?
             __cli_targets "$@" || return $?
@@ -181,16 +184,19 @@ __validate_cmd () {
             __cli_arity 1 1 "${_cmd}" "$@" || return $?
             __cli_targets "$@" || return $? ;;
         update)
-            case "${1:-}" in -n|-p|-P) shift ;; esac
+            case "${1:-}" in
+                -p|-P) __error "portsnap-based ports updates are not supported"; return 1 ;;
+                -n) shift ;;
+            esac
             __cli_arity 1 1 "${_cmd}" "$@" || return $?
             __cli_targets "$@" || return $? ;;
         fetch)
-            _fetch_repos=0; _fetch_thick=0; _fetch_ports=0
+            _fetch_repos=0; _fetch_thick=0
             if [ "${1:-}" = -t ] ; then _fetch_thick=1; shift; fi
             for _arg in "$@" ; do
                 case "${_arg}" in
                     *=*) __cli_properties "${_arg}" || return $? ;;
-                    -p|-P) _fetch_ports=1 ;;
+                    -p|-P) __error "portsnap-based ports fetches are not supported"; return 1 ;;
                     -*) __cli_args_error "${_cmd}"; return 1 ;;
                     */*) _fetch_repos=$((_fetch_repos + 1)) ;;
                     *) __cli_args_error "${_cmd}"; return 1 ;;
@@ -206,10 +212,6 @@ __validate_cmd () {
                 case "${1:-}" in
                     ''|-*|*=*) __cli_args_error "${_cmd}"; return 1 ;;
                 esac
-                if [ "${_fetch_ports}" -eq 1 ] ; then
-                    __cli_args_error "${_cmd}"
-                    return 1
-                fi
             fi ;;
         send) __validate_send_args "$@" || return $? ;;
         *) __error "unknown command: ${_cmd}"; __usage >&2; return 1 ;;

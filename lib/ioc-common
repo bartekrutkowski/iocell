@@ -594,8 +594,8 @@ __cleanup_release_dir () {
 
 # Fetch release and prepare base ZFS filesystems-----------
 __fetch_release () {
-    local _rel_exist _release _host_release _non_interactive _dist _ports \
-          _ports_string _grepmatch
+    local _rel_exist _release _host_release _non_interactive _dist \
+          _grepmatch _args
 
     _release=$(uname -r|cut -f 1,2 -d'-')
     # Needed to check for PC-BSD import
@@ -604,8 +604,9 @@ __fetch_release () {
 
     for _args in "$@" ; do
         case "${_args}" in
-            -P|-p) _ports=1
-                ;;
+            -P|-p)
+                __error "portsnap-based ports fetches are not supported"
+                return 1 ;;
         esac
     done
 
@@ -742,51 +743,6 @@ __fetch_release () {
 
     if [ "${_dist}" = "1" ] ; then
         rm -rf "/usr/local/tmp/iocell-dist"
-    fi
-
-    if [ "${_ports}" = "1" ] ; then
-        echo "* Updating ports for release: ${_release}."
-        sleep 2
-
-        case "${_release}" in
-            9.3-RELEASE)
-                # Remove the interactive check in portsnap
-                sed 's/\[ ! -t 0 \]/false/' \
-                    ${iocroot}/releases/${_release}/root/usr/sbin/portsnap \
-                    > ${iocroot}/releases/${_release}/root/tmp/portsnap
-                chmod +x ${iocroot}/releases/${_release}/root/tmp/portsnap
-                chroot ${iocroot}/releases/${_release}/root \
-                    env UNAME_r="${_release}" env PAGER="/bin/cat" \
-                    /tmp/portsnap fetch extract
-                rm ${iocroot}/releases/${_release}/root/tmp/portsnap
-                ;;
-            *)
-                chroot ${iocroot}/releases/${_release}/root \
-                    env UNAME_r="${_release}" env PAGER="/bin/cat" \
-                    portsnap --interactive fetch extract
-                ;;
-            esac
-        mkdir ${iocroot}/releases/${_release}/root/var/ports > /dev/null 2>&1
-        mkdir ${iocroot}/releases/${_release}/root/var/ports/distfiles \
-            > /dev/null 2>&1
-        mkdir ${iocroot}/releases/${_release}/root/var/ports/packages \
-            > /dev/null 2>&1
-        if [ -e "${iocroot}/releases/${_release}/root/etc/make.conf" ] ; then
-            _ports_string="$(fgrep -xq \
-                          "## IOCAGE -- Allow a read-only /usr/ports" \
-                          ${iocroot}/releases/${_release}/root/etc/make.conf \
-                          ; echo $?)"
-            if [ "${_ports_string}" != "0" ] ; then
-                __ports_make_conf >> \
-                    ${iocroot}/releases/${_release}/root/etc/make.conf
-                sed -i '' s/UNAME_r=REPLACE/UNAME_r="${_release}"/ \
-                    "${iocroot}/releases/${_release}/root/etc/make.conf"
-            fi
-        else
-            __ports_make_conf > ${iocroot}/releases/${_release}/root/etc/make.conf
-            sed -i '' s/UNAME_r=REPLACE/UNAME_r="${_release}"/ \
-                "${iocroot}/releases/${_release}/root/etc/make.conf"
-        fi
     fi
 
     rm -f ${iocroot}/releases/${_release}/root/etc/resolv.conf
@@ -961,24 +917,6 @@ __spinner () (
     else printf '\b%1s\n' 'failed!'; fi
     exit "${_sp_status}"
 )
-
-# The make.conf entries needed for read-only ports in a jail
-__ports_make_conf () {
-cat << 'EOT'
-
-## IOCAGE -- Allow a read-only /usr/ports
-UNAME_ENV+=     UNAME_s=FreeBSD
-UNAME_ENV+=     UNAME_r=REPLACE
-UNAME_ENV+=     UNAME_v="${UNAME_s} ${UNAME_r}"
-.MAKEFLAGS:     ${UNAME_ENV}
-MAKE_ENV+=      ${UNAME_ENV}
-CONFIGURE_ENV+= ${UNAME_ENV}
-SCRIPTS_ENV+=   ${UNAME_ENV}
-WRKDIRPREFIX=   /var/ports
-DISTDIR=        /var/ports/distfiles
-PACKAGES=       /var/ports/packages
-EOT
-}
 
 # Return the default network interface
 __get_default_iface() {

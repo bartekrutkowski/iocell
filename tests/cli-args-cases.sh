@@ -21,6 +21,11 @@ cli_invalid_cases () {
         reject "bad-option-$cmd" "$cmd" -z "$target"
         reject "late-option-$cmd" "$cmd" -s "$target" -z
     done
+    reject unsupported-push push owner/repo
+    reject obsolete-ports-update update -p "$target"
+    reject obsolete-ports-update-upper update -P "$target"
+    reject obsolete-ports-fetch fetch -p release=15.1-RELEASE
+    reject obsolete-ports-fetch-upper fetch -P release=15.1-RELEASE
     reject stop-option stop "$target" -z
     reject console-force console -f
     reject console-option console -z "$target"

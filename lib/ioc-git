@@ -381,42 +381,7 @@ __pull () {
     __update "${_name}" 1> /dev/null
 }
 
-## NOT WORKING YET
 __push () {
-    local _gitlocation _gitrepo _answer _match
-
-    if [ $# -lt 1 ] ; then
-        __die "please specify either a user/repo or a complete url"
-    fi
-
-    _gitlocation="$(__get_default_prop gitlocation)"
-
-    # Make sure git is installed.
-    if [ ! -e "/usr/local/bin/git" ] ; then
-        __die "git is not installed. Please install git first."
-    fi
-
-    # Check if user has a custom git location set
-    if [ "$_gitlocation" != "https://github.com/iocell/cages" ] ; then
-        # Will add all files and open a dialog for a git commit
-        git add -A
-        git commit
-        git push
-    else
-        echo -n "Please enter a git repo to push to: "
-        read _answer
-        if [ -z "$_answer" ] ; then
-            _answer="$_gitrepo"
-        else
-            _gitrepo="$_answer"
-            _match="1"
-            git add -A
-            git commit
-            git push -u "$2"
-        fi
-
-        if [ -z $_match ] ; then
-            __die "invalid repo $_gitrepo specified."
-        fi
-    fi
+    __error "push is not supported; use git in an explicitly selected repository"
+    return 1
 }

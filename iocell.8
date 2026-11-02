@@ -279,7 +279,7 @@ operations. Successful operations are not undone if another jail fails.
 
 .fam T
 .fi
-\fIfetch\fP [\fB-p\fP|\fB-P\fP] [\fIrelease=RELEASE\fP | ftphost=ftp.hostname.org |
+\fIfetch\fP [\fIrelease=RELEASE\fP | ftphost=ftp.hostname.org |
 ftpdir=/dir/ | ftpfiles="base.txz lib32.txz src.txz"]
 [ ftplocaldir=/dir/ ] [ \fIcompression=ALGO\fP ]
 .RS
@@ -306,9 +306,8 @@ This example requests patching of the fetched 15.1-RELEASE base.
 Newly created jails or basejails will automatically have the latest
 updates applied.
 .PP
-Legacy \fB-p\fP/\fB-P\fP ports options rely on obsolete tooling and can report
-success without installing a ports tree.
-They are not a working modern ports installation procedure.
+Obsolete \fB-p\fP/\fB-P\fP ports options are rejected before initialization. Manage
+a modern ports tree separately with Git.
 .PP
 compression: Compression is lz4 by default; see \fBzfs\fP(8) for the \fIlist\fP of
 compression algorithms available.
@@ -653,12 +652,12 @@ snapshot|snap [\fB-f\fP] [\fB-r\fP] UUID|TAG[@snapshotname]
 .PP
 .nf
 .fam C
-    Release resource limits on the fly. This can return a nonzero status after
-    rules have been cleared; inspect the kernel rule set.
+    Release resource limits on the fly. Successful removal and an empty rule
+    set return zero; kernel removal/query failures return nonzero.
 
 .fam T
 .fi
-\fIupdate\fP [\fB-p\fP|\fB-P\fP] UUID|TAG|RELEASE
+\fIupdate\fP [\fB-n\fP] UUID|TAG
 .PP
 .nf
 .fam C
@@ -666,7 +665,8 @@ snapshot|snap [\fB-f\fP] [\fB-r\fP] UUID|TAG[@snapshotname]
     updates affect the shared release used by other jails too. Non-basejail
     updates take a jail-root back-out snapshot; it does not back up a shared
     release. Use a maintenance window and separate release/application backups.
-    Legacy -p/-P shared ports paths are not working modern ports procedures.
+    Obsolete -p/-P shared ports paths are rejected before initialization.
+    The -n option checks a Git jail's remote status without merging.
 
 .fam T
 .fi

@@ -220,7 +220,7 @@ SUBCOMMANDS
     sidecar. Basejail shared release files are not part of the jail image.
     Check the image format and required release before restoring it.
 
-  fetch [-p|-P] [release=RELEASE | ftphost=ftp.hostname.org |
+  fetch [release=RELEASE | ftphost=ftp.hostname.org |
         ftpdir=/dir/ | ftpfiles="base.txz lib32.txz src.txz"]
         [ ftplocaldir=/dir/ ] [ compression=ALGO ]
 
@@ -242,9 +242,8 @@ SUBCOMMANDS
     Newly created jails or basejails will automatically have the latest
     updates applied.
 
-    Legacy -p/-P ports options rely on obsolete tooling and can report
-    success without installing a ports tree.
-    They are not a working modern ports installation procedure.
+    Obsolete -p/-P ports options are rejected before initialization. Manage
+    a modern ports tree separately with Git.
 
     compression: Compression is lz4 by default; see zfs(8) for the list of
     compression algorithms available.
@@ -488,16 +487,17 @@ SUBCOMMANDS
 
   uncap UUID|TAG
 
-    Release resource limits on the fly. This can return a nonzero status after
-    rules have been cleared; inspect the kernel rule set.
+    Release resource limits on the fly. Successful removal and an empty rule
+    set return zero; kernel removal/query failures return nonzero.
 
-  update [-p|-P] UUID|TAG|RELEASE
+  update [-n] UUID|TAG
 
     Patch the selected userland with freebsd-update where supported. Basejail
     updates affect the shared release used by other jails too. Non-basejail
     updates take a jail-root back-out snapshot; it does not back up a shared
     release. Use a maintenance window and separate release/application backups.
-    Legacy -p/-P shared ports paths are not working modern ports procedures.
+    Obsolete -p/-P shared ports paths are rejected before initialization.
+    The -n option checks a Git jail's remote status without merging.
 
   upgrade UUID|TAG [release=RELEASE]
 

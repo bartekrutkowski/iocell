@@ -11,59 +11,24 @@ __update () {
     # then proceed with the normal update procedure
     case "$1" in
         -n)
-            _dataset=$(__find_jail ${_name}) || exit $?
-            _fulluuid="$(__check_name ${_name} ${_dataset})"
-            _mountpoint="$(__get_jail_prop mountpoint ${_fulluuid} ${_dataset})"
-            _jail_type="$(__get_jail_prop type ${_fulluuid} ${_dataset})"
+            _dataset=$(__find_jail "${_name}") || return $?
+            _fulluuid=$(__check_name "${_name}" "${_dataset}") || return $?
+            _mountpoint=$(__get_jail_prop mountpoint "${_fulluuid}" "${_dataset}") || return $?
+            _jail_type=$(__get_jail_prop type "${_fulluuid}" "${_dataset}") || return $?
 
             # If a git jail is found, update the remote and show the user the
             # status output
             case ${_jail_type} in
                 gitjail)
-                    git -C ${_mountpoint}/_ remote update
-                    git -C ${_mountpoint}/_ status -uno
+                    git -C "${_mountpoint}/root" remote update || return $?
+                    git -C "${_mountpoint}/root" status -uno
                     ;;
+                *) __error "update -n requires a Git jail"; return 1 ;;
             esac
             ;;
         -P|-p)
-            if [ ! -e "${iocroot}/releases/${_name}/root" ] ; then
-                __die "${_name} does not exist!"
-            fi
-
-            _jail_release="$(__get_jail_prop release ${_name} ${_dataset})"
-
-            # The user might be supplying a RELEASE instead of a jail
-            if [ "${_jail_release}" = "none" ] ; then
-                _jail_release="${_name}"
-            fi
-
-            mount -t devfs devfs ${iocroot}/releases/${_name}/root/dev
-            cat /etc/resolv.conf > \
-                ${iocroot}/releases/${_name}/root/etc/resolv.conf
-
-            # Lets us make sure any templates using 9.3-RELEASE get the right
-            # treatment for non-interactive portsnap.
-            case "${_jail_release}" in
-                9.3-RELEASE)
-                    # Remove the interactive check in portsnap
-                    sed 's/\[ ! -t 0 \]/false/' \
-                        ${iocroot}/releases/${_name}/root/usr/sbin/portsnap \
-                        > ${iocroot}/releases/${_name}/root/tmp/portsnap
-                    chmod +x ${iocroot}/releases/${_name}/root/tmp/portsnap
-                    chroot ${iocroot}/releases/${_name}/root \
-                        env UNAME_r="${_name}" env PAGER="/bin/cat" \
-                        /tmp/portsnap fetch update
-                    rm ${iocroot}/releases/${_name}/root/tmp/portsnap
-                    ;;
-                *)
-                    chroot ${iocroot}/releases/${_name}/root \
-                        env UNAME_r="${_name}" env PAGER="/bin/cat" \
-                        portsnap --interactive fetch update
-                    ;;
-                esac
-
-                umount ${iocroot}/releases/${_name}/root/dev
-                rm ${iocroot}/releases/${_name}/root/etc/resolv.conf
+            __error "portsnap-based ports updates are not supported"
+            return 1
                 ;;
         *)
             shift 3

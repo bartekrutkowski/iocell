@@ -10,8 +10,8 @@ Command restrictions
   existing, cloned or imported jails. ``reset`` does not reload saved creation
   defaults. ``get all default`` does not dump them; use ``defaults``.
 * **Fetch:** the interactive release menu is obsolete; specify ``release=...``
-  and the distribution mirror/path explicitly. Legacy ports options rely on
-  obsolete tooling and can report success without installing a ports tree.
+  and the distribution mirror/path explicitly. Obsolete ``fetch``/``update``
+  ports options are rejected; manage a modern ports tree separately with Git.
 * **Deactivation:** ``deactivate`` prints manual removal guidance; it does not
   clear the native pool discovery comment or disable existing jails.
 * **Imports:** property operands are not applied to ordinary stream imports.
@@ -25,9 +25,9 @@ Command restrictions
 * **Runtime errors:** syntax errors fail before initialization, but valid
   multi-target commands are not transactional. Property/kernel validation and
   runtime status propagation remain incomplete.
-* **Git:** plugin fetch can leave a detached checkout. Experimental ``push`` uses
-  the invocation directory. These are not a complete synchronization/deployment
-  interface.
+* **Git:** plugin fetch can leave a detached checkout. Experimental ``push`` is
+  disabled before initialization and in its backend; use Git directly in an
+  explicitly selected repository. This is not a deployment interface.
 * **Legacy names:** ``chroot``, ``record``, ``package`` and ``show`` are not
   dispatched. See :doc:`jail-package` for the available image workflow.
 * **Altroots:** automatic CLI selection can use the wrong configuration path
