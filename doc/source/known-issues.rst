@@ -34,9 +34,11 @@ Command restrictions
   explicitly selected repository. This is not a deployment interface.
 * **Legacy names:** ``chroot``, ``record``, ``package`` and ``show`` are not
   dispatched. See :doc:`jail-package` for the available image workflow.
-* **Altroots:** automatic CLI selection can use the wrong configuration path
-  when the usual ``/iocell`` already exists alongside an altroot pool. Check
-  actual mountpoints before creating jails in that layout.
+* **Altroots:** selection follows the selected dataset's actual mounted path,
+  not the presence of another ``/iocell`` directory. Changing the persisted
+  library root selector requires root and writable libraries; unchanged
+  read-only queries do not rewrite it. Newline-containing mountpoints are
+  refused.
 
 Storage boundaries
 ------------------

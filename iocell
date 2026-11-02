@@ -131,7 +131,7 @@ fi
 
 # Work around zpool activation chicken-egg problem
 # (when activating a pool don't look for an existing one)
-# Also look for an altroot and if it exists change lib/ioc-globals to that value
+# Filesystem initialization resolves and persists the selected mounted root.
 if [ "$1" != "activate" ] ; then
     _pool=$(__get_default_prop pool)
     export pool="${_pool}"
@@ -152,7 +152,7 @@ if [ "$1" != "activate" ] ; then
       fi
     fi
 
-    __check_filesystems
+    __check_filesystems || exit $?
 fi
 
 __parse_cmd "$@"

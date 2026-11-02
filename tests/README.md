@@ -24,6 +24,7 @@ sh tests/rc-jails.sh
 sh tests/template-forward-safety.sh
 sh tests/clean-template-safety.sh
 sh tests/clean-jails.sh
+sh tests/bootstrap-root.sh
 sh tests/fetch-failures.sh
 sh tests/export-failures.sh
 sh tests/clean-dispatch.sh
@@ -116,6 +117,15 @@ Tag regressions also refuse unowned/unmounted targets and verify rollback after
 an obsolete-alias operation takes effect and then fails. Private alias recovery
 copies do not accumulate on success. A failed private-backup cleanup explicitly
 reports an already committed retag, with consistent active configs/aliases.
+
+`bootstrap-root.sh` and authorized `bootstrap-root-zfs.sh` verify mounted-root
+selection, literal selector serialization, initialization failures and no global
+mount-all. The native test uses a private source copy, protects the normal host
+underlay with an owned nullfs view, and restores the original active root.
+Set `IOC_BOOTSTRAP_SPECIAL=yes` to include quote/space/metacharacter paths.
+Authorized `mount-path-zfs.sh` checks actual whitespace-containing mount records
+and neighboring-tree exclusion. These are supported-FreeBSD checks, not a
+claim of other kernels or shells working.
 
 ## Destroy failure boundaries
 

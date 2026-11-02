@@ -559,9 +559,36 @@ __exec () {
 }
 
 # Reverse mount order; never include ZFS datasets or a neighbouring tree.
-__mounts_below () {
-    local _root _table
-    _root="$1"
+__mounts_below () (
+    local _root _table _tmp
+    _root="$1"; _tmp=''
+    trap '[ -z "${_tmp}" ] || rm -f "${_tmp}"' EXIT
+    trap 'exit 129' HUP
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+    case "${_root}" in *[[:space:]]*|*\\*)
+        # FreeBSD mount -p leaves whitespace unescaped; use structured records.
+        _tmp=$(mktemp "${TMPDIR:-/tmp}/iocell-mounts.XXXXXX") || exit $?
+        mount --libxo json -t nozfs > "${_tmp}" || exit $?
+        # uclcmd's stdin reader truncates large records; its file reader does not.
+        _table=$(uclcmd get -eqkl -f "${_tmp}" mount.mounted) || exit $?
+        printf '%s\n' "${_table}" | IOC_MOUNT_ROOT="${_root}" awk '
+            BEGIN { root=ENVIRON["IOC_MOUNT_ROOT"] }
+            /^[0-9]+_(node|fstype)=/ {
+                eq=index($0,"="); key=substr($0,1,eq-1)
+                split(key,parts,"_"); id=parts[1]+0
+                if (parts[2] == "node") paths[id]=substr($0,eq+1)
+                else types[id]=substr($0,eq+1)
+                if (id > n) n=id
+            }
+            END {
+                for (i=n; i>0; i--)
+                    if (types[i] != "" && types[i] != "zfs" &&
+                        (paths[i] == root || index(paths[i],root "/") == 1))
+                        print paths[i]
+            }'
+        return $? ;;
+    esac
     _table=$(mount -p) || return $?
     printf '%s\n' "${_table}" | IOC_MOUNT_ROOT="${_root}" awk '
         BEGIN { root=ENVIRON["IOC_MOUNT_ROOT"] }
@@ -575,7 +602,7 @@ __mounts_below () {
                 targets[++n]=target
         }
         END { for (i=n; i>0; i--) print targets[i] }'
-}
+)
 
 __valid_release_name () {
     case "$1" in

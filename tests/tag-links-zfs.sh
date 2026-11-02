@@ -1,7 +1,7 @@
 #!/bin/sh
 # Real ZFS altroot/UCL effects through the production property setter.
-# Select its pool/root explicitly: legacy CLI altroot bootstrap is a separate
-# path and cannot select an altroot while the normal /iocell already exists.
+# Select the backend explicitly; bootstrap-root-zfs.sh separately exercises
+# public CLI selection while the normal /iocell directory also exists.
 set -eu
 cd "$(dirname "$0")/.."
 . ./tests/native-common.sh

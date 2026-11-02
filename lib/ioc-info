@@ -401,7 +401,7 @@ __get_jail_prop () {
     fi
 
     if [ "${_name}" = "default" ] ; then
-        uclcmd get -qf ${iocroot}/.default ${_property} 2> /dev/null
+        uclcmd get -qf "${iocroot}/.default" "${_property}" 2> /dev/null
         return
     else
         if [ -z "${_dataset}" ] ; then

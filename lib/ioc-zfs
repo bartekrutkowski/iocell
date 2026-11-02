@@ -631,7 +631,7 @@ __create_jail () {
     _zfsconfig="$(__configure_jail generate "${uuid}")" || return $?
     _configured="1"
 
-    touch ${iocroot}/jails/${uuid}/fstab
+    touch "${iocroot}/jails/${uuid}/fstab" || return $?
 
     # Make sure the jail isn't a empty jail
     if [ "${2}" = "-e" ] ; then
@@ -980,114 +980,106 @@ __destroy_func () {
     return 0
 }
 
-# check if our datasets exist, if not create them
-# fixes https://github.com/iocell/iocell/issues/80
-__check_filesystems () {
-    local _altroot _filesystems _missing
-
-    _missing=0
-    _altroot="$(zpool get -H altroot "${pool}" | awk '{print $3}')"
-    # Prepend iocell/ so we can properly set a mount on the root 'iocell'
-    # dataset.
-    _filesystems="iocell
-                  iocell/download
-                  iocell/jails
-                  iocell/releases
-                  iocell/templates"
-
-    # Check for /etc/devfs.rules, this avoids an annoying error from grep later
-    if [ ! -e "/etc/devfs.rules" ] ; then
-        touch /etc/devfs.rules
+# Retain the existing root selector, but store paths as literal shell data.
+__set_iocroot () {
+    local _newroot _file _tmp _status
+    _newroot="$1"
+    [ "${iocroot}" != "${_newroot}" ] || return 0
+    [ "$(id -un)" = root ] || {
+        __error "mounted root changed; run as root to update the selector"; return 1;
+    }
+    case "${_newroot}" in *'
+'*) __error 'newline in mountpoint is not supported'; return 1 ;; esac
+    _file="${LIB}/ioc-globals"
+    _tmp=$(mktemp "${LIB}/.ioc-globals.XXXXXX") || return $?
+    _status=0
+    cp -p "${_file}" "${_tmp}" || _status=$?
+    if [ "${_status}" = 0 ]; then
+        IOC_NEW_ROOT="${_newroot}" awk '
+            BEGIN {
+                q=sprintf("%c",39); slash=sprintf("%c",92)
+                value=ENVIRON["IOC_NEW_ROOT"]; quoted=q
+                for (i=1; i<=length(value); i++) {
+                    ch=substr(value,i,1)
+                    quoted=quoted (ch == q ? q slash q q : ch)
+                }
+                quoted=quoted q
+                if (value == "/iocell") quoted=value
+            }
+            /^iocroot=/ { print "iocroot=" quoted; count++; next }
+            { print }
+            END { if (count != 1) exit 1 }
+        ' "${_file}" > "${_tmp}" || _status=$?
     fi
+    if [ "${_status}" = 0 ]; then mv -f "${_tmp}" "${_file}" || _status=$?; fi
+    if [ "${_status}" != 0 ]; then rm -f "${_tmp}"; return "${_status}"; fi
+    iocroot="${_newroot}"; export iocroot
+}
 
-    # Loop through and make sure the filesystems exist. Make sure you are root
-    for _fs in ${_filesystems} ; do
-        zfs get -H creation "${pool}/${_fs}" > /dev/null 2>&1
-
-        if [ $? -ne 0 ] ; then
-            _missing=1
-            if [ "$(id -un)" != "root" ] ; then
-                __die "please run as root to create missing datasets."
-            else
-                __info "creating ${pool}/${_fs}"
-                zfs create -p "${pool}/${_fs}"
-
-                if [ "${_fs}" = "iocell" ] ; then
-                    zfs set mountpoint="/${_fs}" "${pool}/${_fs}" \
-                        > /dev/null 2>&1
-                fi
-
-                if [ "${_altroot}" != "-" -a ! -d "/iocell" ] ; then
-                    sed -i '' s#.*iocroot.*#iocroot="${_altroot}/iocell"# \
-                        "${LIB}/ioc-globals"
-                    export iocroot="${_altroot}/iocell"
-                elif [ "${_altroot}" = "/mnt" -a -d "/iocell" ] ; then
-                    # we're in a chroot.
-                    sed -i '' s#.*iocroot.*#iocroot="/iocell"# \
-                        "${LIB}/ioc-globals"
-                    export iocroot="${_altroot}/iocell"
-                elif [ "${_altroot}" = "-" ] ; then
-                    sed -i '' s#.*iocroot.*#iocroot="/iocell"# \
-                        "${LIB}/ioc-globals"
-                    export iocroot="/iocell"
-                fi
+# Initialize only this pool's managed folders, then use its visible mount root.
+__check_filesystems () {
+    local _filesystems _missing _entries _entry _fs _exists _mounted _user
+    local _mounts _newroot _CONF _property _value
+    _user=$(id -un)
+    _missing=0
+    _entries=$(zfs list -H -t filesystem -o name -d 2 "${pool}") || return $?
+    _filesystems="iocell iocell/download iocell/jails iocell/releases iocell/templates"
+    for _fs in ${_filesystems}; do
+        _exists=0
+        for _entry in ${_entries}; do
+            [ "${_entry}" != "${pool}/${_fs}" ] || _exists=1
+        done
+        if [ "${_exists}" = 0 ]; then
+            [ "${_user}" = root ] || {
+                __error "run as root to create missing datasets"; return 1;
+            }
+            zfs create -p "${pool}/${_fs}" || return $?
+            if [ "${_fs}" = iocell ]; then
+                zfs set mountpoint=/iocell "${pool}/iocell" || return $?
             fi
+            _missing=1
+        fi
+        _mounted=$(zfs get -H -o value mounted "${pool}/${_fs}") || return $?
+        if [ "${_mounted}" != yes ]; then
+            [ "${_user}" = root ] || {
+                __error "run as root to mount ${pool}/${_fs}"; return 1;
+            }
+            zfs mount "${pool}/${_fs}" || return $?
         fi
     done
-
-    if [ ${_missing} -gt 0 ] ; then
-        zfs mount -a
+    # ZFS lists mounted dataset names followed by the full, unescaped path.
+    # Unlike mount -p, no later whitespace-delimited fields follow that path.
+    _mounts=$(zfs mount) || return $?
+    _newroot=$(printf '%s\n' "${_mounts}" | \
+        IOC_ROOT_DATASET="${pool}/iocell" awk '
+        $1 == ENVIRON["IOC_ROOT_DATASET"] {
+            sub(/^[^[:space:]]+[[:space:]]+/, "")
+            print; exit
+        }') || return $?
+    case "${_newroot}" in /*) ;; *) __error 'selected dataset is not mounted'; return 1 ;; esac
+    [ "${_newroot}" != / ] && [ -d "${_newroot}" ] || {
+        __error "invalid mounted root: ${_newroot}"; return 1;
+    }
+    __set_iocroot "${_newroot}" || return $?
+    if [ "${_missing}" = 1 ] && [ ! -e /etc/devfs.rules ]; then
+        touch /etc/devfs.rules || return $?
     fi
-
-    # Checks to see if the user changed the altroot and modify ioc-globals
-    # If the user decided to unset their altroot, they need to run again as
-    # root to set it back to the default location
-    if [ "${_altroot}" != "-" ] && [ "$(id -un)" = "root" ] && [ ! -d "/iocell" ] ; then
-        sed -i '' s#.*iocroot.*#iocroot="${_altroot}/iocell"# \
-            "${LIB}/ioc-globals"
-        export iocroot="${_altroot}/iocell"
-    elif [ "${_altroot}" != "-" ] && [ "$(id -un)" != "root" ] && \
-        [ "${iocroot}" != "${_altroot}/iocell" ] ; then
-        __error "You changed the altroot of ${pool}"
-        echo "  Please run as root to fix." >&2
-        exit 1
-    elif [ "${_altroot}" = "-" ] && [ "$(id -un)" = "root" ] ; then
-        sed -i '' s#.*iocroot.*#iocroot="/iocell"# \
-            "${LIB}/ioc-globals"
-        export iocroot="/iocell"
-    elif [ "${_altroot}" = "-" ] && [ "$(id -un)" != "root" ] && \
-        [ "${iocroot}" != "/iocell" ] ; then
-        __error "You changed the altroot of ${pool}"
-        echo "  Please run as root to fix." >&2
-        exit 1
-    fi
-
-    if [ ! -e "${iocroot}/.default" ] ; then
-        if [ "$(id -un)" != "root" ] ; then
-            __die "please run as root to migrate defaults to ucl."
-        fi
-
-        _CONF="$CONF_NET
-               $CONF_JAIL
-               $CONF_RCTL
-               $CONF_CUSTOM
-               $CONF_SYNC
-               $CONF_FTP
-               $CONF_GIT"
-
-        for prop in $_CONF ; do
-            prop_name=$prop
-            eval prop="\$${prop}"
-            echo "$prop_name = \"$prop\";" >> ${iocroot}/.default
+    if [ ! -e "${iocroot}/.default" ]; then
+        [ "${_user}" = root ] || {
+            __error 'run as root to migrate defaults to ucl'; return 1;
+        }
+        _CONF="$CONF_NET $CONF_JAIL $CONF_RCTL $CONF_CUSTOM $CONF_SYNC $CONF_FTP $CONF_GIT"
+        for _property in ${_CONF}; do
+            eval _value="\$${_property}"
+            printf '%s = "%s";\n' "${_property}" "${_value}" \
+                >> "${iocroot}/.default" || return $?
         done
-
-        # We no longer need this dataset or mountpoint
-        zfs get -H creation "${pool}/iocell/.defaults" > /dev/null 2>&1
-        if [ $? -eq 0 ] ; then
-            zfs destroy "${pool}/iocell/.defaults"
-            rmdir ${iocroot}/.defaults
-            rm -rf -- ${iocroot}/tags/-
-        fi
+        for _entry in ${_entries}; do
+            [ "${_entry}" = "${pool}/iocell/.defaults" ] || continue
+            zfs destroy "${_entry}" || return $?
+            [ ! -d "${iocroot}/.defaults" ] || rmdir "${iocroot}/.defaults" || return $?
+            [ ! -L "${iocroot}/tags/-" ] || rm -f -- "${iocroot}/tags/-" || return $?
+        done
     fi
 }
 
