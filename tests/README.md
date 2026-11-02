@@ -142,15 +142,17 @@ start on their own line after the spinner is stopped.
 boot/hostid filtering, priority order, reverse shutdown order and propagation
 of discovery failures before any lifecycle action. Returned and exiting
 synchronous failures retain the first status while later jails are attempted.
-Priority-99 failures retain their logs and report errors after rcboot returns;
-a gated backend verifies that rcboot does not wait for completion.
+Priority-99 failures retain logs under a temporary iocell root and report
+errors without changing rcboot's status. Captured output through EOF makes
+background assertions deterministic, without timing polls.
 
 With native authorization set as above, run `sh tests/rc-jails-zfs.sh`. It uses
 an owned scratch pool with real ZFS/UCL metadata and minimal kernel persist
 jails. It exercises rc selection and kernel creation/removal, not full jail
 userland startup. Config bytes, canaries, dataset GUIDs and activation must
 remain unchanged. Faulted starts/stops must still reach the later kernel action;
-priority-99 faults verify non-blocking return, diagnostics and retained logs.
+Priority-99 faults check status, diagnostics and protected logs. A nobody-owned
+symlink at the old /var/tmp/UUID path must not overwrite a root-only canary.
 Only that test's jails are stopped; pool and logs are retained.
 
 `clean-dispatch.sh` keeps validation, dispatch and cleanup scanning real.

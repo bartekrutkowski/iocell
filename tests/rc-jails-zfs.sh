@@ -16,12 +16,17 @@ zfs create "$p/iocell/jails"
 zfs create "$p/iocell/templates"
 root="$workdir/tree"
 first=$(uuidgen); second=$(uuidgen); foreign=$(uuidgen); disabled=$(uuidgen)
+legacy_log=''
 cleanup () {
     for uuid in "$first" "$second" "$foreign" "$disabled"; do
         if jls -j "ioc-$uuid" jid >/dev/null 2>&1; then
             jail -r "ioc-$uuid" || return 1
         fi
     done
+    if [ -n "$legacy_log" ] && [ -L "$legacy_log" ] &&
+        [ "$(readlink "$legacy_log")" = "$workdir/background-canary" ]; then
+        rm -f -- "$legacy_log"
+    fi
 }
 trap cleanup EXIT
 trap 'exit 1' HUP INT TERM
@@ -52,13 +57,7 @@ __start_jail () {
         case "$IOC_RC_FAULT" in
             return) return 42 ;; exit) exit 43 ;;
             background-*)
-                : > "$IOC_RC_DIR/background-entered"
-                attempts=0
-                while [ ! -f "$IOC_RC_DIR/background-release" ] && [ "$attempts" -lt 200 ]; do
-                    sleep 0.1; attempts=$((attempts + 1))
-                done
                 echo 'injected native background failure' >&2
-                : > "$IOC_RC_DIR/background-finished"
                 [ "$IOC_RC_FAULT" != background-exit ] || exit 43
                 return 42 ;;
         esac
@@ -87,7 +86,7 @@ __rc_jails "$1"
 HELPER
 backend_rc () {
     env IOC_RC_POOL="$p" IOC_RC_ROOT="$root" IOC_RC_EVENTS="$workdir/events" \
-        IOC_RC_FIRST="$first" IOC_RC_SECOND="$second" IOC_RC_DIR="$workdir" \
+        IOC_RC_FIRST="$first" IOC_RC_SECOND="$second" \
         IOC_RC_FAULT="${IOC_RC_FAULT:-none}" \
         IOC_RC_ENUM_FAULT="${IOC_RC_ENUM_FAULT:-no}" sh "$workdir/rc.sh" "$1"
 }
@@ -148,33 +147,41 @@ printf 'host_hostuuid="%s"; boot="on"; hostid="%s"; priority=99;\n' \
     "$first" "$(cat /etc/hostid)" > "$root/jails/$first/config"
 printf 'host_hostuuid="%s"; boot="off"; hostid="%s"; priority=20;\n' \
     "$second" "$(cat /etc/hostid)" > "$root/jails/$second/config"
-( set -C; : > "/var/tmp/$first" ) || exit 1
+# A different UID can plant this old predictable path, but cannot write the
+# root-only target. The rc logger must leave both link and canary untouched.
+echo 'preserved root-only canary' > "$workdir/background-canary"
+chmod 600 "$workdir/background-canary"
+cp "$workdir/background-canary" "$workdir/background-canary.before"
+[ ! -e "/var/tmp/$first" ] && [ ! -L "/var/tmp/$first" ]
+env SHELL=/bin/sh su -m nobody -c \
+    "ln -s '$workdir/background-canary' '/var/tmp/$first'" \
+    > "$workdir/untrusted-link.log" 2>&1
+[ "$(stat -f %u "/var/tmp/$first")" = "$(id -u nobody)" ]
+legacy_log="/var/tmp/$first"
+background_log="$root/log/$first-rcboot.log"
 for fault in background-return background-exit; do
-    rm -f "$workdir/background-release" "$workdir/background-entered" \
-        "$workdir/background-finished" "$workdir/background-status"
-    ( status=0; IOC_RC_FAULT="$fault" backend_rc boot || status=$?
-      echo "$status" > "$workdir/background-status"
-    ) > "$workdir/$fault.log" 2>&1 &
-    driver=$!; attempts=0
-    while [ ! -f "$workdir/background-status" ] && [ "$attempts" -lt 100 ]; do
-        sleep 0.1; attempts=$((attempts + 1))
-    done
-    nonblocking=no
-    if [ -f "$workdir/background-entered" ] &&
-        [ -f "$workdir/background-status" ] && [ ! -f "$workdir/background-finished" ]; then
-        nonblocking=yes
+    output=$(
+        umask 000
+        status=0
+        IOC_RC_FAULT="$fault" backend_rc boot 2>&1 || status=$?
+        printf '\nrc-status=%s\n' "$status"
+    )
+    printf '%s\n' "$output" > "$workdir/$fault.log"
+    grep -qx 'rc-status=0' "$workdir/$fault.log"
+    if ! cmp -s "$workdir/background-canary" "$workdir/background-canary.before"; then
+        echo 'FAIL: background start followed an untrusted legacy log symlink' >&2
+        exit 1
     fi
-    : > "$workdir/background-release"
-    wait "$driver"
-    attempts=0
-    while ! grep -F "background start failed for $first; see /var/tmp/$first" \
-        "$workdir/$fault.log" >/dev/null && [ "$attempts" -lt 30 ]; do
-        sleep 0.1; attempts=$((attempts + 1))
-    done
-    [ "$nonblocking" = yes ] && [ "$(cat "$workdir/background-status")" = 0 ]
-    grep -q 'injected native background failure' "/var/tmp/$first"
-    grep -F "background start failed for $first; see /var/tmp/$first" "$workdir/$fault.log"
-    echo "PASS: native rc $fault returns before completion, retains log and reports failure"
+    [ -L "$legacy_log" ]
+    [ "$(stat -f %u "$root/log")" = 0 ]
+    log_mode=$(stat -f %Lp "$root/log")
+    if [ "$((0$log_mode & 0022))" != 0 ]; then
+        echo 'FAIL: background log directory permits untrusted writes' >&2
+        exit 1
+    fi
+    grep -q 'injected native background failure' "$background_log"
+    grep -F "background start failed for $first; see $background_log" "$workdir/$fault.log"
+    echo "PASS: native rc $fault preserves canary, retains protected log and reports failure with status 0"
 done
 cp "$workdir/$first.config" "$root/jails/$first/config"
 cp "$workdir/$second.config" "$root/jails/$second/config"

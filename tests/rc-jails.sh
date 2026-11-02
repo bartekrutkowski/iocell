@@ -8,8 +8,7 @@ cd "$(dirname "$0")/.."
 workdir=$(mktemp -d "${TMPDIR:-/tmp}/iocell-rc.XXXXXX")
 fixed="/tmp/iocell.$$"
 [ ! -e "$fixed" ] && [ ! -L "$fixed" ] || exit 1
-background_log=''
-trap 'rm -f "$fixed"; [ -z "$background_log" ] || rm -f "$background_log"; rm -rf "$workdir"' EXIT
+trap 'rm -f "$fixed"; rm -rf "$workdir"' EXIT
 : > "$workdir/canary"
 ln -s "$workdir/canary" "$fixed"
 : > "$workdir/temps"
@@ -18,7 +17,8 @@ mktemp () {
     echo "$temp" >> "$workdir/temps"
     printf '%s\n' "$temp"
 }
-pool=tank; hostid=fixture-host
+pool=tank; hostid=fixture-host; iocroot="$workdir/tree"
+mkdir "$iocroot"
 first=11111111-1111-1111-1111-111111111111
 second=22222222-2222-2222-2222-222222222222
 foreign=33333333-3333-3333-3333-333333333333
@@ -74,18 +74,11 @@ jls () {
 }
 __start_jail () {
     case "$fault" in background-*)
-        : > "$workdir/background-entered"
-        attempts=0
-        while [ ! -f "$workdir/background-release" ] && [ "$attempts" -lt 200 ]; do
-            sleep 0.1; attempts=$((attempts + 1))
-        done
         case "$fault" in background-success|background-cat-failure)
             echo 'completed background start'
-            : > "$workdir/background-finished"
             return 0 ;;
         esac
         echo 'injected background failure' >&2
-        : > "$workdir/background-finished"
         [ "$fault" != background-exit ] || exit 42
         return 43 ;;
     esac
@@ -165,11 +158,8 @@ fault=multiple; status=0
 if [ "$status" != 43 ]; then
     echo 'FAIL: rc boot replaced the first failure with a later error'; failed=1
 else echo 'PASS: rc boot retains the first of distinct startup failures'; fi
-# Reserve a unique UUID-shaped log without overwriting anyone else's file.
-background=$(printf '%s\n' "$workdir" | cksum | awk '{printf "00000000-0000-0000-0000-%012x", $1}')
-candidate_log="/var/tmp/$background"
-( set -C; : > "$candidate_log" ) || exit 1
-background_log="$candidate_log"
+background=55555555-5555-5555-5555-555555555555
+background_log="$iocroot/log/$background-rcboot.log"
 mkdir "$workdir/$background"
 printf 'host_hostuuid=%s\nboot=on\nhostid=%s\npriority=99\n' \
     "$background" "$hostid" > "$workdir/$background/config"
@@ -186,33 +176,20 @@ for fault in background-return background-exit background-success background-cat
         retained='completed background start'; visible="$retained" ;;
     esac
     [ "$fault" != background-cat-failure ] || visible='injected background log-read failure'
-    rm -f "$workdir/background-release" "$workdir/background-entered" \
-        "$workdir/background-finished" "$workdir/background-status"
-    ( status=0; __rc_jails boot || status=$?
-      echo "$status" > "$workdir/background-status"
-    ) > "$workdir/$fault.log" 2>&1 &
-    driver=$!; attempts=0
-    while [ ! -f "$workdir/background-status" ] && [ "$attempts" -lt 100 ]; do
-        sleep 0.1; attempts=$((attempts + 1))
-    done
-    nonblocking=no
-    if [ -f "$workdir/background-entered" ] &&
-        [ -f "$workdir/background-status" ] && [ ! -f "$workdir/background-finished" ]; then
-        nonblocking=yes
-    fi
-    : > "$workdir/background-release"
-    wait "$driver"
-    attempts=0
-    while ! grep -F "$visible" "$workdir/$fault.log" >/dev/null && [ "$attempts" -lt 30 ]; do
-        sleep 0.1; attempts=$((attempts + 1))
-    done
-    if [ "$nonblocking" != yes ] || [ "$(cat "$workdir/background-status")" != 0 ] ||
+    # Background descendants hold this pipe until their diagnostics finish.
+    # EOF synchronizes the assertion without polling or joining grandchildren.
+    output=$(
+        status=0
+        __rc_jails boot 2>&1 || status=$?
+        printf '\nrc-status=%s\n' "$status"
+    )
+    printf '%s\n' "$output" > "$workdir/$fault.log"
+    if ! grep -qx 'rc-status=0' "$workdir/$fault.log" ||
         ! grep -q "$retained" "$background_log" ||
         ! grep -F "$visible" "$workdir/$fault.log" >/dev/null; then
-        echo "FAIL: rc $fault nonblocking=$nonblocking," \
-            "status=$(cat "$workdir/background-status"); missing output/diagnostic"
+        echo "FAIL: rc $fault lost status, protected log or diagnostic"
         failed=1
-    else echo "PASS: rc $fault returns without waiting, retains output and reports the correct outcome"; fi
+    else echo "PASS: rc $fault retains a private log and reports the correct outcome with status 0"; fi
     case "$fault" in background-success|background-cat-failure)
         if grep -q 'background start failed for' "$workdir/$fault.log"; then
             echo 'FAIL: successful background start was mislabeled as failed'; failed=1

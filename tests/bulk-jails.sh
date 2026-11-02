@@ -28,6 +28,10 @@ uclcmd () {
 }
 operation () {
     echo "$1" >> "$trace"
+    if [ "$mode" = multiple ]; then
+        [ "$1" != "$first" ] || return 42
+        return 43
+    fi
     if [ "$mode" = backend ] && [ "$1" = "$first" ]; then
         __die 'fixture backend failure'
     fi
@@ -38,7 +42,7 @@ __reboot_jail () { operation "$1"; }
 __restart_jail () { operation "$1"; }
 failed=0
 for action in start stop reboot restart; do
-    for mode in backend unconfigured query; do
+    for mode in backend unconfigured query multiple; do
         trace="$workdir/$action-$mode.trace"; : > "$trace"
         echo config > "$iocroot/jails/$first/config"
         [ "$mode" != unconfigured ] || rm "$iocroot/jails/$first/config"
@@ -46,6 +50,7 @@ for action in start stop reboot restart; do
         ( "__${action}_jail_all" ) > "$workdir/$action-$mode.log" 2>&1 || status=$?
         want=1
         [ "$mode" != query ] || want=9
+        [ "$mode" != multiple ] || want=42
         if [ "$status" != "$want" ]; then
             echo "FAIL: bulk $action $mode status=$status, expected $want"; failed=1; continue
         fi

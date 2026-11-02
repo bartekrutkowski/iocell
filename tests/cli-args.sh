@@ -3,6 +3,7 @@
 set -e
 cd "$(dirname "$0")/.."
 . ./lib/ioc-common
+. ./lib/ioc-rc
 . ./lib/ioc-cmd
 . ./tests/cli-dispatch.sh
 . ./lib/ioc-help

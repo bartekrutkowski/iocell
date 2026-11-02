@@ -326,7 +326,8 @@ SUBCOMMANDS
     Start all jails with "boot" property set to "on". Intended for boot time
     execution. Jails will be started in an ordered fashion based on their
     "priority" property. Priority 99 jails start in the background; their
-    failures are reported but do not affect the exit status.
+    failures are reported but do not affect the exit status. Their output is
+    retained in the iocell root's log/UUID-rcboot.log.
 
   reboot [-s] UUID|TAG|ALL [UUID|TAG|ALL ...]
 
