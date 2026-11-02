@@ -103,6 +103,8 @@ failed=0
 for mode in start update upgrade plugin-existing plugin-fetched \
     plugin-existing-setfail plugin-fetched-setfail plugin-existing-ok plugin-fetched-ok; do
     : > "$workdir/forbidden"; rm -f "$workdir/continued"; status=0; want=1
+    diagnostic='safe template dataset name'
+    [ "$mode" != upgrade ] || diagnostic='template-based basejail is not supported'
     case "$mode" in *-ok) want=0 ;; *-setfail) want=42 ;; esac
     case "$mode" in plugin-fetched*)
         mv "$root/releases/$IOC_TEST_RELEASE" "$workdir/release-stash" ;;
@@ -112,7 +114,7 @@ for mode in start update upgrade plugin-existing plugin-fetched \
         echo "FAIL: native $mode status=$status expected=$want or ran forbidden work"
         failed=1
     elif [ "$want" = 1 ] && \
-        ! grep -q 'safe template dataset name' "$workdir/$mode.log"; then
+        ! grep -q "$diagnostic" "$workdir/$mode.log"; then
         echo "FAIL: native $mode hid the legacy migration rejection"
         failed=1
     elif [ "$want" = 42 ] && \

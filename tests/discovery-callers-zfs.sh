@@ -65,7 +65,6 @@ HELPER
 for label in list templates warden warden-dispatch rctl rctl-dispatch autoip autoip-legacy reset show disk upgrade; do
     state="$workdir/$label"; mkdir "$state"; echo 0 > "$state/count"
     : > "$state/actions"; fail_at=1; status=0
-    [ "$label" != upgrade ] || fail_at=2
     env PATH="$workdir/bin:$PATH" DC_POOL="$p" DC_ROOT="$workdir/tree" \
         DC_DATASET="$ds" DC_STATE="$state" DC_FAIL_AT="$fail_at" \
         sh "$workdir/consumer.sh" "$label" > "$state/log" 2>&1 || status=$?

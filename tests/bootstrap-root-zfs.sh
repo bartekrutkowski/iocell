@@ -63,8 +63,11 @@ printf 'pool="%s"; notes="owned-bootstrap-canary";\n' "$parent" > /iocell/.defau
 canary=1
 cp -p /iocell/.default "$workdir/host-default.before"
 cd "$workdir/src"
+chgrp operator lib/ioc-globals
+selector_metadata=$(stat -f '%u:%g:%Lp' lib/ioc-globals)
 sh ./iocell activate "$p" > "$workdir/activate.log" 2>&1
 root=$(/sbin/zfs get -H -o value mountpoint "$p/iocell")
+[ "$(stat -f '%u:%g:%Lp' lib/ioc-globals)" = "$selector_metadata" ]
 [ "$(uclcmd get -qf "$root/.default" pool)" = "$p" ]
 cmp /iocell/.default "$workdir/host-default.before"
 id=$(sh ./iocell create -e "tag=bootstrap-$(uuidgen)")
