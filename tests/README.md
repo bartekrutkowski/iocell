@@ -107,6 +107,11 @@ stage-specific failures. Authorized `export-zfs.sh` uses an actual persistent
 jail at a literal metacharacter mountpoint, checks private completed streams,
 and verifies that failed sends retain partial files and recursive snapshots.
 
+`import.sh`/authorized `import-zfs.sh` additionally reject ignored ordinary
+properties and partial images, preserve literal/spaced selectors, and restore
+raw empty-jail exports. Native legacy controls retain property-aware tar.xz
+creation and reject late extraction failure even after files were unpacked.
+
 ## Destroy failure boundaries
 
 `destroy-status.sh` checks returned/exiting dispatcher failures and the real

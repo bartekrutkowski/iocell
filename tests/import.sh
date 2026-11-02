@@ -36,8 +36,9 @@ zfs () {
     esac
 }
 failed=0
-for label in valid short-prefix corrupt truncated existing ambiguous missing; do
+for label in valid short-prefix corrupt truncated existing ambiguous missing properties empty-raw partial literal-prefix spaced missing-release; do
     state="$workdir/$label"; iocroot="$state/iocell"
+    [ "$label" != spaced ] || iocroot="$state/iocell with spaces"
     mkdir -p "$iocroot/images" "$iocroot/jails" "$iocroot/releases/$release"
     image="$iocroot/images/$uuid-basejail-2026-01-01_$release"
     echo valid-stream > "$image"
@@ -53,10 +54,18 @@ for label in valid short-prefix corrupt truncated existing ambiguous missing; do
             ;;
         ambiguous) cp "$image" "$image-other"; want=1 ;;
         missing) rm "$image"; want=1 ;;
+        properties) want=1 ;;
+        empty-raw) new="$iocroot/images/$uuid-emptyjail-2026-01-01_$release"
+            mv "$image" "$new"; image="$new" ;;
+        partial) mv "$image" "$image.partial"; image="$image.partial"; want=1 ;;
+        literal-prefix) name="$uuid*"; want=1 ;;
+        missing-release) rmdir "$iocroot/releases/$release"; want=1 ;;
     esac
     [ ! -f "$image" ] || cp "$image" "$state/image-before"
     status=0
-    ( set +e; __import "$name" ) > "$state/log" 2>&1 || status=$?
+    set -- "$name"
+    [ "$label" != properties ] || set -- "$name" notes=restored
+    ( set +e; __import "$@" ) > "$state/log" 2>&1 || status=$?
     if [ "$status" -ne "$want" ]; then
         echo "FAIL: $label status $status, expected $want"
         cat "$state/log"; failed=1; continue

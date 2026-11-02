@@ -283,17 +283,20 @@ SUBCOMMANDS
 
     This help file you are reading.
 
-  import IMAGE_UUID_PREFIX
+  import IMAGE_UUID_PREFIX [legacy-property=value ...]
 
     Select a trusted compatible image under /iocell/images by full UUID or
-    unique image prefix, not its complete filename. Fetch its required release
-    first. Ordinary ZFS-stream import differs from legacy thick-jail archive
-    import and does not universally verify SHA256 sidecars. Extra property
-    operands are ignored: verify the import, then use a separate set command.
+    unique literal basename prefix, not a filesystem path. Fetch the required
+    release first. Ordinary ZFS streams differ from legacy thick-jail archives
+    and do not universally verify SHA256 sidecars. Ordinary imports reject
+    extra property operands and never select .partial images; use set after
+    restoring. Legacy tar.xz archives still accept creation properties and
+    matching SHA256 sidecars. Images are not renamed to guess their format.
     Ordinary ZFS receive failures return nonzero, retain diagnostics and do
     not print success. The image is retained; any received datasets are left
     for inspection, not automatically destroyed. Inspect partial state before
-    retrying. Legacy thick-jail archive error handling is a separate path.
+    retrying. Legacy extraction failures are also nonzero and name the retained
+    partial jail; legacy archives remain a separate format.
     Verify actual configuration and content before starting a restored jail.
 
   init-host IP ZPOOL

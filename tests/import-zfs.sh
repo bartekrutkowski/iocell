@@ -40,6 +40,16 @@ echo 'PASS: existing full-UUID jail is refused without changing data/config'
 
 # Remove only our newly created fixture so each stream has a clean receiver.
 zfs destroy -r "$ds"
+if iocell import "$uuid" notes=ignored > "$workdir/properties.log" 2>&1; then
+    echo 'FAIL: ordinary import silently accepted property operands' >&2; exit 1
+fi
+if zfs list "$ds" >/dev/null 2>&1; then exit 1; fi
+[ "$(sha256 -q "$image")" = "$image_hash" ]
+mv "$image" "$image.partial"
+if iocell import "$uuid" > "$workdir/partial-selection.log" 2>&1; then exit 1; fi
+if zfs list "$ds" >/dev/null 2>&1; then exit 1; fi
+mv "$image.partial" "$image"
+echo 'PASS: ordinary import rejects ignored properties and incomplete images before receive'
 printf 'not a ZFS stream\n' > "$image"
 corrupt_hash=$(sha256 -q "$image")
 if iocell import "$uuid" > "$workdir/corrupt.log" 2>&1; then
@@ -122,4 +132,48 @@ zfs destroy -r "$ds"
 iocell import "$short" > "$workdir/short.log" 2>&1
 verify_restored
 echo 'PASS: unique short image prefix restores to the full UUID'
+
+# Ordinary exports of empty jails remain raw streams, not renamed tar archives.
+empty=$(iocell create -e "release=$IOC_TEST_RELEASE" "tag=empty-image-$(uuidgen)")
+emptyds="$IOC_TEST_POOL/iocell/jails/$empty"
+emptymp=$(zfs get -H -o value mountpoint "$emptyds")
+echo empty-image > "$emptymp/root/marker"
+cp "$emptymp/config" "$workdir/empty.config"
+iocell export "$empty" > "$workdir/empty.export" 2>&1
+zfs rename "$emptyds" "$IOC_TEST_POOL/import-retained-$empty"
+iocell import "$empty" > "$workdir/empty.import" 2>&1
+emptymp=$(zfs get -H -o value mountpoint "$emptyds")
+[ "$(cat "$emptymp/root/marker")" = empty-image ]
+cmp "$emptymp/config" "$workdir/empty.config"
+echo 'PASS: actual empty-jail export/import restores raw stream data and config'
+
+# Legacy tar archives retain their distinct property-aware creation interface.
+legacy=$(uuidgen); tag="legacy-image-$legacy"
+mkdir -p "$workdir/legacy/etc"
+printf 'hostname="old"\n' > "$workdir/legacy/etc/rc.conf"
+legacy_image="$IOC_TEST_ROOT/images/${legacy}_$IOC_TEST_RELEASE.tar.xz"
+tar -cJf "$legacy_image" -C "$workdir/legacy" .
+sha256 -q "$legacy_image" > "${legacy_image%.tar.xz}.sha256"
+iocell import "$legacy" "tag=$tag" 'notes=legacy preserved' \
+    > "$workdir/legacy.import" 2>&1
+[ "$(iocell get type "$tag")" = thickjail ]
+[ "$(iocell get notes "$tag")" = 'legacy preserved' ]
+[ -f "$legacy_image" ]
+echo 'PASS: legacy archive properties remain supported without renaming the image'
+
+bad=$(uuidgen)
+bad_image="$IOC_TEST_ROOT/images/${bad}_$IOC_TEST_RELEASE.tar.xz"
+# Leave enough compressed data to extract /etc before a late stream error.
+dd if=/dev/urandom of="$workdir/legacy/zz-data" bs=1024 count=1024 2>/dev/null
+tar -cJf "$workdir/legacy-full.tar.xz" -C "$workdir/legacy" etc zz-data
+bytes=$(stat -f %z "$workdir/legacy-full.tar.xz")
+dd if="$workdir/legacy-full.tar.xz" of="$bad_image" bs=1 \
+    count=$((bytes - 8)) 2>/dev/null
+sha256 -q "$bad_image" > "${bad_image%.tar.xz}.sha256"
+if iocell import "$bad" "tag=bad-legacy-$bad" \
+    > "$workdir/legacy.bad" 2>&1; then
+    echo 'FAIL: legacy archive extraction failure reported success' >&2; exit 1
+fi
+[ -f "$bad_image" ]
+echo 'PASS: legacy extraction failure is nonzero and preserves its archive'
 zpool status -x

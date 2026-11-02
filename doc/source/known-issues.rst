@@ -16,9 +16,10 @@ Command restrictions
   options are rejected; manage a modern ports tree separately with Git.
 * **Deactivation:** ``deactivate`` prints manual removal guidance; it does not
   clear the native pool discovery comment or disable existing jails.
-* **Imports:** property operands are not applied to ordinary stream imports.
-  Set properties separately after restoring. Failed imports retain the image
-  and any partial datasets; inspect that namespace before retrying.
+* **Imports:** ordinary streams reject property operands; set properties after
+  restoring. Legacy archives retain their property-aware creation path.
+  Incomplete ``.partial`` images are not candidates. Failed receives/extractions
+  retain the image and any partial datasets; inspect them before retrying.
 * **Image format:** ordinary exports are raw recursive ZFS streams, not an
   archive/checksum pair. Legacy thick-jail archives use a separate import path;
   not every image format supplies or verifies SHA256 sidecars.
