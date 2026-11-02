@@ -392,7 +392,7 @@ __print_disk () {
 # Expects: property as $1 and UUID|jail name as $2 optionally dataset as $3
 __get_jail_prop () {
     local _value _found _name _property _dataset _fulluuid _state _mountpoint \
-          _prop
+          _prop _raw
 
     _name="$2"
     _property="$1"
@@ -416,7 +416,7 @@ __get_jail_prop () {
             _dataset="$(__find_jail ${_name})" || exit $?
         fi
 
-        _mountpoint="$(zfs get -H -o value mountpoint ${_dataset})"
+        _mountpoint=$(zfs get -H -o value mountpoint "${_dataset}") || return $?
 
         if [ "${_property}" = "all" ] ; then
             while IFS=" = " read _prop _value ; do
@@ -432,8 +432,17 @@ __get_jail_prop () {
             return
         fi
 
-        _value="$(uclcmd get -qf ${_mountpoint}/config ${_property} \
-            2> /dev/null)"
+        _value=$(uclcmd get -qf "${_mountpoint}/config" "${_property}" \
+            2> /dev/null) || return $?
+        if [ "${_value}" = null ] && [ "${_property}" != state ]; then
+            # Quiet output cannot distinguish a string from an absent key.
+            _raw=$(uclcmd get -f "${_mountpoint}/config" "${_property}" \
+                2> /dev/null) || return $?
+            if [ "${_raw}" = '"null"' ]; then
+                printf '%s\n' null
+                return 0
+            fi
+        fi
     fi
 
     # If they don't supply state, then it's a normal property to be returned.
