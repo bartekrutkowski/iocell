@@ -1,16 +1,8 @@
 #!/bin/sh
 
-# Print supported releases----------------------------------
+# Available releases depend on the selected distribution mirror.
 __print_release () {
-    supported="15.0-CURRENT
-               14.0-RELEASE
-               13.2-RELEASE"
-
-    echo "Supported releases are: "
-    for rel in $(echo $supported) ; do
-        # hack to get printf to both left adjust and have spaces.
-        printf "%1s %-s \n" "" "$rel"
-    done
+    echo "Enter a release available from the selected mirror (e.g. 15.1-RELEASE)."
 }
 
 # Print defaults set in this script.

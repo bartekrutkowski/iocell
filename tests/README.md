@@ -24,6 +24,7 @@ sh tests/rc-jails.sh
 sh tests/template-forward-safety.sh
 sh tests/clean-template-safety.sh
 sh tests/clean-jails.sh
+sh tests/fetch-failures.sh
 sh tests/clean-dispatch.sh
 sh tests/dependent-clones.sh
 sh tests/migrate-safety.sh
@@ -91,6 +92,14 @@ file vdevs and fixtures; their printed paths identify what they leave behind.
 aliases, data, configs and GUIDs. Internal dependent clones are removed with
 the jail tree; outside clones refuse deletion. Query/stop/destroy failures
 preserve aliases and managed snapshots, with no pre-stop snapshot pruning.
+
+`fetch-failures.sh` checks fetch/extraction/patch/baseline errors, mounted-path
+validation and resolver-link preservation. Authorized `fetch-zfs.sh` additionally
+requires `IOC_TEST_RELEASE` and `IOC_TEST_DIST` pointing at trusted complete
+`base.txz`, `lib32.txz` and `src.txz` files. It retains an isolated dataset prefix
+inside the marked scratch pool (no active-pool change), verifies real prepared
+userland/baseline files, and exercises plugin caller failures. Its native tests
+must not put complete OS fixtures on a nearly full original pool.
 
 ## Destroy failure boundaries
 

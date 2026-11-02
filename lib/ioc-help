@@ -226,10 +226,10 @@ SUBCOMMANDS
 
     Used for downloading and updating/patching releases.
 
-    Activate a pool first, then fetch an available release. Specify release=
-    explicitly: the interactive menu is obsolete and can reject its own
-    current-host default. Supply a suitable mirror/path if the default no
-    longer provides that distribution. Use trusted distribution files.
+    Activate a pool first, then select an available release. The interactive
+    prompt accepts a release name and defaults to the host release. Supply a
+    suitable mirror/path if it no longer provides that distribution. Use trusted
+    distribution files and include complete sources for etcupdate preparation.
 
     Example: iocell fetch release=15.1-RELEASE
 
@@ -238,9 +238,14 @@ SUBCOMMANDS
 
              iocell fetch release=15.1-RELEASE
 
-    This example requests patching of the fetched 15.1-RELEASE base.
-    Newly created jails or basejails will automatically have the latest
-    updates applied.
+    This patches an existing prepared release without re-extracting archives.
+    Stop iocell jails before updating a shared release. Local distribution
+    fetches skip network patching. New basejails use the resulting shared files.
+    Fetch, extraction, patching and etcupdate failures return nonzero. Partial
+    datasets/downloads are retained, never recursively erased on failure.
+    Inspect an incomplete release and its cached archives before retrying.
+    The original resolver is restored and newly mounted filesystems are cleaned
+    up; an incomplete cleanup is reported without discarding recovery data.
 
     Obsolete -p/-P ports options are rejected before initialization. Manage
     a modern ports tree separately with Git.

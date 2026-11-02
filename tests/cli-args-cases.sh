@@ -69,6 +69,8 @@ cli_invalid_cases () {
     reject exec-user-conflict exec -u root -U root "$target" true
     reject pkg-target pkg
     reject pkg-command pkg "$target"
+    reject fetch-release-path fetch release=../../outside
+    reject fetch-release-empty fetch release=
     reject fetch-option fetch -z
     reject fetch-late-option fetch release=15.1-RELEASE -z
     reject fetch-thick-repository fetch -t

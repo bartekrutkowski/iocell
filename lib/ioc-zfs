@@ -481,26 +481,13 @@ __create_jail_pkg () (
     _release="$(__get_jail_prop release "${_uuid}" "${_dataset}")" \
         || exit $?
 
-    # Reverse mount order also handles stacked template overlays. Never
-    # unmount ZFS datasets or anything outside this new jail's root.
-    __create_pkg_mounts () {
-        local _table
-
-        _table="$(mount -p)" || return $?
-        printf '%s\n' "${_table}" | awk -v root="${_root}" '
-            $3 != "zfs" && ($2 == root || index($2, root "/") == 1) {
-                targets[++n] = $2
-            }
-            END { for (i = n; i > 0; i--) print targets[i] }
-        '
-    }
-
     __create_pkg_cleanup () {
         _status="$1"
         trap - EXIT
-        _mounts="$(__create_pkg_mounts)" || exit 1
+        _mounts=$(__mounts_below "${_root}") || exit 1
 
-        for _mount in ${_mounts} ; do
+        while IFS= read -r _mount; do
+            [ -n "${_mount}" ] || continue
             if ! umount "${_mount}" ; then
                 __error "failed unmounting ${_mount}"
 
@@ -508,12 +495,14 @@ __create_jail_pkg () (
                     _status=1
                 fi
             fi
-        done
+        done <<EOF
+${_mounts}
+EOF
 
         exit "${_status}"
     }
 
-    _mounts="$(__create_pkg_mounts)" || exit $?
+    _mounts=$(__mounts_below "${_root}") || exit $?
 
     if [ -n "${_mounts}" ] ; then
         __error "jail already has mounted filesystems: ${_root}"

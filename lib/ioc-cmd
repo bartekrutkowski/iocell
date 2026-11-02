@@ -195,7 +195,11 @@ __validate_cmd () {
             if [ "${1:-}" = -t ] ; then _fetch_thick=1; shift; fi
             for _arg in "$@" ; do
                 case "${_arg}" in
-                    *=*) __cli_properties "${_arg}" || return $? ;;
+                    *=*)
+                        __cli_properties "${_arg}" || return $?
+                        case "${_arg}" in release=*)
+                            __valid_release_name "${_arg#*=}" || return $? ;;
+                        esac ;;
                     -p|-P) __error "portsnap-based ports fetches are not supported"; return 1 ;;
                     -*) __cli_args_error "${_cmd}"; return 1 ;;
                     */*) _fetch_repos=$((_fetch_repos + 1)) ;;

@@ -9,9 +9,11 @@ Command restrictions
 * **Defaults:** saved defaults apply to later ordinary ``create`` commands, not
   existing, cloned or imported jails. ``reset`` does not reload saved creation
   defaults. ``get all default`` does not dump them; use ``defaults``.
-* **Fetch:** the interactive release menu is obsolete; specify ``release=...``
-  and the distribution mirror/path explicitly. Obsolete ``fetch``/``update``
-  ports options are rejected; manage a modern ports tree separately with Git.
+* **Fetch:** release availability depends on the selected mirror/path. Failed
+  preparation retains datasets/downloads; inspect incomplete releases and cached
+  archives before retrying. Existing prepared releases are patched, not
+  re-extracted. Stop iocell jails before shared-release patching. Obsolete ports
+  options are rejected; manage a modern ports tree separately with Git.
 * **Deactivation:** ``deactivate`` prints manual removal guidance; it does not
   clear the native pool discovery comment or disable existing jails.
 * **Imports:** property operands are not applied to ordinary stream imports.

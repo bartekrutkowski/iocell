@@ -286,10 +286,10 @@ ftpdir=/dir/ | ftpfiles="base.txz lib32.txz src.txz"]
 .PP
 Used for downloading and updating/patching releases.
 .PP
-Activate a pool first, then \fIfetch\fP an available release. Specify release=
-explicitly: the interactive menu is obsolete and can reject its own
-current-host default. Supply a suitable mirror/path if the default no
-longer provides that distribution. Use trusted distribution files.
+Activate a pool first, then select an available release. The interactive
+prompt accepts a release name and \fIdefaults\fP to the host release. Supply a
+suitable mirror/path if it no longer provides that distribution. Use trusted
+distribution files and include complete sources for etcupdate preparation.
 .PP
 Example: \fBiocell\fP \fIfetch\fP release=15.1-RELEASE
 .PP
@@ -302,9 +302,14 @@ release already present in \fBiocell\fP (\fBiocell\fP \fIlist\fP \fB-r\fP) run:
 
 .fam T
 .fi
-This example requests patching of the fetched 15.1-RELEASE base.
-Newly created jails or basejails will automatically have the latest
-updates applied.
+This patches an existing prepared release without re-extracting archives.
+Stop \fBiocell\fP jails before updating a shared release. Local distribution
+fetches skip network patching. New basejails use the resulting shared files.
+Fetch, extraction, patching and etcupdate failures return nonzero. Partial
+datasets/downloads are retained, never recursively erased on failure.
+Inspect an incomplete release and its cached archives before retrying.
+The original resolver is restored and newly mounted filesystems are cleaned
+up; an incomplete cleanup is reported without discarding recovery data.
 .PP
 Obsolete \fB-p\fP/\fB-P\fP ports options are rejected before initialization. Manage
 a modern ports tree separately with Git.

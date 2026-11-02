@@ -173,25 +173,8 @@ __upgrade_basejail () (
     _up_snap="${_up_ds}/root@ioc-upgrade_${_up_date}"
     _up_snapshot=0; _up_ready=0
 
-    __upgrade_mounts () {
-        _up_table=$(mount -p) || return $?
-        printf '%s\n' "${_up_table}" | \
-            IOC_UPGRADE_ROOT="${_up_root}" awk '
-            BEGIN { root=ENVIRON["IOC_UPGRADE_ROOT"] }
-            {
-                target=$2
-                gsub(/\\040/, " ", target)
-                gsub(/\\011/, "\t", target)
-                gsub(/\\134/, "\\\\", target)
-                if ($3 != "zfs" &&
-                    (target == root || index(target, root "/") == 1))
-                    targets[++n]=target
-            }
-            END { for (i=n; i>0; i--) print targets[i] }'
-    }
-
     __upgrade_unmount () {
-        _up_mounts=$(__upgrade_mounts) || return $?
+        _up_mounts=$(__mounts_below "${_up_root}") || return $?
         _up_cleanup=0
         while IFS= read -r _up_target; do
             [ -n "${_up_target}" ] || continue
@@ -247,7 +230,7 @@ EOF
         __error "existing upgrade backup retained: ${_up_mp}/etc.old"
         exit 1
     fi
-    _up_mounts=$(__upgrade_mounts) || exit $?
+    _up_mounts=$(__mounts_below "${_up_root}") || exit $?
     [ -z "${_up_mounts}" ] || {
         __error "jail already has mounted filesystems: ${_up_root}"
         exit 1

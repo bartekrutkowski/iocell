@@ -559,198 +559,206 @@ __exec () {
     ${_jexec} ${_jexecopts} ioc-${_fulluuid} "$@"
 }
 
-# Cleanup release directories
-__cleanup_release_dir () {
-    local _rel_exist _rel_dir_exist _dwn_rel_exist _dwn_dir_exist _rel_name
+# Reverse mount order; never include ZFS datasets or a neighbouring tree.
+__mounts_below () {
+    local _root _table
+    _root="$1"
+    _table=$(mount -p) || return $?
+    printf '%s\n' "${_table}" | IOC_MOUNT_ROOT="${_root}" awk '
+        BEGIN { root=ENVIRON["IOC_MOUNT_ROOT"] }
+        {
+            target=$2
+            gsub(/\\040/, " ", target)
+            gsub(/\\011/, "\t", target)
+            gsub(/\\134/, "\\\\", target)
+            if ($3 != "zfs" &&
+                (target == root || index(target, root "/") == 1))
+                targets[++n]=target
+        }
+        END { for (i=n; i>0; i--) print targets[i] }'
+}
 
-    if [ -n "$1" ] ; then
-        _rel_name="$1"
-    else
-        __die "Failed cleanup of RELEASE directories. No RELEASE name defined" >&2
-    fi
-
-    _rel_exist=$(zfs get -H -o value name ${pool}/iocell/releases/${_rel_name})
-    _dwn_rel_exist=$(zfs get -H -o value name \
-        ${pool}/iocell/download/${_rel_name})
-
-    if [ -n "${_rel_exist}" ] ; then
-        _rel_dir_exist=$(zfs get -H -o value mountpoint \
-            ${pool}/iocell/releases/${_rel_name})
-        zfs destroy -fr -- ${pool}/iocell/releases/${_rel_name}
-        if [ -d "${_rel_dir_exist}" ]; then
-            rm -rf -- ${_rel_dir_exist}
-        fi
-    fi
-
-    if [ -n "${_dwn_rel_exist}" ] ; then
-        _dwn_dir_exist=$(zfs get -H -o value mountpoint \
-            ${pool}/iocell/download/${_rel_name})
-        zfs destroy -fr -- ${pool}${iocroot}/download/${_rel_name}
-        if [ -d "${_dwn_dir_exist}" ]; then
-            rm -rf -- ${_dwn_dir_exist}
-        fi
-    fi
+__valid_release_name () {
+    case "$1" in
+        ''|[![:alnum:]]*|*[![:alnum:]_.-]*|*..*)
+            __error "invalid release name: $1"; return 1 ;;
+    esac
 }
 
 # Fetch release and prepare base ZFS filesystems-----------
-__fetch_release () {
-    local _rel_exist _release _host_release _non_interactive _dist \
-          _grepmatch _args
-
-    _release=$(uname -r|cut -f 1,2 -d'-')
-    # Needed to check for PC-BSD import
-    _host_release=$(uname -r|cut -f 1,2 -d'-')
-    _grepmatch='STABLE$|PRERELEASE$|CURRENT$|BETA$'
-
-    for _args in "$@" ; do
-        case "${_args}" in
-            -P|-p)
-                __error "portsnap-based ports fetches are not supported"
-                return 1 ;;
+__fetch_release () (
+    set -f
+    _fr_release="${iocset_release:-$(uname -r | cut -f1,2 -d-)}"
+    for _fr_arg in "$@"; do
+        case "${_fr_arg}" in -p|-P)
+            __error "portsnap-based ports fetches are not supported"; exit 1 ;;
         esac
     done
-
-    if [ -z "${iocset_release}" ] ; then
+    if [ -z "${iocset_release}" ]; then
         __print_release
-        echo -n "Please select a release [${_release}]: "
-        read _answer
-
-        if [ -z "${_answer}" ] ; then
-            _answer="${_release}"
-        else
-            _release="${_answer}"
-            for _rel in $(echo ${supported}) ; do
-                if [ "${_answer}" == "${_rel}" ] ; then
-                    _release="${_rel}"
-                    match="1"
-                    break
-                fi
-            done
-
-            if [ -z ${match} ] ; then
-                echo "Invalid release ${_release} specified, exiting.." >&2
+        printf 'Please select a release [%s]: ' "${_fr_release}"
+        IFS= read -r _fr_answer || :
+        _fr_release="${_fr_answer:-${_fr_release}}"
+    fi
+    __valid_release_name "${_fr_release}" || exit $?
+    for _fr_file in ${ftpfiles}; do
+        case "${_fr_file}" in ''|.|..|-*|*/*|*[![:alnum:]_.-]*)
+            __error "invalid distribution filename: ${_fr_file}"; exit 1 ;;
+        esac
+    done
+    [ -n "${ftpfiles}" ] || { __error "no distribution files selected"; exit 1; }
+    _fr_ds="${pool}/iocell/releases/${_fr_release}/root"
+    _fr_root="${iocroot}/releases/${_fr_release}/root"
+    _fr_download="${iocroot}/download/${_fr_release}"
+    _fr_existing=0
+    _fr_datasets=$(zfs list -H -o name -r "${pool}/iocell/releases") || exit $?
+    for _fr_dataset in ${_fr_datasets}; do
+        [ "${_fr_dataset}" != "${_fr_ds}" ] || _fr_existing=1
+    done
+    if [ "${_fr_existing}" = 1 ]; then
+        [ -f "${_fr_root}/usr/src/Makefile" ] &&
+            [ -f "${_fr_root}/etc/freebsd-update.conf" ] || {
+                __error "incomplete release retained; inspect ${_fr_root} before retrying"
                 exit 1
-            fi
+            }
+        _fr_jails=$(jls -n) || exit $?
+        if printf '%s\n' "${_fr_jails}" | grep -Eq '(^|[[:space:]])name=ioc-'; then
+            __error "stop iocell jails before updating a shared release"
+            exit 1
         fi
     else
-        _release="${iocset_release}"
+        zfs create -o "compression=${compression}" -p "${_fr_ds}" || exit $?
     fi
+    _fr_datasets=$(zfs list -H -o name -r "${pool}/iocell/download") || exit $?
+    _fr_cached=0
+    for _fr_dataset in ${_fr_datasets}; do
+        [ "${_fr_dataset}" != "${pool}/iocell/download/${_fr_release}" ] || _fr_cached=1
+    done
+    [ "${_fr_cached}" = 1 ] || zfs create -o "compression=${compression}" \
+        -p "${pool}/iocell/download/${_fr_release}" || exit $?
+    _fr_mounted=$(zfs get -H -o value mounted "${_fr_ds}") || exit $?
+    [ "${_fr_mounted}" = yes ] || { __error "release is not mounted"; exit 1; }
+    _fr_mount=$(zfs get -H -o value mountpoint "${_fr_ds}") || exit $?
+    [ "${_fr_mount}" = "${_fr_root}" ] && [ -d "${_fr_root}" ] || {
+        __error "release mountpoint does not match selected root: ${_fr_mount}"
+        exit 1
+    }
 
+    _fr_mounted=$(zfs get -H -o value mounted \
+        "${pool}/iocell/download/${_fr_release}") || exit $?
+    [ "${_fr_mounted}" = yes ] || { __error "downloads are not mounted"; exit 1; }
+    _fr_mount=$(zfs get -H -o value mountpoint \
+        "${pool}/iocell/download/${_fr_release}") || exit $?
+    [ "${_fr_mount}" = "${_fr_download}" ] && [ -d "${_fr_download}" ] || {
+        __error "download mountpoint does not match selected root: ${_fr_mount}"
+        exit 1
+    }
 
-
-    _rel_exist=$(zfs list -H | grep -w ^${pool}/iocell/releases/${_release})
-
-    if [ -z "${_rel_exist}" ] ; then
-        zfs create -o compression=${compression} -p ${pool}/iocell/releases/${_release}/root
-        zfs create -o compression=${compression} -p ${pool}/iocell/download/${_release}
-    fi
-
-    if [ -z "${ftpdir}" ] ; then
-        # Everything but RELEASE is stored here
-        if [ "$(echo ${_release} | egrep ${_grepmatch})" ] ; then
-            ftpdir="/pub/FreeBSD/snapshots/amd64/${_release}"
-        else
-            ftpdir="/pub/FreeBSD/releases/amd64/${_release}"
+    __fetch_cleanup () {
+        _fr_status="$1"
+        trap - EXIT
+        _fr_mounts=$(__mounts_below "${_fr_root}") || {
+            _fr_failure=$?
+            [ "${_fr_status}" -ne 0 ] || _fr_status="${_fr_failure}"
+            _fr_mounts=
+        }
+        while IFS= read -r _fr_mount; do
+            [ -n "${_fr_mount}" ] || continue
+            umount "${_fr_mount}" || {
+                _fr_failure=$?
+                [ "${_fr_status}" -ne 0 ] || _fr_status="${_fr_failure}"
+            }
+        done <<EOF
+${_fr_mounts}
+EOF
+        if [ "${_fr_resolver}" = 1 ]; then
+            rm -f "${_fr_root}/etc/resolv.conf" || {
+                _fr_failure=$?
+                [ "${_fr_status}" -ne 0 ] || _fr_status="${_fr_failure}"
+            }
         fi
-    fi
+        if [ -e "${_fr_work}/resolv.conf" ] || [ -L "${_fr_work}/resolv.conf" ]; then
+            mv "${_fr_work}/resolv.conf" "${_fr_root}/etc/resolv.conf" || {
+                _fr_failure=$?
+                [ "${_fr_status}" -ne 0 ] || _fr_status="${_fr_failure}"
+            }
+        fi
+        rmdir "${_fr_work}" || {
+            __error "resolver recovery retained: ${_fr_work}"
+            [ "${_fr_status}" -ne 0 ] || _fr_status=1
+        }
+        if [ "${_fr_status}" -ne 0 ]; then
+            __error "fetch incomplete; release and downloads retained:" \
+                "${_fr_root} ${_fr_download}"
+        fi
+        exit "${_fr_status}"
+    }
+    _fr_mounts=$(__mounts_below "${_fr_root}") || exit $?
+    [ -z "${_fr_mounts}" ] || {
+        __error "release already has mounted filesystems: ${_fr_root}"; exit 1;
+    }
+    # Keep resolver renames on its own filesystem, including interrupted moves.
+    mkdir -p "${_fr_root}/etc" || exit $?
+    _fr_work=$(mktemp -d "${_fr_root}/etc/.fetch.XXXXXX") || exit $?
+    _fr_resolver=0
+    trap '__fetch_cleanup $?' EXIT
+    trap 'exit 129' HUP
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
 
-    if [ -e "/usr/local/tmp/iocell-dist" -a "${_release}" = "${_host_release}" ] ; then
-        cd "/usr/local/tmp/iocell-dist"
-        _dist=1
-    else
-        cd ${iocroot}/download/${_release}
-        _dist=0
-    fi
-
-    # If $ftplocaldir is set fetch from a local dir else fetch from remote
-    # If fetch fails for remote or local remove new directories
-    for file in $ftpfiles ; do
-        if [ ! -e "$file" ] ; then
-            if [ -n "$ftplocaldir" ] ; then
-                fetch file://${ftplocaldir}/${file}
-                if [ $? -ne 0 ] ; then
-                    echo "Failed fetching local $file.." >&2
-                    __cleanup_release_dir ${_release}
-                    return 1
-                fi
-            else
-                fetch http://${ftphost}${ftpdir}/${file}
-                if [ $? -ne 0 ] ; then
-                    echo "Failed fetching remote $file.." >&2
-                    __cleanup_release_dir ${_release}
-                    return 1
+    # Existing complete releases are patched, never re-extracted or erased.
+    if [ "${_fr_existing}" = 0 ]; then
+        _fr_dir="${ftpdir}"
+        if [ -z "${_fr_dir}" ]; then
+            case "${_fr_release}" in
+                *-STABLE|*-PRERELEASE|*-CURRENT|*-BETA) _fr_branch=snapshots ;;
+                *) _fr_branch=releases ;;
+            esac
+            _fr_dir="/pub/FreeBSD/${_fr_branch}/amd64/${_fr_release}"
+        fi
+        for _fr_file in ${ftpfiles}; do
+            _fr_archive="${_fr_download}/${_fr_file}"
+            if [ ! -f "${_fr_archive}" ]; then
+                if [ -n "${ftplocaldir}" ]; then
+                    fetch -o "${_fr_archive}" \
+                        "file://${ftplocaldir}/${_fr_file}" || exit $?
+                elif [ -f "/usr/local/tmp/iocell-dist/${_fr_file}" ] &&
+                    [ "${_fr_release}" = "$(uname -r | cut -f1,2 -d-)" ]; then
+                    cp -p "/usr/local/tmp/iocell-dist/${_fr_file}" \
+                        "${_fr_archive}" || exit $?
+                else
+                    fetch -o "${_fr_archive}" \
+                        "http://${ftphost}${_fr_dir}/${_fr_file}" || exit $?
                 fi
             fi
-        fi
-    done
-
-    for _file in $(echo ${ftpfiles}) ; do
-        if [ -e "${_file}" ] ; then
-            echo "Extracting: ${_file}"
-            chflags -R noschg ${iocroot}/releases/${_release}/root
-            tar -C ${iocroot}/releases/${_release}/root -xf ${_file}
-        fi
-    done
-
-    # Create these dirs for basejails
-    if [ ! -e ${iocroot}/releases/${_release}/root/usr/home ] ; then
-        mkdir ${iocroot}/releases/${_release}/root/usr/home > /dev/null 2>&1
-        cd ${iocroot}/releases/${_release}/root && ln -s usr/home home 2>&1
+            echo "Extracting: ${_fr_file}"
+            chflags -R noschg "${_fr_root}" || exit $?
+            tar -C "${_fr_root}" -xf "${_fr_archive}" || exit $?
+        done
     fi
-
-    mkdir ${iocroot}/releases/${_release}/root/compat > /dev/null 2>&1
-    mkdir ${iocroot}/releases/${_release}/root/usr/ports > /dev/null 2>&1
-
-    # mount devfs for chroot
-    mount -t devfs devfs ${iocroot}/releases/${_release}/root/dev
-
-    cat /etc/resolv.conf > \
-            ${iocroot}/releases/${_release}/root/etc/resolv.conf
-
-    if [ ! "$(echo ${_release} | grep -E ${_grepmatch})" ] ; then
-
-        echo "* Updating base jail template."
-        sleep 2
-
-
-        if [ -e ${iocroot}/releases/${_release}/root/etc/freebsd-update.conf ] \
-            && [ -z "$ftplocaldir" ] ; then
-
-            case "${_release}" in
-                9.3-RELEASE | 10.1-RELEASE)
-                    # Remove the interactive check in freebsd-update
-                    sed 's/\[ ! -t 0 \]/false/' \
-                        ${iocroot}/releases/${_release}/root/usr/sbin/freebsd-update \
-                        > ${iocroot}/releases/${_release}/root/tmp/freebsd-update
-                    chmod +x ${iocroot}/releases/${_release}/root/tmp/freebsd-update
-                    chroot ${iocroot}/releases/${_release}/root \
-                        env UNAME_r="${_release}" env PAGER="/bin/cat" \
-                        /tmp/freebsd-update fetch
-                    rm ${iocroot}/releases/${_release}/root/tmp/freebsd-update
-                    ;;
-                *)
-                    chroot ${iocroot}/releases/${_release}/root \
-                        env UNAME_r="${_release}" env PAGER="/bin/cat" \
-                        freebsd-update --not-running-from-cron fetch
-                    ;;
-                esac
-
-            chroot ${iocroot}/releases/${_release}/root \
-                env UNAME_r="${_release}" env PAGER="/bin/cat" \
-                freebsd-update install
-        fi
+    [ -f "${_fr_root}/usr/src/Makefile" ] || {
+        __error "complete release sources are required to prepare etcupdate"; exit 1;
+    }
+    mkdir -p "${_fr_root}/usr/home" "${_fr_root}/compat" \
+        "${_fr_root}/usr/ports" "${_fr_root}/dev" "${_fr_root}/etcupdate" || exit $?
+    if [ ! -e "${_fr_root}/home" ] && [ ! -L "${_fr_root}/home" ]; then
+        ln -s usr/home "${_fr_root}/home" || exit $?
     fi
-
-    if [ "${_dist}" = "1" ] ; then
-        rm -rf "/usr/local/tmp/iocell-dist"
+    if [ -e "${_fr_root}/etc/resolv.conf" ] || [ -L "${_fr_root}/etc/resolv.conf" ]; then
+        mv "${_fr_root}/etc/resolv.conf" "${_fr_work}/resolv.conf" || exit $?
     fi
-
-    rm -f ${iocroot}/releases/${_release}/root/etc/resolv.conf
-    mkdir ${iocroot}/releases/${_release}/root/etcupdate 2> /dev/null
-    chroot ${iocroot}/releases/${_release}/root \
-        etcupdate build /etcupdate/etcupdate-${_release}.tbz
-    umount ${iocroot}/releases/${_release}/root/dev
-}
+    _fr_resolver=1
+    cp /etc/resolv.conf "${_fr_root}/etc/resolv.conf" || exit $?
+    mount -t devfs devfs "${_fr_root}/dev" || exit $?
+    case "${_fr_release}" in *-RELEASE*)
+        if [ -z "${ftplocaldir}" ] && [ -f "${_fr_root}/etc/freebsd-update.conf" ]; then
+            chroot "${_fr_root}" env "UNAME_r=${_fr_release}" PAGER=/bin/cat \
+                freebsd-update --not-running-from-cron fetch install || exit $?
+        fi ;;
+    esac
+    chroot "${_fr_root}" etcupdate build \
+        "/etcupdate/etcupdate-${_fr_release}.tbz" || exit $?
+)
 
 # reads tag property from given jail dataset
 # Creates an alias; optional "update" also commits its source tag property.

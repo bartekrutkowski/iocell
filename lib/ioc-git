@@ -41,7 +41,7 @@ __remove_empty_plugin_release () {
 __fetch_plugin () {
     local _gitlocation _jail_path _prop _pname _repocheck _host_version \
           _branch_version _branch_list _branch_rel _release _dataset \
-          _spinner_pid _errors
+          _spinner_pid _errors _status
 
     _gitlocation="$(__get_default_prop gitlocation)"
     _plugin="$(echo $1 | awk 'BEGIN { FS = "/" } ; { print $2 }')"
@@ -109,28 +109,30 @@ __fetch_plugin () {
             sleep .1
         done &
 
-        trap "kill $!" 2 3
-        __fetch_release > /dev/null 2>&1
-
-        if [ "$?" != "0" ] ; then
-            printf "\b%1s\n" "failed!" ; kill $! && trap " " 2 3
-            zfs destroy -fr "${pool}/iocell/releases/${_release}"
-            zfs destroy -f "${pool}/iocell/download/${_release}"
-            __die "${_release} could not be found, please try manually fetching it."
-        else
-            printf "\b%1s\n" "done!" ; kill $! && trap " " 2 3
+        _spinner_pid=$!
+        trap 'kill "${_spinner_pid}" 2>/dev/null' 2 3
+        _status=0
+        __fetch_release > /dev/null || _status=$?
+        kill "${_spinner_pid}" 2>/dev/null || :
+        wait "${_spinner_pid}" 2>/dev/null || :
+        trap - 2 3
+        if [ "${_status}" -ne 0 ]; then
+            printf "\b%1s\n" "failed!"
+            __error "release fetch failed; partial release/download data retained"
+            return "${_status}"
         fi
+        printf "\b%1s\n" "done!"
     fi
 
     # Create a basejail with the supplied properties to set up our structure
     # supplying -g so we can skip RELEASE checks.
     export release="${_release}"
-    __create_jail "-g" $@ 1> /dev/null
-    _jail_path="$(__get_jail_prop mountpoint ${uuid} \
-                ${pool}/iocell/jails/${uuid})"
+    __create_jail "-g" "$@" > /dev/null || return $?
+    _jail_path=$(__get_jail_prop mountpoint "${uuid}" \
+        "${pool}/iocell/jails/${uuid}") || return $?
 
-    # Begin git clone process
-    cd ${_jail_path}/root
+    # Begin git clone process only in the successfully created jail.
+    cd "${_jail_path}/root" || return $?
     git init --quiet .
 
     # The folder isn't empty, so we can't do a normal git clone
