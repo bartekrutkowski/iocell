@@ -71,11 +71,21 @@ grep -q 'injected set-value write failure' "$workdir/failure.log"
 cmp "$other/config" "$workdir/second-before"
 echo 'PASS: native set stops later properties and jails at the first write failure'
 iocell set notes=null "$first"
+cat > "$workdir/get.sh" <<'HELPER'
+#!/bin/sh
+. ./lib/ioc-common
+. ./lib/ioc-info
+__get_jail_prop notes "$1" "$IOC_PROP_DATASET"
+HELPER
 for fault in mount parser raw; do
     status=0; case "$fault" in mount) want=42 ;; parser) want=43 ;; raw) want=44 ;; esac
+    # Discovery also reads mountpoints and has its own diagnostic/status.
+    # Inject the backend mountpoint error after that boundary explicitly.
+    if [ "$fault" = mount ]; then set -- sh "$workdir/get.sh" "$first"
+    else set -- sh ./iocell get notes "$first"; fi
     env PATH="$workdir/bin:$PATH" IOC_PROP_FAULT="$fault" \
         IOC_PROP_DATASET="$IOC_TEST_POOL/iocell/jails/$first" \
-        sh ./iocell get notes "$first" > "$workdir/get-$fault.log" 2>&1 || status=$?
+        "$@" > "$workdir/get-$fault.log" 2>&1 || status=$?
     [ "$status" = "$want" ]
     echo "PASS: native get preserves $fault query failure"
 done
