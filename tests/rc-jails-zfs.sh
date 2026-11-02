@@ -48,11 +48,29 @@ set +u
 . ./lib/ioc-rc
 pool="$IOC_RC_POOL"; iocroot="$IOC_RC_ROOT"; hostid=$(cat /etc/hostid)
 __start_jail () {
+    if [ "$1" = "$IOC_RC_FIRST" ]; then
+        case "$IOC_RC_FAULT" in
+            return) return 42 ;; exit) exit 43 ;;
+            background-*)
+                : > "$IOC_RC_DIR/background-entered"
+                attempts=0
+                while [ ! -f "$IOC_RC_DIR/background-release" ] && [ "$attempts" -lt 200 ]; do
+                    sleep 0.1; attempts=$((attempts + 1))
+                done
+                echo 'injected native background failure' >&2
+                : > "$IOC_RC_DIR/background-finished"
+                [ "$IOC_RC_FAULT" != background-exit ] || exit 43
+                return 42 ;;
+        esac
+    fi
     jail -c "name=ioc-$1" "path=$iocroot/jails/$1/root" persist \
         ip4=disable ip6=disable || return $?
     printf '%s\n' "$1" >> "$IOC_RC_EVENTS"
 }
 __stop_jail () {
+    if [ "$1" = "$IOC_RC_SECOND" ]; then
+        case "$IOC_RC_FAULT" in return) return 42 ;; exit) exit 43 ;; esac
+    fi
     [ "$2" = "$pool/iocell/jails/$1" ] || return 99
     jail -r "ioc-$1" || return $?
     printf '%s\n' "$1" >> "$IOC_RC_EVENTS"
@@ -69,6 +87,8 @@ __rc_jails "$1"
 HELPER
 backend_rc () {
     env IOC_RC_POOL="$p" IOC_RC_ROOT="$root" IOC_RC_EVENTS="$workdir/events" \
+        IOC_RC_FIRST="$first" IOC_RC_SECOND="$second" IOC_RC_DIR="$workdir" \
+        IOC_RC_FAULT="${IOC_RC_FAULT:-none}" \
         IOC_RC_ENUM_FAULT="${IOC_RC_ENUM_FAULT:-no}" sh "$workdir/rc.sh" "$1"
 }
 : > "$workdir/events"
@@ -101,6 +121,63 @@ IOC_RC_ENUM_FAULT=yes backend_rc boot > "$workdir/enumeration.log" 2>&1 || statu
 [ "$status" = 42 ] && [ ! -s "$workdir/events" ]
 grep -q 'injected rc discovery failure' "$workdir/enumeration.log"
 echo 'PASS: native rc discovery failure reaches the caller without jail creation'
+for action in boot shutdown; do
+    for fault in return exit; do
+        cleanup
+        if [ "$action" = shutdown ]; then backend_rc boot > "$workdir/setup.log" 2>&1; fi
+        : > "$workdir/events"; status=0; want=42
+        [ "$fault" != exit ] || want=43
+        IOC_RC_FAULT="$fault" backend_rc "$action" > "$workdir/$action-$fault.log" 2>&1 || status=$?
+        [ "$status" = "$want" ]
+        if [ "$action" = boot ]; then
+            echo "$second" > "$workdir/expected"
+            jls -j "ioc-$second" jid > "$workdir/later-jid"
+            if jls -j "ioc-$first" jid >/dev/null 2>&1; then exit 1; fi
+        else
+            echo "$first" > "$workdir/expected"
+            jls -j "ioc-$second" jid > "$workdir/failed-stop-jid"
+            if jls -j "ioc-$first" jid >/dev/null 2>&1; then exit 1; fi
+        fi
+        cmp "$workdir/events" "$workdir/expected"
+        echo "PASS: native rc $action $fault preserves failure and performs the later kernel action"
+    done
+done
+cleanup
+# Priority changes are confined to these owned fixtures and restored bytewise.
+printf 'host_hostuuid="%s"; boot="on"; hostid="%s"; priority=99;\n' \
+    "$first" "$(cat /etc/hostid)" > "$root/jails/$first/config"
+printf 'host_hostuuid="%s"; boot="off"; hostid="%s"; priority=20;\n' \
+    "$second" "$(cat /etc/hostid)" > "$root/jails/$second/config"
+( set -C; : > "/var/tmp/$first" ) || exit 1
+for fault in background-return background-exit; do
+    rm -f "$workdir/background-release" "$workdir/background-entered" \
+        "$workdir/background-finished" "$workdir/background-status"
+    ( status=0; IOC_RC_FAULT="$fault" backend_rc boot || status=$?
+      echo "$status" > "$workdir/background-status"
+    ) > "$workdir/$fault.log" 2>&1 &
+    driver=$!; attempts=0
+    while [ ! -f "$workdir/background-status" ] && [ "$attempts" -lt 100 ]; do
+        sleep 0.1; attempts=$((attempts + 1))
+    done
+    nonblocking=no
+    if [ -f "$workdir/background-entered" ] &&
+        [ -f "$workdir/background-status" ] && [ ! -f "$workdir/background-finished" ]; then
+        nonblocking=yes
+    fi
+    : > "$workdir/background-release"
+    wait "$driver"
+    attempts=0
+    while ! grep -F "background start failed for $first; see /var/tmp/$first" \
+        "$workdir/$fault.log" >/dev/null && [ "$attempts" -lt 30 ]; do
+        sleep 0.1; attempts=$((attempts + 1))
+    done
+    [ "$nonblocking" = yes ] && [ "$(cat "$workdir/background-status")" = 0 ]
+    grep -q 'injected native background failure' "/var/tmp/$first"
+    grep -F "background start failed for $first; see /var/tmp/$first" "$workdir/$fault.log"
+    echo "PASS: native rc $fault returns before completion, retains log and reports failure"
+done
+cp "$workdir/$first.config" "$root/jails/$first/config"
+cp "$workdir/$second.config" "$root/jails/$second/config"
 for uuid in "$first" "$second" "$foreign" "$disabled"; do
     cmp "$root/jails/$uuid/config" "$workdir/$uuid.config"
     [ "$(cat "$root/jails/$uuid/root/canary")" = preserved ]

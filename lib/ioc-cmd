@@ -217,6 +217,20 @@ __validate_cmd () {
     return 0
 }
 
+# Try every lifecycle target; legacy backend exits must stay in the child.
+__jails_action_targets () {
+    local _action _target _status _failure
+    _action="$1"; shift; _status=0
+    for _target in "$@" ; do
+        if ( "__${_action}_jail" "${_target}" ) ; then :
+        else
+            _failure=$?
+            [ "${_status}" -ne 0 ] || _status="${_failure}"
+        fi
+    done
+    return "${_status}"
+}
+
 # Private dispatch: the entrypoint preflights before filesystem initialization.
 __parse_cmd () {
     if [ "$#" -gt 0 ] ; then
@@ -382,15 +396,11 @@ __parse_cmd () {
             reboot|restart)    shift
                                if [ "$1" = "-s" ] ; then
                                     shift
-                                    for _j in $@ ; do
-                                        __restart_jail "${_j}"
-                                    done
-                                    exit
+                                    __jails_action_targets restart "$@"
+                                    exit $?
                                else
-                                    for _j in $@ ; do
-                                        __reboot_jail "${_j}" || exit $?
-                                    done
-                                    exit
+                                    __jails_action_targets reboot "$@"
+                                    exit $?
                                 fi
                 ;;
             reset)      __reset_jail_props "$2"
@@ -447,8 +457,7 @@ __parse_cmd () {
             snapumount) __umount_snapshot "$2"
                         exit
                 ;;
-            start)      local _start_status _failure
-                        if [ "$2" = "-f" ] ; then
+            start)      if [ "$2" = "-f" ] ; then
                             export _force=1
                             shift 2
                         else
@@ -456,22 +465,12 @@ __parse_cmd () {
                             shift
                         fi
 
-                        _start_status=0
-                        for _j in "$@" ; do
-                            if ( __start_jail "${_j}" ); then :
-                            else
-                                _failure=$?
-                                [ "${_start_status}" -ne 0 ] ||
-                                    _start_status="${_failure}"
-                            fi
-                        done
-                        exit "${_start_status}"
+                        __jails_action_targets start "$@"
+                        exit $?
                 ;;
             stop)       shift
-                        for _j in $@ ; do
-                            __stop_jail "${_j}"
-                        done
-                        exit
+                        __jails_action_targets stop "$@"
+                        exit $?
                 ;;
             uncap)      __rctl_uncap "$2"
                         exit

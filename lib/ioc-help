@@ -33,7 +33,7 @@ SYNOPSIS
   iocell [-v] list [-t|-r|-s jid|uuid|boot|state|tag|type|ip4|release]
   iocell [-v] promote UUID|TAG
   iocell [-v] rcboot
-  iocell [-v] reboot|restart [-s] UUID|TAG|ALL
+  iocell [-v] reboot|restart [-s] UUID|TAG|ALL [UUID|TAG|ALL ...]
   iocell [-v] rcshutdown
   iocell [-v] reset UUID|TAG|ALL
   iocell [-v] rollback UUID|TAG@snapshotname
@@ -47,7 +47,7 @@ SYNOPSIS
   iocell [-v] snapshot|snap [-f] [-r] UUID|TAG[@snapshotname]
   iocell [-v] snapumount UUID|TAG@snapshotname
   iocell [-v] start [-f] UUID|TAG|ALL [UUID|TAG|ALL ...]
-  iocell [-v] stop UUID|TAG|ALL
+  iocell [-v] stop UUID|TAG|ALL [UUID|TAG|ALL ...]
   iocell [-v] uncap UUID|TAG
   iocell [-v] update [-p|-P] UUID|TAG|RELEASE
   iocell [-v] upgrade UUID|TAG [release=RELEASE]
@@ -95,6 +95,10 @@ DESCRIPTION
   a later runtime error can follow earlier successful operations. Some legacy
   execution paths still have misleading statuses; inspect resulting state.
   Historical chroot, record, package and show commands remain undispatched.
+
+  Start, stop, reboot/restart (including -s), rcboot and rcshutdown attempt all
+  selected jails and return the first failure reported by synchronous
+  operations. Successful operations are not undone if another jail fails.
 
 SUBCOMMANDS
 
@@ -321,9 +325,10 @@ SUBCOMMANDS
 
     Start all jails with "boot" property set to "on". Intended for boot time
     execution. Jails will be started in an ordered fashion based on their
-    "priority" property.
+    "priority" property. Priority 99 jails start in the background; their
+    failures are reported but do not affect the exit status.
 
-  reboot [-s] UUID|TAG|ALL
+  reboot [-s] UUID|TAG|ALL [UUID|TAG|ALL ...]
 
     Fully stops the jail and, upon success, starts it again. With -s, runs the
     configured exec_stop command, signals remaining processes, then runs
@@ -344,7 +349,7 @@ SUBCOMMANDS
     Reset does not reload defaults saved by set ... default; those values
     apply to later creation. Use ALL to target all jails.
 
-  restart [-s] UUID|TAG|ALL
+  restart [-s] UUID|TAG|ALL [UUID|TAG|ALL ...]
 
     Alias for reboot: default is hard stop/start. Specify -s for a soft restart
     retaining the kernel jail and networking. It does not guarantee application
@@ -469,10 +474,9 @@ SUBCOMMANDS
 
     Start jail identified by UUID or TAG. If the -f switch is supplied, it will
     force start a template for editing. This flag does not apply to normal
-    jails. With several targets, attempt each in order and return the first
-    nonzero status. Successful starts are not undone if another target fails.
+    jails.
 
-  stop UUID|TAG|ALL
+  stop UUID|TAG|ALL [UUID|TAG|ALL ...]
 
     Stop jail identified by UUID or TAG. If ALL is specified, it will stop all
     jails.

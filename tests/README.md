@@ -140,13 +140,18 @@ start on their own line after the spinner is stopped.
 
 `rc-jails.sh` keeps discovery, property reads and rc selection real. It checks
 boot/hostid filtering, priority order, reverse shutdown order and propagation
-of discovery failures before any lifecycle action.
+of discovery failures before any lifecycle action. Returned and exiting
+synchronous failures retain the first status while later jails are attempted.
+Priority-99 failures retain their logs and report errors after rcboot returns;
+a gated backend verifies that rcboot does not wait for completion.
 
 With native authorization set as above, run `sh tests/rc-jails-zfs.sh`. It uses
 an owned scratch pool with real ZFS/UCL metadata and minimal kernel persist
 jails. It exercises rc selection and kernel creation/removal, not full jail
 userland startup. Config bytes, canaries, dataset GUIDs and activation must
-remain unchanged. Only that test's jails are stopped; pool and logs are retained.
+remain unchanged. Faulted starts/stops must still reach the later kernel action;
+priority-99 faults verify non-blocking return, diagnostics and retained logs.
+Only that test's jails are stopped; pool and logs are retained.
 
 `clean-dispatch.sh` keeps validation, dispatch and cleanup scanning real.
 Separate and clustered cleanup flags retain order and the shared force setting;
@@ -189,10 +194,11 @@ cleanup stops its jail if a test fails. Existing jails/datasets are not deleted.
 This is CLI syntax coverage, not full property/kernel validation or a promise
 of atomic multi-target commands. Real SSH/send data-path tests are below.
 
-## Multi-target startup
+## Multi-target lifecycle commands
 
 `start-dispatch.sh` checks ordered attempts, force propagation and the first
-failure status for returned and exiting backends. `start-failures.sh` keeps the
+failure status for returned and exiting backends across start, stop, hard
+reboot/restart and both soft-restart aliases. `start-failures.sh` keeps the
 real startup phases and checks that failures return to callers, stop later
 work, and select the correct mount cleanup without masking the original error.
 

@@ -767,6 +767,7 @@ __restart_jail () {
 
 __rc_jails () (
     _action=$1
+    _status=0
     _jails=$(__find_jail ALL) || return $?
     _jails=$(printf '%s\n' "${_jails}" | \
             awk 'BEGIN { FS = "/" } ; { if (length($NF)==36) { print }}')
@@ -808,11 +809,17 @@ __rc_jails () (
 
             if [ -z "${_state}" ] && [ "${_priority}" -eq 99 ] ; then
                 __info "executing background start for ${_jail}"
-                __start_jail "${_jail}" > "/var/tmp/${_jail}" 2>&1 \
-                    && cat "/var/tmp/${_jail}" &
+                if ( __start_jail "${_jail}" ) > "/var/tmp/${_jail}" 2>&1 ; then
+                    cat "/var/tmp/${_jail}"
+                else
+                    __error "background start failed for ${_jail};" \
+                        "see /var/tmp/${_jail}"
+                fi &
                 sleep 1
+            elif ( __start_jail "${_jail}" ) ; then :
             else
-                __start_jail "${_jail}" || return $?
+                _failure=$?
+                [ "${_status}" -ne 0 ] || _status="${_failure}"
             fi
 
         done
@@ -825,9 +832,14 @@ __rc_jails () (
             _state="$(__is_running "${_jail}")"
 
             if [ -n "${_state}" ] ; then
-                __stop_jail "${_jail}" "${_dataset}"
+                if ( __stop_jail "${_jail}" "${_dataset}" ) ; then :
+                else
+                    _failure=$?
+                    [ "${_status}" -ne 0 ] || _status="${_failure}"
+                fi
             fi
         done
 
     fi
+    return "${_status}"
 )
