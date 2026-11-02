@@ -2,146 +2,131 @@
 
 __rctl_limits () {
     local _name _fulluuid _dataset _value _limit _action _prop _failed _rlimits
+    local _failure
 
     _failed=0
-    _name=$1
-    _dataset="$(__find_jail ${_name})" || exit $?
-    _fulluuid="$(__check_name ${_name} ${_dataset})"
+    _name="$1"
+    _dataset=$(__find_jail "${_name}") || return $?
+    _fulluuid=$(__check_name "${_name}" "${_dataset}") || return $?
+    _rlimits=$(__get_jail_prop rlimits "${_fulluuid}" "${_dataset}") || return $?
 
-    _rlimits="$(__get_jail_prop rlimits ${_fulluuid} ${_dataset})"
-
-    if [ ${_rlimits} = "on" ] ; then
+    if [ "${_rlimits}" = on ]; then
         echo -n "  + Applying resource limits"
-        for _prop in ${CONF_RCTL} ; do
-            _value="$(__get_jail_prop ${_prop} ${_fulluuid} ${_dataset})"
-            _limit=$(echo ${_value} | awk 'BEGIN { FS = ":" } ; { print $1 }')
-            _action=$(echo ${_value} | awk 'BEGIN { FS = ":" } ; { print $2 }')
-
-            if [ ${_limit} = "off" ] ; then
+        for _prop in ${CONF_RCTL}; do
+            _value=$(__get_jail_prop "${_prop}" "${_fulluuid}" \
+                "${_dataset}") || return $?
+            [ "${_value}" != off ] || continue
+            _limit="${_value%%:*}"
+            _action="${_value#*:}"
+            case "${_value}" in
+                *:*:*) _action= ;;
+                *:*) ;;
+                *) _action= ;;
+            esac
+            if [ -z "${_limit}" ] || [ -z "${_action}" ]; then
+                __error "incorrect resource limit: ${_prop}=${_value}"
+                [ "${_failed}" -ne 0 ] || _failed=1
                 continue
+            fi
+            if rctl -a \
+                "jail:ioc-${_fulluuid}:${_prop}:${_action}=${_limit}"; then :
             else
-                if [ -z "${_limit}" ] || [ -z "${_action}" ] ; then
-                    echo -n "  ERROR: incorrect resource limit: ${_limit} action: "
-                    echo "${_action} for property: ${_prop}"
-                    echo "  HINT : check man page for syntax."
-                else
-                    rctl -a jail:ioc-${_fulluuid}:${_prop}:${_action}=${_limit}
-                    if [ $? -eq 1 ] ; then
-                        echo "    FAILED to apply ${_prop}=${_action}:${_limit}"
-                        _failed=1
-                    fi
-                fi
+                _failure=$?
+                [ "${_failed}" -ne 0 ] || _failed="${_failure}"
+                __error "failed to apply ${_prop}=${_value}"
             fi
         done
-        if [ ${_failed} -ne 1 ] ; then
-            echo " OK"
-        fi
+        [ "${_failed}" -ne 0 ] || echo " OK"
     fi
+    return "${_failed}"
 }
 
 __rctl_list () {
-    local _name _fulluuid _dataset _jid _limits _limit
+    local _name _fulluuid _dataset _jid _limits _cpus _status
 
     _name="$1"
-
-    if [ -z "${_name}" ] ; then
+    if [ -z "${_name}" ]; then
+        _limits=$(rctl) || return $?
         echo "* All active limits:"
-        rctl | grep jail
+        printf '%s\n' "${_limits}" | awk -F: '$1 == "jail"'
     else
-        _dataset="$(__find_jail ${_name})" || exit $?
-        _fulluuid="$(__check_name ${_name} ${_dataset})"
-        _jid="$(jls -j ioc-${_fulluuid} jid)"
-        _limits="$(rctl -h | grep ${_fulluuid})"
-
+        _dataset=$(__find_jail "${_name}") || return $?
+        _fulluuid=$(__check_name "${_name}" "${_dataset}") || return $?
+        _limits=$(rctl -h) || return $?
         echo "* Active limits for jail: ${_fulluuid}"
-
-        for _i in ${_limits} ; do
-            _limit=$(echo ${_i} | cut -f 3,4 -d:)
-            echo "  - ${_limit}"
-        done
-
-        if [ ! -z "${_jid}" ] ; then
-            echo "* CPU set: $(cpuset -g -j ${_jid} | cut -f2 -d:)"
+        printf '%s\n' "${_limits}" | awk -F: -v jail="ioc-${_fulluuid}" \
+            '$1 == "jail" && $2 == jail { print "  - " $3 ":" $4 }'
+        _jid=$(jls -j "ioc-${_fulluuid}" jid 2>/dev/null) || {
+            _status=$?
+            [ "${_status}" -eq 1 ] || return "${_status}"
+            _jid=
+        }
+        if [ -n "${_jid}" ]; then
+            _cpus=$(cpuset -g -j "${_jid}") || return $?
+            echo "* CPU set: $(printf '%s\n' "${_cpus}" | cut -f2 -d:)"
         fi
     fi
 }
 
 __rctl_uncap () {
-    local _name _fulluuid _dataset
+    local _name _fulluuid _dataset _limits
 
     _name="$1"
-
-    if [ -z ${_name} ] ; then
-        __die "missing UUID!"
-    fi
-
-    _dataset="$(__find_jail ${_name})" || exit $?
-    _fulluuid="$(__check_name ${_name} ${_dataset})"
-
+    [ -n "${_name}" ] || { __error "missing UUID!"; return 1; }
+    _dataset=$(__find_jail "${_name}") || return $?
+    _fulluuid=$(__check_name "${_name}" "${_dataset}") || return $?
     echo "  Releasing resource limits.."
-    rctl -r jail:ioc-${_fulluuid}
+    rctl -r "jail:ioc-${_fulluuid}" || return $?
+    _limits=$(rctl) || return $?
     echo "  Listing active rules for jail:"
-    rctl | grep ${_fulluuid}
+    printf '%s\n' "${_limits}" | awk -F: -v jail="ioc-${_fulluuid}" '
+        $1 == "jail" && $2 == jail { print; found=1 }
+        END { exit found ? 1 : 0 }'
 }
-
 
 __rctl_inuse () {
     local _name _dataset _fulluuid
 
     _name="$1"
-
-    if [ -z ${_name} ] ; then
-        __rctl_inuse_all || return $?
-        exit 0
+    if [ -z "${_name}" ]; then
+        __rctl_inuse_all
+        return $?
     fi
-
-    _dataset="$(__find_jail ${_name})" || exit $?
-
-    if [ -z ${_dataset} ] ; then
-        __die "${_name} not found!"
-    fi
-
-    _fulluuid="$(__check_name ${_name} ${_dataset})"
-
+    _dataset=$(__find_jail "${_name}") || return $?
+    [ -n "${_dataset}" ] || { __error "${_name} not found!"; return 1; }
+    _fulluuid=$(__check_name "${_name}" "${_dataset}") || return $?
     echo "Consumed resources:"
     echo "-------------------"
-    rctl -hu jail:ioc-${_fulluuid}
+    rctl -hu "jail:ioc-${_fulluuid}"
 }
 
 __rctl_inuse_all () {
-    local _jails _fulluuid _tag _print_head\
-          _line _res _jail _header
+    local _jails _fulluuid _tag _print_head \
+          _line _res _jail _resources _state _value
 
     _jails=$(__find_jail ALL) || return $?
     _jails=$(printf '%s\n' "${_jails}" | \
             awk 'BEGIN { FS = "/" } ; { if (length($NF)==36) { print }}')
     _print_head=1
 
-    for _jail in $(echo ${_jails}) ; do
-        # _jail is actually a dataset, so fulluuid needs to be faked.
-        _fulluuid="$(__check_name "name" ${_jail} 2> /dev/null)"
-        _tag="$(__get_jail_prop tag ${_fulluuid} ${_jail})"
-        _resources="$(rctl -hu jail:ioc-${_fulluuid})"
-        _state="$(__is_running ${_fulluuid})"
-
-        for _res in $(echo ${_resources}) ; do
-            _value="$(echo ${_res}|cut -f2 -d=)"
-            _header="$(echo ${_res}|cut -f1 -d=)"
+    for _jail in ${_jails}; do
+        _fulluuid=$(__check_name "name" "${_jail}") || return $?
+        _state=$(__is_running "${_fulluuid}") || return $?
+        [ -n "${_state}" ] || continue
+        _tag=$(__get_jail_prop tag "${_fulluuid}" "${_jail}") || return $?
+        _resources=$(rctl -hu "jail:ioc-${_fulluuid}") || return $?
+        _line=
+        for _res in ${_resources}; do
+            _value="$(echo "${_res}" | cut -f2 -d=)"
             _line="${_line},${_value}"
         done
-
-        if [ ${_print_head} -eq 1 ] ; then
+        if [ "${_print_head}" -eq 1 ]; then
             echo -n "UUID,TAG,cputime,datasize,stacksize,coredumpsize,memoryuse,"
             echo -n "memorylocked,maxproc,openfiles,vmemoryuse,pseudoterminals,"
             echo -n "swapuse,nthr,msgqqueued,msgqsize,nmsgq,nsem,nsemop,nshm,"
-            echo    "shmsize,wallclock,pcpu"
+            echo "shmsize,wallclock,pcpu"
             _print_head=0
         fi
-
-        if [ ! -z ${_state} ] ; then
-            echo "${_fulluuid},${_tag}${_line}"
-        fi
-
-        unset _line
+        echo "${_fulluuid},${_tag}${_line}"
     done
 }

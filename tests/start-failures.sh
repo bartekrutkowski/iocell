@@ -19,7 +19,7 @@ __get_jail_prop () {
         hostid) [ "$fault" != hostid ] && echo fixture-host || echo another-host ;;
         mountpoint) echo "$fixture_mp" ;; release) echo fixture-RELEASE ;;
         istemplate) [ "$kind" != template ] && echo no || echo yes ;;
-        vnet) case "$fault" in legacy|affinity|services|success|dhcp-vnet) echo off ;; *) echo on ;; esac ;;
+        vnet) case "$fault" in legacy|affinity|services|success|limits|limits-remove|dhcp-vnet) echo off ;; *) echo on ;; esac ;;
         dhcp) case "$fault" in dhcp-*) echo on ;; *) echo off ;; esac ;;
         interfaces) [ "$fault" != interfaces ] || echo malformed ;;
         bpf|jail_zfs) echo off ;;
@@ -42,20 +42,28 @@ __umount_istemplate () {
 __vnet_start () { echo kernel >> "$trace"; [ "$fault" != kernel ] || return 42; }
 __networking () { echo network >> "$trace"; [ "$fault" != network ] || return 43; }
 __legacy_start () { echo legacy >> "$trace"; [ "$fault" != legacy ] || return 45; }
-__rctl_limits () { echo limits >> "$trace"; }
+__rctl_limits () {
+    echo limits >> "$trace"
+    case "$fault" in limits*) return 49 ;; esac
+}
 __resolv_conf () { echo resolver >> "$trace"; }
 __set_jail_prop () { echo saved >> "$trace"; }
 zfs () { echo 'fixture origin - local'; }
 jls () { :; }; fgrep () { return 1; }
+jail () {
+    [ "$*" = "-r ioc-$fixture_uuid" ] || return 98
+    echo kernel-remove >> "$trace"
+    [ "$fault" != limits-remove ] || return 90
+}
 uname () { echo FreeBSD; }
 sysctl () { [ "$fault" != unsupported ] || return 0; echo 1; }
 cpuset () { echo affinity >> "$trace"; return 47; }
 setfib () { echo services >> "$trace"; [ "$fault" != services ] || return 48; }
 failed=0
 for fault in lookup all interfaces hostid dhcp-vnet dhcp-bpf running migrate \
-    kernel network unsupported legacy affinity services success ignored-template; do
+    kernel network unsupported legacy affinity services limits limits-remove success ignored-template; do
     kinds=basejail
-    case "$fault" in kernel|network|unsupported|legacy|affinity|services)
+    case "$fault" in kernel|network|unsupported|legacy|affinity|services|limits*)
         kinds='basejail clonejail template thickjail' ;;
         ignored-template) kinds=template ;;
     esac
@@ -69,7 +77,7 @@ for fault in lookup all interfaces hostid dhcp-vnet dhcp-bpf running migrate \
         name="$fixture_uuid"; want=1
         case "$fault" in lookup|kernel) want=42 ;; network) want=43 ;;
             all) name=ALL; want=44 ;; legacy) want=45 ;; migrate) want=46 ;;
-            affinity) want=47 ;; services) want=48 ;;
+            affinity) want=47 ;; services) want=48 ;; limits*) want=49 ;;
             success|ignored-template) want=0 ;;
         esac
         case "$fault" in
@@ -85,12 +93,13 @@ for fault in lookup all interfaces hostid dhcp-vnet dhcp-bpf running migrate \
                     network) printf 'kernel\nnetwork\n' >> "$state/expected" ;;
                     *) echo legacy >> "$state/expected"
                        if [ "$fault" != legacy ]; then echo limits >> "$state/expected"; fi
-                       case "$fault" in affinity) echo affinity >> "$state/expected" ;;
+                       case "$fault" in limits*) echo kernel-remove >> "$state/expected" ;;
+                           affinity) echo affinity >> "$state/expected" ;;
                            services|success) printf 'resolver\nservices\n' >> "$state/expected" ;;
                        esac ;;
                 esac
                 if [ "$fault" = success ]; then echo saved >> "$state/expected"
-                elif [ "$fault" != migrate ]; then
+                elif [ "$fault" != migrate ] && [ "$fault" != limits-remove ]; then
                     case "$kind" in basejail|clonejail) echo cleanup-base >> "$state/expected" ;;
                         template) echo cleanup-template >> "$state/expected" ;;
                     esac

@@ -200,7 +200,19 @@ __start_jail () {
 
     cd "${_jail_path}/root/dev" && ln -s ../var/run/log log &
 
-    __rctl_limits "${_fulluuid}" "${_dataset}"
+    __rctl_limits "${_fulluuid}" "${_dataset}" || {
+        _start_status=$?
+        __error "cannot apply resource limits: ${_fulluuid}"
+        if jail -r "ioc-${_fulluuid}"; then
+            umount "${_jail_path}/root/dev/fd" >/dev/null 2>&1 || :
+            umount "${_jail_path}/root/dev" >/dev/null 2>&1 || :
+            __cleanup_start_mounts "${_jail_type}" "${_fulluuid}" \
+                "${_dataset}" "${_tag}"
+        else
+            __error "jail may still be running; mounts retained: ${_fulluuid}"
+        fi
+        return "${_start_status}"
+    }
 
     if [ "${_cpuset}" != "off" ] ; then
         echo -n "  + Appliyng CPU affinity"
