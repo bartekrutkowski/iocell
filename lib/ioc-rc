@@ -681,20 +681,15 @@ __stop_jail () {
     fi
 }
 
-# Return the first nonzero status without changing the caller's variables.
-__jails_first_failure () {
-    [ "$1" -eq 0 ] || return "$1"
-    return "$2"
-}
-
 # Try every lifecycle target; legacy backend exits must stay in the child.
 __jails_action_targets () {
-    local _action _target _status
+    local _action _target _status _failure
     _action="$1"; shift; _status=0
     for _target in "$@" ; do
         if ( "__${_action}_jail" "${_target}" ) ; then :
         else
-            __jails_first_failure "${_status}" "$?" || _status=$?
+            _failure=$?
+            [ "${_status}" -ne 0 ] || _status="${_failure}"
         fi
     done
     return "${_status}"
@@ -716,13 +711,13 @@ __jails_action_all () {
         fi
         _mountpoint=$(zfs get -H -o value mountpoint "${_dataset}") || {
             __error "cannot ${_action}: unreadable mountpoint for ${_dataset}"
-            __jails_first_failure "${_status}" 1 || _status=$?
+            [ "${_status}" -ne 0 ] || _status=1
             continue
         }
         _stored=$(uclcmd get -qf "${_mountpoint}/config" host_hostuuid 2>/dev/null) || _stored=''
         if [ "${_stored}" != "${_uuid}" ] ; then
             __error "cannot ${_action} ${_uuid}: missing or invalid configuration"
-            __jails_first_failure "${_status}" 1 || _status=$?
+            [ "${_status}" -ne 0 ] || _status=1
             continue
         fi
         # Legacy backends may exit. Isolate each failure and process the rest.
@@ -730,7 +725,7 @@ __jails_action_all () {
         else
             _failure=$?
             __error "${_action} failed for ${_uuid} (status ${_failure})"
-            __jails_first_failure "${_status}" "${_failure}" || _status=$?
+            [ "${_status}" -ne 0 ] || _status="${_failure}"
         fi
     done
     return "${_status}"
@@ -819,6 +814,11 @@ __rc_jails () (
     fi
 
     if [ "${_action}" = "boot" ] ; then
+        mkdir -p -m 0755 "${iocroot}/log" || {
+            _failure=$?
+            __error "cannot create log directory: ${iocroot}/log"
+            return "${_failure}"
+        }
         echo "* [I|O|C] booting jails... "
 
         for _i in ${_boot_order} ; do
@@ -828,9 +828,8 @@ __rc_jails () (
 
             if [ -z "${_state}" ] && [ "${_priority}" -eq 99 ] ; then
                 __info "executing background start for ${_jail}"
-                if mkdir -p -m 0755 "${iocroot}/log" &&
-                    ( __start_jail "${_jail}" ) \
-                        > "${iocroot}/log/${_jail}-rcboot.log" 2>&1 ; then
+                if ( __start_jail "${_jail}" ) \
+                    > "${iocroot}/log/${_jail}-rcboot.log" 2>&1 ; then
                     cat "${iocroot}/log/${_jail}-rcboot.log"
                 else
                     __error "background start failed for ${_jail};" \
@@ -839,7 +838,8 @@ __rc_jails () (
                 sleep 1
             elif ( __start_jail "${_jail}" ) ; then :
             else
-                __jails_first_failure "${_status}" "$?" || _status=$?
+                _failure=$?
+                [ "${_status}" -ne 0 ] || _status="${_failure}"
             fi
 
         done
@@ -854,7 +854,8 @@ __rc_jails () (
             if [ -n "${_state}" ] ; then
                 if ( __stop_jail "${_jail}" "${_dataset}" ) ; then :
                 else
-                    __jails_first_failure "${_status}" "$?" || _status=$?
+                    _failure=$?
+                    [ "${_status}" -ne 0 ] || _status="${_failure}"
                 fi
             fi
         done

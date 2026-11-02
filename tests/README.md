@@ -144,7 +144,9 @@ of discovery failures before any lifecycle action. Returned and exiting
 synchronous failures retain the first status while later jails are attempted.
 Priority-99 failures retain logs under a temporary iocell root and report
 errors without changing rcboot's status. Captured output through EOF makes
-background assertions deterministic, without timing polls.
+background assertions deterministic, without timing polls. A blocked shared
+log directory must produce a setup error before any jail is attempted, leaving
+the blocking file unchanged.
 
 With native authorization set as above, run `sh tests/rc-jails-zfs.sh`. It uses
 an owned scratch pool with real ZFS/UCL metadata and minimal kernel persist

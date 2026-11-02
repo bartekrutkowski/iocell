@@ -90,8 +90,23 @@ backend_rc () {
         IOC_RC_FAULT="${IOC_RC_FAULT:-none}" \
         IOC_RC_ENUM_FAULT="${IOC_RC_ENUM_FAULT:-no}" sh "$workdir/rc.sh" "$1"
 }
+echo 'log path canary' > "$root/log"
+: > "$workdir/events"; status=0
+backend_rc boot > "$workdir/log-setup.log" 2>&1 || status=$?
+if [ "$status" != 1 ] || [ -s "$workdir/events" ] ||
+    [ "$(cat "$root/log")" != 'log path canary' ] ||
+    ! grep -F "cannot create log directory: $root/log" "$workdir/log-setup.log" >/dev/null ||
+    grep -E -q 'background start failed|; see ' "$workdir/log-setup.log"; then
+    echo 'FAIL: native rc boot lost log setup failure or attempted a jail' >&2
+    exit 1
+fi
+for uuid in "$first" "$second"; do
+    if jls -j "ioc-$uuid" jid >/dev/null 2>&1; then exit 1; fi
+done
+rm "$root/log"
+echo 'PASS: native rc boot preserves a blocked log path and stops before jail creation'
 : > "$workdir/events"
-backend_rc boot > "$workdir/boot.log" 2>&1
+( umask 000; backend_rc boot ) > "$workdir/boot.log" 2>&1
 printf '%s\n' "$first" "$second" > "$workdir/expected"
 if ! cmp -s "$workdir/events" "$workdir/expected"; then
     echo 'FAIL: native rc boot did not select the eligible UUIDs in order' >&2

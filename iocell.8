@@ -430,7 +430,9 @@ Example: \fBiocell\fP \fIfetch\fP release=15.1-RELEASE ftplocaldir=/path/to/dist
     execution. Jails will be started in an ordered fashion based on their
     "priority" property. Priority 99 jails start in the background; their
     failures are reported but do not affect the exit status. Their output is
-    retained in the iocell root's log/UUID-rcboot.log.
+    retained in the iocell root's log/UUID-rcboot.log. If the shared log
+    directory cannot be prepared, rcboot returns a setup error before starting
+    any jail.
 
 .fam T
 .fi

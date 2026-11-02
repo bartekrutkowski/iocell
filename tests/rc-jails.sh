@@ -101,6 +101,19 @@ __stop_jail () {
     echo "$1" >> "$workdir/actions"
 }
 failed=0
+# A shared setup failure must be diagnosed before any jail is attempted.
+echo 'log path canary' > "$iocroot/log"
+: > "$workdir/actions"; status=0
+( __rc_jails boot ) > "$workdir/log-setup.log" 2>&1 || status=$?
+if [ "$status" != 1 ] || [ -s "$workdir/actions" ] ||
+    [ "$(cat "$iocroot/log")" != 'log path canary' ] ||
+    ! grep -F "cannot create log directory: $iocroot/log" "$workdir/log-setup.log" >/dev/null ||
+    grep -E -q 'background start failed|; see ' "$workdir/log-setup.log"; then
+    echo 'FAIL: rc boot lost log setup failure, attempted a jail or misreported a missing log'
+    failed=1
+else echo 'PASS: rc boot reports failed log setup before any jail starts'; fi
+rm "$iocroot/log"
+rm -f "$workdir/running/$first" "$workdir/running/$second"
 for action in boot shutdown; do
     : > "$workdir/actions"; status=0
     ( __rc_jails "$action" ) > "$workdir/$action.log" 2>&1 || status=$?
