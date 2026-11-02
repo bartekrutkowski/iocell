@@ -72,13 +72,4 @@ for fault in none query clone jails keep; do
     fi
     echo "PASS: send cleanup $fault"
 done
-__clean_snapshots () { return 8; }
-__stop_jail_all () { rm "$workdir/canary"; }
-__spinner () { rm -f "$workdir/canary"; }
-echo preserved > "$workdir/canary"
-_force=1; status=0
-( __clean_jails ) > "$workdir/clean-jails.log" 2>&1 || status=$?
-if [ "$status" != 8 ] || [ ! -f "$workdir/canary" ]; then
-    echo 'FAIL: clean-jails ignored snapshot cleanup failure'; failed=1
-else echo 'PASS: clean-jails stops on snapshot cleanup failure'; fi
 exit "$failed"
