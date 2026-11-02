@@ -28,7 +28,8 @@ Command restrictions
 * **Runtime errors:** syntax errors fail before initialization, but valid
   multi-target commands are not transactional. Property/kernel validation and
   runtime status propagation remain incomplete.
-* **Git:** plugin fetch can leave a detached checkout. Experimental ``push`` is
+* **Git:** automatic plugin release branches retain tracking upstreams. Explicit
+  tag/commit checkouts may intentionally detach HEAD. Experimental ``push`` is
   disabled before initialization and in its backend; use Git directly in an
   explicitly selected repository. This is not a deployment interface.
 * **Legacy names:** ``chroot``, ``record``, ``package`` and ``show`` are not

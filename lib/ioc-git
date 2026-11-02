@@ -39,13 +39,12 @@ __remove_empty_plugin_release () {
 }
 
 __fetch_plugin () {
-    local _gitlocation _jail_path _prop _pname _repocheck _host_version \
+    local _gitlocation _jail_path _prop _pname _host_version \
           _branch_version _branch_list _branch_rel _release _dataset \
           _spinner_pid _errors _status
 
     _gitlocation="$(__get_default_prop gitlocation)"
     _plugin="$(echo $1 | awk 'BEGIN { FS = "/" } ; { print $2 }')"
-    _repocheck="$(echo $1 | awk 'BEGIN { FS = "/" } ; { print $1 }')"
     _release="$(uname -r|cut -f 1,2 -d'-'|sed -E 's/CURRENT.*|STABLE.*/RELEASE/')"
 
     # Check if the user doesn't have a gitlocation set,
@@ -167,7 +166,8 @@ __fetch_plugin () {
             fi
         done
 
-        git checkout --force --quiet "${branch}"
+        git checkout --force --quiet -B "${branch#origin/}" \
+            --track "origin/${branch#origin/}" || return $?
         # Allows for easy matching with RELEASEs
         _branch_rel="$(echo ${branch}|sed 's/amd64/RELEASE/'|cut -d "/" -f 2)"
         _dataset="${pool}/iocell/jails/${uuid}"
@@ -243,12 +243,6 @@ __fetch_plugin () {
         rm ${_jail_path}/root/root/post-install.sh
     fi
 
-    # Check if user has a custom git location set
-    if [ "${_repocheck}" = "iocell" -o "${_repocheck}" = "pbi-cages" ] ; then
-        echo "  WARNING: Pushing will be disabled, please set a custom repo." >&2
-        echo "  You can do this by issuing: iocell set gitlocation=URL default" >&2
-        git branch --unset-upstream > /dev/null 2>&1
-    fi
 }
 
 __fetch_plugin_thick () {
