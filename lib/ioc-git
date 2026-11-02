@@ -368,19 +368,17 @@ __pull () {
     fi
 
     _name="$1"
-    _dataset=$(__find_jail ${_name}) || exit $?
-    _fulluuid="$(__check_name ${_name} ${_dataset})"
-    _mountpoint="$(__get_jail_prop mountpoint ${_fulluuid} ${_dataset})"
+    _dataset=$(__find_jail "${_name}") || return $?
+    _fulluuid=$(__check_name "${_name}" "${_dataset}") || return $?
+    _mountpoint=$(__get_jail_prop mountpoint "${_fulluuid}" "${_dataset}") || return $?
 
     # Fetch the new data and then merge it in
     __info "checking for plugin updates"
     echo ""
-    git -C ${_mountpoint}/root fetch origin 1> /dev/null \
-    && git -C ${_mountpoint}/root merge --ff-only 1> /dev/null
-    if [ $? -eq 0 ] ; then
-        __info "checking for freebsd updates"
-        __update "${_name}" 1> /dev/null
-    fi
+    git -C "${_mountpoint}/root" fetch origin 1> /dev/null || return $?
+    git -C "${_mountpoint}/root" merge --ff-only 1> /dev/null || return $?
+    __info "checking for freebsd updates"
+    __update "${_name}" 1> /dev/null
 }
 
 ## NOT WORKING YET
