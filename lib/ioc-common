@@ -509,7 +509,8 @@ __console () {
 
 __exec () {
     local _jexecopts _name _dataset _fulluuid _jexec _exec_fib
-    _jexecopts=
+    local _jails _jail _status _failure OPTIND OPTARG
+    _jexecopts=; OPTIND=1
 
     # check for -U or -u to pass to jexec
     while getopts u:U: opt "$@"; do
@@ -527,24 +528,28 @@ __exec () {
     if [ -z "${_name}" ] ; then
         __die "missing UUID!"
     elif [ "${_name}" = "ALL" ]; then
-        local _jails _fulluuid
-        _jails="$(__find_jail ALL | \
-                awk 'BEGIN { FS = "/" } ; { if (length($NF)==36) { print }}')"
-
+        _jails=$(__find_jail ALL) || return $?
+        _jails=$(printf '%s\n' "${_jails}" | \
+            awk 'BEGIN { FS = "/" } ; { if (length($NF)==36) { print }}')
+        _status=0
         for _jail in ${_jails} ; do
-            # _jail is actually a dataset, so fulluuid needs to be faked.
-            _fulluuid=$(__check_name "name" ${_jail} 2> /dev/null)
-            jexec ${_jexecopts} ioc-${_fulluuid} "$@"
+            _fulluuid=$(__check_name "name" "${_jail}") || {
+                _failure=$?
+                [ "${_status}" -ne 0 ] || _status="${_failure}"
+                continue
+            }
+            if ( jexec ${_jexecopts} "ioc-${_fulluuid}" "$@" ); then :
+            else
+                _failure=$?
+                [ "${_status}" -ne 0 ] || _status="${_failure}"
+            fi
         done
-
-        exit 0
+        return "${_status}"
     fi
 
-    _dataset=$(__find_jail ${_name}) || exit $?
-
-    _fulluuid="$(__check_name ${_name} ${_dataset})"
-
-    _exec_fib=$(__get_jail_prop exec_fib ${_fulluuid} ${_dataset})
+    _dataset=$(__find_jail "${_name}") || return $?
+    _fulluuid=$(__check_name "${_name}" "${_dataset}") || return $?
+    _exec_fib=$(__get_jail_prop exec_fib "${_fulluuid}" "${_dataset}") || return $?
 
     _jexec="jexec"
     if [ "${_exec_fib}" -ne "0" ] ; then
@@ -987,13 +992,12 @@ __get_default_iface() {
 }
 
 __pkg_wrapper () {
-    local _name _command _jid _fulluuid _dataset
+    local _name _jid _fulluuid _dataset
     shift
     _name="$1"
     shift
-    _command="$*"
-    _dataset="$(__find_jail ${_name})"
-    _fulluuid="$(__check_name ${_name} ${_dataset})"
+    _dataset="$(__find_jail "${_name}")" || return $?
+    _fulluuid="$(__check_name "${_name}" "${_dataset}")" || return $?
     _jid=$(jls -j ioc-${_fulluuid} jid 2> /dev/null)
 
 
@@ -1001,7 +1005,7 @@ __pkg_wrapper () {
         __die "${_name} is not running."
     fi
 
-    pkg -j ${_jid} ${_command}
+    pkg -j "${_jid}" "$@"
 }
 
 # Set a property at a jail mountpoint. Optional mode: 1 creates, prepare stages
