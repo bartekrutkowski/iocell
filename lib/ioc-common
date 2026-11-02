@@ -148,8 +148,7 @@ __set_jail_prop () {
 
     case "${_pname}" in
         tag)
-            __link_tag "${_dataset}" "${_pval}" update || return $?
-            __unlink_tag "${_dataset}" "" "${_pval}"
+            __link_tag "${_dataset}" "${_pval}" update
             return $?
             ;;
         jail_zfs)
@@ -767,8 +766,11 @@ __link_tag () (
     # Private subshell variables survive EXIT traps without local unwinding.
     _lt_tag="${2:-${tag:-}}"; _lt_source=''; _lt_owner=''; _lt_staging=''
     _lt_previous=''; _lt_oldmount=''; _lt_displaced=''; _lt_dated=''
+    _lt_retired=''
     case "${_lt_tag}" in ''|.|..|*/*) __error 'invalid tag alias'; exit 1 ;; esac
     _lt_mount=$(zfs get -H -o value mountpoint "$1") || exit $?
+    _lt_mounted=$(zfs get -H -o value mounted "$1") || exit $?
+    [ "${_lt_mounted}" = yes ] || { __error 'tag source is not mounted'; exit 1; }
     case "${_lt_mount}" in /*) ;; *) __error 'invalid tag mountpoint'; exit 1 ;; esac
     _lt_real=$(cd -P "${_lt_mount}" && pwd -P) || exit $?
     [ "${_lt_real}" != / ] || { __error 'invalid tag mountpoint'; exit 1; }
@@ -794,6 +796,16 @@ __link_tag () (
                     case "${_lt_leaf#*/}" in */*) __error 'invalid old tag target'; exit 1 ;; esac ;;
                 *) __error 'tag alias is outside the active jail namespace'; exit 1 ;;
             esac
+            _lt_oldds="${pool}/iocell/${_lt_leaf}"
+            _lt_owned=$(zfs get -H -o value mountpoint "${_lt_oldds}") || exit $?
+            _lt_mounted=$(zfs get -H -o value mounted "${_lt_oldds}") || exit $?
+            [ "${_lt_mounted}" = yes ] || {
+                __error 'tag owner is not mounted'; exit 1;
+            }
+            _lt_owned=$(cd -P "${_lt_owned}" && pwd -P) || exit $?
+            [ "${_lt_owned}" = "${_lt_oldmount}" ] || {
+                __error 'tag alias does not belong to the target dataset'; exit 1;
+            }
             [ "$(uclcmd get -qf "${_lt_oldmount}/config" tag)" = "${_lt_tag}" ] || {
                 __error 'tag alias disagrees with its target configuration'; exit 1;
             }
@@ -822,11 +834,33 @@ __link_tag () (
                     fi
                 else _lt_failed=1; fi
             fi
+            if [ -n "${_lt_retired}" ] && [ "${_lt_failed}" = 0 ]; then
+                find "${_lt_retired}" -type l -exec sh -c '
+                    tags=$1; shift
+                    for path; do
+                        target="$tags/${path##*/}"
+                        if [ -e "$target" ] || [ -L "$target" ]; then
+                            [ -L "$target" ] &&
+                                [ "$(readlink "$target")" = "$(readlink "$path")" ] || exit 1
+                            rm -f "$path" || exit $?
+                        else mv "$path" "$target" || exit $?; fi
+                    done
+                ' sh "${iocroot}/tags" {} + || _lt_failed=1
+                rmdir "${_lt_retired}" || _lt_failed=1
+            fi
             if [ "${_lt_failed}" != 0 ]; then
-                __error "tag rollback incomplete; inspect config.old and aliases: ${_lt_mount} ${_lt_displaced} ${_lt_path}"
+                __error "tag rollback incomplete; inspect config.old and aliases:" \
+                    "${_lt_mount} ${_lt_displaced} ${_lt_path} ${_lt_retired}"
             elif [ -n "${_lt_dated}" ] && [ -L "${_lt_dated}" ] &&
                 [ "$(readlink "${_lt_dated}")" = "${_lt_previous}" ]; then
                 rm -f "${_lt_dated}"
+            fi
+        elif [ -n "${_lt_retired}" ]; then
+            if find "${_lt_retired}" -type l -exec rm -f -- {} + &&
+                rmdir "${_lt_retired}"; then :
+            else
+                _lt_status=$?
+                __error "retag committed; alias backup cleanup failed: ${_lt_retired}"
             fi
         fi
         exit "${_lt_status}"
@@ -836,6 +870,7 @@ __link_tag () (
     trap 'exit 130' INT
     trap 'exit 143' TERM
     if [ "${3:-}" = update ]; then
+        _lt_retired=$(mktemp -d "${iocroot}/.iocell-alias.XXXXXX") || exit $?
         _lt_staging="${_lt_mount}"
         __ucl_set "${_lt_mount}" tag "${_lt_tag}" prepare || exit $?
         _lt_source="${_lt_mount}"
@@ -860,13 +895,17 @@ __link_tag () (
         if [ -L "${_lt_path}" ]; then ln -sfn "${_lt_target}" "${_lt_path}" || exit $?
         else ln -s "${_lt_target}" "${_lt_path}" || exit $?; fi
     fi
+    if [ "${3:-}" = update ]; then
+        __unlink_tag "$1" "${_lt_mount}" "${_lt_tag}" "${_lt_retired}" || exit $?
+    fi
     exit 0
 )
 
-# Remove matching aliases; optional third argument keeps one literal tag name.
+# Remove matching aliases; third argument keeps one literal tag name.
+# A private fourth argument stages retired aliases for the caller to roll back.
 __unlink_tag () {
-    local _dataset _mountpoint
-    _dataset=$1
+    local _dataset _mountpoint _backup
+    _dataset=$1; _backup="${4:-}"
 
     if [ -n "${2:-}" ] ; then
         _mountpoint="$2"
@@ -878,15 +917,19 @@ __unlink_tag () {
     [ -n "${_mountpoint}" ] || return 0
     if [ -n "${3:-}" ]; then set -- "${iocroot}/tags/$3"; else set -- ''; fi
     find "${iocroot}/tags" -type l -exec sh -c '
-        absolute=$1; relative=$2; keep=$3; shift 3
+        absolute=$1; relative=$2; keep=$3; backup=$4; tags=$5; shift 5
         for path; do
             [ "$path" != "$keep" ] || continue
+            case "${path#"$tags/"}" in */*) continue ;; esac
             target=$(readlink "$path") || exit $?
             if [ "$target" = "$absolute" ] || [ "$target" = "$relative" ]; then
-                rm -f -- "$path" || exit $?
+                if [ -n "$backup" ]; then
+                    mv "$path" "$backup/${path##*/}" || exit $?
+                else rm -f -- "$path" || exit $?; fi
             fi
         done
-    ' sh "${_mountpoint}" "..${_mountpoint#"${iocroot}"}" "$1" {} +
+    ' sh "${_mountpoint}" "..${_mountpoint#"${iocroot}"}" "$1" \
+        "${_backup}" "${iocroot}/tags" {} +
 }
 
 # Log error to stderr

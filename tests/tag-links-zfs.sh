@@ -191,6 +191,78 @@ backend_set 'new[1]*?' "$candidate"
 [ "$(uclcmd get -qf "$candidate_mp/config" tag)" = 'new[1]*?' ]
 [ ! -L "$root/tags/another-candidate" ] && [ ! -L "$root/tags/unused-tag" ]
 echo 'PASS: native successful retag keeps the literal new alias and removes old aliases'
+# A plausible config below jails/ is not proof of a mounted dataset owner.
+owned=$(make_fixture owned-candidate)
+ownedmp=$(zfs get -H -o value mountpoint "$p/iocell/jails/$owned")
+backend_set owned-candidate "$owned"
+loose=$(uuidgen); loosemp="$root/jails/$loose"
+mkdir "$loosemp"
+cp "$ownedmp/config" "$loosemp/config"
+uclcmd set -u -f "$loosemp/config" -t string -- tag unowned-owner
+ln -s "$loosemp" "$root/tags/unowned-owner"
+cp "$loosemp/config" "$workdir/loose.before"
+cp "$ownedmp/config" "$workdir/owned.before"
+if backend_set unowned-owner "$owned" > "$workdir/unowned.log" 2>&1; then
+    echo 'FAIL: unowned directory was retagged as a jail' >&2; exit 1
+fi
+cmp "$loosemp/config" "$workdir/loose.before"
+cmp "$ownedmp/config" "$workdir/owned.before"
+[ "$(readlink "$root/tags/unowned-owner")" = "$loosemp" ]
+echo 'PASS: native tag collision refuses a live unowned directory without changing configs'
+
+# A leftover host directory must not stand in for an unmounted source dataset.
+unmounted=$(make_fixture unmounted-source)
+unmounted_ds="$p/iocell/jails/$unmounted"
+unmounted_mp=$(zfs get -H -o value mountpoint "$unmounted_ds")
+backend_set unmounted-source "$unmounted"
+cp "$unmounted_mp/config" "$workdir/unmounted.before"
+zfs unmount "$unmounted_ds/root"; zfs unmount "$unmounted_ds"
+mkdir -p "$unmounted_mp"
+cp "$workdir/unmounted.before" "$unmounted_mp/config"
+if backend_set unmounted-new "$unmounted" > "$workdir/unmounted.log" 2>&1; then exit 1; fi
+cmp "$unmounted_mp/config" "$workdir/unmounted.before"
+if backend_set unmounted-source "$owned" > "$workdir/unmounted-owner.log" 2>&1; then exit 1; fi
+cmp "$ownedmp/config" "$workdir/owned.before"
+cmp "$unmounted_mp/config" "$workdir/unmounted.before"
+mv "$unmounted_mp/config" "$workdir/unmounted.host-shadow"
+zfs mount "$unmounted_ds"; zfs mount "$unmounted_ds/root"
+cmp "$unmounted_mp/config" "$workdir/unmounted.before"
+echo 'PASS: native unmounted source refusal preserves host-shadow and dataset configs'
+
+# A failed obsolete-alias operation may have taken effect before reporting error.
+owner=$(make_fixture cleanup-shared); source=$(make_fixture cleanup-source)
+owner_mp=$(zfs get -H -o value mountpoint "$p/iocell/jails/$owner")
+source_mp=$(zfs get -H -o value mountpoint "$p/iocell/jails/$source")
+backend_set cleanup-shared "$owner"; backend_set cleanup-source "$source"
+cp "$owner_mp/config" "$workdir/cleanup-owner.before"
+cp "$source_mp/config" "$workdir/cleanup-source.before"
+aliases > "$workdir/cleanup-aliases.before"
+mkdir "$workdir/retire-bin"
+cat > "$workdir/retire-bin/alias-op" <<'WRAPPER'
+#!/bin/sh
+tool=${0##*/}; source=$1
+if [ "$tool" = rm ]; then for source; do :; done; fi
+if [ "$source" = "$IOC_TAG_FAIL_ALIAS" ]; then
+    "/bin/$tool" "$@" || exit $?
+    echo 'injected failure after retiring obsolete alias' >&2
+    exit 42
+fi
+exec "/bin/$tool" "$@"
+WRAPPER
+chmod +x "$workdir/retire-bin/alias-op"
+ln -s alias-op "$workdir/retire-bin/rm"; ln -s alias-op "$workdir/retire-bin/mv"
+status=0
+env PATH="$workdir/retire-bin:$PATH" IOC_TAG_FAIL_ALIAS="$root/tags/cleanup-source" \
+    IOC_TAG_POOL="$p" IOC_TAG_ROOT="$root" sh "$workdir/set.sh" \
+    tag=cleanup-shared "$source" > "$workdir/cleanup-failure.log" 2>&1 || status=$?
+[ "$status" != 0 ]
+grep -q injected "$workdir/cleanup-failure.log"
+cmp "$owner_mp/config" "$workdir/cleanup-owner.before"
+cmp "$source_mp/config" "$workdir/cleanup-source.before"
+aliases > "$workdir/cleanup-aliases.after"
+cmp "$workdir/cleanup-aliases.before" "$workdir/cleanup-aliases.after"
+[ -z "$(find "$root" -type d -name '.iocell-alias.*')" ]
+echo 'PASS: native alias cleanup failure restores both configs and complete alias namespace'
 [ "$(sha256 -q "$IOC_TEST_ROOT/.default")" = "$before" ]
 echo 'PASS: tag backend test preserves original defaults and activation'
 zpool status -x

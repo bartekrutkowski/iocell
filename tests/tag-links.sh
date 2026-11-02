@@ -13,6 +13,12 @@ date () { echo 2026-01-01@00:00:00; }
 zpool () { echo "$altroot"; }
 zfs () {
     for last; do :; done
+    case "$*" in *' mounted '*)
+        case "$fault:$last" in unmounted:*"$newid"|old-unmounted:*"$oldid") echo no ;;
+            *) echo yes ;; esac
+        return 0 ;;
+    esac
+    [ "$fault:$last" != "unowned:tank/iocell/jails/$oldid" ] || return 1
     if [ "$fault" = bad-mount ]; then echo /; else echo "$iocroot/jails/${last##*/}"; fi
 }
 mktemp () {
@@ -60,15 +66,33 @@ mv () {
     fi
     command mv "$@"
 }
+mkdir "$workdir/bin"
+for tool in rm mv; do
+    printf '%s\n' '#!/bin/sh' 'tool=${0##*/}; source=$1' \
+        'if [ "$tool" = rm ]; then for source; do :; done; fi' \
+        'if [ "$tool" = rm ] && [ "${IOC_TAG_FAIL_BACKUP:-}" = yes ]; then' \
+        '    case "$source" in */.iocell-alias.*/*) exit 42 ;; esac' 'fi' \
+        'if [ "$source" = "${IOC_TAG_FAIL_ALIAS:-}" ]; then' \
+        '    "/bin/$tool" "$@" || exit $?; exit 42' 'fi' \
+        'exec "/bin/$tool" "$@"' > "$workdir/bin/$tool"
+    chmod +x "$workdir/bin/$tool"
+done
+PATH="$workdir/bin:$PATH"; export PATH
 failed=0
 for label in absolute relative path-glob relative-glob collision same literal writer source-writer \
-    collision-source-writer same-writer after-write link new-link foreign broken broken-writer file bad-mount; do
+    collision-source-writer same-writer after-write link new-link foreign broken broken-writer file bad-mount unowned unmounted old-unmounted mismatch cleanup backup-cleanup; do
     iocroot="$workdir/$label/iocell"; altroot=-; fault=none; requested=shared
     case "$label" in *-glob) iocroot="$workdir/$label[ab]/iocell" ;; esac
     old="$iocroot/jails/$oldid"; new="$iocroot/jails/$newid"
     mkdir -p "$old" "$new" "$iocroot/tags"
     echo tag=shared > "$old/config"; echo tag=original > "$new/config"
     cp "$new/config" "$workdir/$label.before"
+    [ "$label" != mismatch ] || echo tag=different > "$old/config"
+    cp "$old/config" "$workdir/$label.old-before"
+    IOC_TAG_FAIL_ALIAS=''; IOC_TAG_FAIL_BACKUP=''
+    export IOC_TAG_FAIL_ALIAS IOC_TAG_FAIL_BACKUP
+    [ "$label" != cleanup ] || IOC_TAG_FAIL_ALIAS="$iocroot/tags/original"
+    [ "$label" != backup-cleanup ] || IOC_TAG_FAIL_BACKUP=yes
     ln -s "$new" "$iocroot/tags/original"
     ln -s "../jails/$newid" "$iocroot/tags/other-original"
     case "$label" in
@@ -91,7 +115,7 @@ for label in absolute relative path-glob relative-glob collision same literal wr
         writer|source-writer|link|new-link) fault="$label" ;;
         collision-source-writer|same-writer|broken-writer) fault=source-writer ;;
         after-write) fault=after-write ;;
-        bad-mount) fault=bad-mount ;;
+        bad-mount|unowned|unmounted|old-unmounted) fault="$label" ;;
     esac
     before_pwd=$(pwd -P); status=0
     (
@@ -101,7 +125,19 @@ for label in absolute relative path-glob relative-glob collision same literal wr
         exit "$result"
     ) > "$workdir/$label.log" 2>&1 || status=$?
     case "$label" in
-        writer|source-writer|collision-source-writer|same-writer|after-write|link|new-link|foreign|broken-writer|file|bad-mount)
+        backup-cleanup)
+            if [ "$status" != 1 ] || [ "$(cat "$new/config")" != tag=shared ] ||
+                [ "$(readlink "$iocroot/tags/shared")" != "$new" ] ||
+                [ -L "$iocroot/tags/original" ] ||
+                ! grep -q 'retag committed' "$workdir/$label.log"; then
+                echo 'FAIL: committed retag cleanup failure hid its actual state'; failed=1; continue
+            fi
+            backup=$(find "$iocroot" -type d -name '.iocell-alias.*')
+            if [ -z "$backup" ] || [ ! -L "$backup/original" ]; then
+                echo 'FAIL: committed retag discarded failed alias cleanup data'; failed=1; continue
+            fi
+            ;;
+        writer|source-writer|collision-source-writer|same-writer|after-write|link|new-link|foreign|broken-writer|file|bad-mount|unowned|unmounted|old-unmounted|mismatch|cleanup)
             want=1
             case "$label" in writer|source-writer|collision-source-writer|same-writer|after-write|broken-writer) want=6 ;;
                 link|new-link) want=7 ;; esac
@@ -114,7 +150,7 @@ for label in absolute relative path-glob relative-glob collision same literal wr
             fi
             aliases > "$workdir/$label.aliases-after"
             if ! cmp -s "$workdir/$label.aliases-before" "$workdir/$label.aliases-after" || \
-                [ "$(cat "$old/config")" != tag=shared ]; then
+                ! cmp -s "$old/config" "$workdir/$label.old-before"; then
                 echo "FAIL: tag $label left partial namespace or displaced metadata"
                 failed=1; continue
             fi
@@ -148,9 +184,13 @@ for label in absolute relative path-glob relative-glob collision same literal wr
     if [ -n "$(find "$iocroot/jails" -name '.iocell-tag.*' -print)" ]; then
         echo "FAIL: tag $label left temporary recovery files"; failed=1; continue
     fi
+    if [ "$label" != backup-cleanup ] &&
+        [ -n "$(find "$iocroot" -type d -name '.iocell-alias.*')" ]; then
+        echo "FAIL: tag $label accumulated private alias backups"; failed=1; continue
+    fi
     echo "PASS: tag replacement $label"
 done
-fault=none
+fault=none; IOC_TAG_FAIL_ALIAS=''; IOC_TAG_FAIL_BACKUP=''
 ln -s "$new" "$iocroot/tags/current"
 __link_tag "tank/iocell/jails/$newid" current
 [ "$(pwd -P)" = "$before_pwd" ]

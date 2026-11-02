@@ -15,13 +15,13 @@ SYNOPSIS
   iocell [-v] df
   iocell [-v] exec [-u username | -U username] UUID|TAG|ALL command [arg ...]
   iocell [-v] export UUID|TAG
-  iocell [-v] fetch [-p|-P] [release=RELEASE | ftphost=ftp.hostname.org |
+  iocell [-v] fetch [release=RELEASE | ftphost=ftp.hostname.org |
                     ftpdir=/dir/ | ftpfiles="base.txz lib32.txz src.txz"]
                     [ ftplocaldir=/dir/ ] [ compression=ALGO ]
   iocell [-v] get property|all UUID|TAG
   iocell [-v] get -r property|all
   iocell [-v] help
-  iocell [-v] import IMAGE_UUID_PREFIX
+  iocell [-v] import IMAGE_UUID_PREFIX [legacy-property=value ...]
   iocell [-v] init-host IP ZPOOL
   iocell [-v] inuse [UUID|TAG]
   iocell [-v] pkg UUID|TAG pkg_command [arg ...]
@@ -45,7 +45,7 @@ SYNOPSIS
   iocell [-v] start [-f] UUID|TAG|ALL [UUID|TAG|ALL ...]
   iocell [-v] stop UUID|TAG|ALL [UUID|TAG|ALL ...]
   iocell [-v] uncap UUID|TAG
-  iocell [-v] update [-p|-P] UUID|TAG|RELEASE
+  iocell [-v] update [-n] UUID|TAG
   iocell [-v] upgrade UUID|TAG [release=RELEASE]
   iocell [-v] version | --version
 
@@ -69,6 +69,12 @@ DESCRIPTION
   A descriptive TAG (hostname, label, etc.) makes jails easier to identify.
   Alias names cannot be empty, contain a slash, or equal "." or "..". Template
   tags have stricter ZFS component rules. An unset tag defaults to a timestamp.
+  Retagging requires mounted dataset owners, not merely plausible directories.
+  Returned write/link/alias-retirement failures restore configs and aliases
+  where possible; incomplete recovery is reported with retained recovery paths.
+  Private retired-alias backups are removed after commit. If that final cleanup
+  fails, the error explicitly says the retag committed and names its backup.
+  This is not a concurrent-writer or power-loss atomicity guarantee.
 
   Jail configuration is stored in UCL files alongside datasets, with storage
   properties managed by ZFS. uclcmd is a required dependency. Replication

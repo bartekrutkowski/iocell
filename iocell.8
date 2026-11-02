@@ -19,13 +19,13 @@
 \fBiocell\fP [\fB-v\fP] \fIdf\fP
 \fBiocell\fP [\fB-v\fP] \fIexec\fP [\fB-u\fP \fIusername\fP | \fB-U\fP \fIusername\fP] UUID|TAG|ALL \fIcommand\fP [\fIarg\fP \.\.\.]
 \fBiocell\fP [\fB-v\fP] \fIexport\fP UUID|TAG
-\fBiocell\fP [\fB-v\fP] \fIfetch\fP [\fB-p\fP|\fB-P\fP] [\fIrelease=RELEASE\fP | ftphost=ftp.hostname.org |
+\fBiocell\fP [\fB-v\fP] \fIfetch\fP [\fIrelease=RELEASE\fP | ftphost=ftp.hostname.org |
                   ftpdir=/dir/ | ftpfiles="base.txz lib32.txz src.txz"]
                   [ ftplocaldir=/dir/ ] [ \fIcompression=ALGO\fP ]
 \fBiocell\fP [\fB-v\fP] \fIget\fP property|all UUID|TAG
 \fBiocell\fP [\fB-v\fP] \fIget\fP \fB-r\fP property|all
 \fBiocell\fP [\fB-v\fP] \fIhelp\fP
-\fBiocell\fP [\fB-v\fP] \fIimport\fP \fIIMAGE_UUID_PREFIX\fP
+\fBiocell\fP [\fB-v\fP] \fIimport\fP \fIIMAGE_UUID_PREFIX\fP [\fIlegacy-\fIproperty=value\fP\fP \.\.\.]
 \fBiocell\fP [\fB-v\fP] \fIinit-host\fP \fIIP\fP \fIZPOOL\fP
 \fBiocell\fP [\fB-v\fP] \fIinuse\fP [UUID|TAG]
 \fBiocell\fP [\fB-v\fP] \fIpkg\fP UUID|TAG \fIpkg_command\fP [\fIarg\fP \.\.\.]
@@ -49,7 +49,7 @@
 \fBiocell\fP [\fB-v\fP] \fIstart\fP [\fB-f\fP] UUID|TAG|ALL [UUID|TAG|ALL \.\.\.]
 \fBiocell\fP [\fB-v\fP] \fIstop\fP UUID|TAG|ALL [UUID|TAG|ALL \.\.\.]
 \fBiocell\fP [\fB-v\fP] \fIuncap\fP UUID|TAG
-\fBiocell\fP [\fB-v\fP] \fIupdate\fP [\fB-p\fP|\fB-P\fP] UUID|TAG|RELEASE
+\fBiocell\fP [\fB-v\fP] \fIupdate\fP [\fB-n\fP] UUID|TAG
 \fBiocell\fP [\fB-v\fP] \fIupgrade\fP UUID|TAG [\fIrelease=RELEASE\fP]
 \fBiocell\fP [\fB-v\fP] \fIversion\fP | --\fIversion\fP
 
@@ -77,6 +77,12 @@ unreliable. Import separately accepts a unique image UUID prefix.
 A descriptive TAG (hostname, label, etc.) makes jails easier to identify.
 Alias names cannot be empty, contain a slash, or equal "." or "..". Template
 tags have stricter ZFS component rules. An unset tag \fIdefaults\fP to a timestamp.
+Retagging requires mounted dataset owners, not merely plausible directories.
+Returned write/link/alias-retirement failures restore configs and aliases
+where possible; incomplete recovery is reported with retained recovery paths.
+Private retired-alias backups are removed after commit. If that final cleanup
+fails, the error explicitly says the retag committed and names its backup.
+This is not a concurrent-writer or power-loss atomicity guarantee.
 .PP
 Jail configuration is stored in UCL files alongside datasets, with storage
 properties managed by ZFS. uclcmd is a required dependency. Replication
@@ -356,7 +362,7 @@ Example: \fBiocell\fP \fIfetch\fP release=15.1-RELEASE ftplocaldir=/path/to/dist
 
 .fam T
 .fi
-\fIimport\fP \fIIMAGE_UUID_PREFIX\fP [legacy-\fIproperty=value\fP \.\.\.]
+\fIimport\fP \fIIMAGE_UUID_PREFIX\fP [\fIlegacy-\fIproperty=value\fP\fP \.\.\.]
 .PP
 .nf
 .fam C

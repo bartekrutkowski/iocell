@@ -112,6 +112,11 @@ properties and partial images, preserve literal/spaced selectors, and restore
 raw empty-jail exports. Native legacy controls retain property-aware tar.xz
 creation and reject late extraction failure even after files were unpacked.
 
+Tag regressions also refuse unowned/unmounted targets and verify rollback after
+an obsolete-alias operation takes effect and then fails. Private alias recovery
+copies do not accumulate on success. A failed private-backup cleanup explicitly
+reports an already committed retag, with consistent active configs/aliases.
+
 ## Destroy failure boundaries
 
 `destroy-status.sh` checks returned/exiting dispatcher failures and the real
