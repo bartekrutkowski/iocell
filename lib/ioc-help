@@ -122,8 +122,10 @@ SUBCOMMANDS
     will destroy everything associated with iocell. The -r flag stops all
     jails first and refuses cleanup if any cannot be stopped. It then removes
     downloaded archives and fetched RELEASE datasets. Basejails rely on these
-    releases; do not use -r while you still need them. The -j flag will
-    destroy the jails dataset. The -t flag will destroy the templates dataset.
+    releases; do not use -r while you still need them. The -j flag destroys
+    the jails dataset but preserves aliases of retained templates. It refuses
+    dependent clones outside the jails tree even with -f. The -t flag will
+    destroy the templates dataset.
     Same warning applies here as with cleaning the RELEASE dataset.
     Template cleanup includes clones inside the templates tree. Without -f,
     it refuses clones outside that tree. With -f, it prints ZFS's destruction

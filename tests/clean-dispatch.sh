@@ -47,7 +47,13 @@ for action in all releases jails; do
             iocroot="$state/tree"; pool=tank; _force=1
             __stop_jail_all () { [ "$fault" != stop ] || return 43; }
             __clean_snapshots () { :; }
-            zfs () { jobs -p > "$state/pids"; echo "$*" >> "$trace"; return 42; }
+            zfs () {
+                if [ "$1" = list ]; then
+                    printf 'tank/iocell/jails\t%s/jails\n' "$iocroot"
+                    return 0
+                fi
+                jobs -p > "$state/pids"; echo "$*" >> "$trace"; return 42
+            }
             "__clean_$action"
         ) > "$state/log" 2>&1 || status=$?
         if [ "$status" != "$want" ] || [ ! -f "$state/tree/canary" ]; then

@@ -139,7 +139,7 @@ __clean_releases () {
 }
 
 __clean_jails () {
-    local _answer
+    local _answer _jails _ds _mount _status
 
     if [ "${_force}" != "1" ] ; then
         echo " "
@@ -153,11 +153,22 @@ __clean_jails () {
         fi
     fi
 
-    __clean_snapshots "${pool}/iocell/jails" || return $?
+    _jails=$(zfs list -H -d1 -t filesystem -o name,mountpoint \
+        "${pool}/iocell/jails") || return $?
     __stop_jail_all > /dev/null || return $?
+    # Never cascade into templates or other dependent trees.
     __spinner "  INFO: destroying ${pool}/iocell/jails:  " \
-              "zfs destroy -rRf ${pool}/iocell/jails" || return $?
-    rm -rf "${iocroot}/tags"
+              "zfs destroy -rf ${pool}/iocell/jails" || return $?
+    printf '%s\n' "${_jails}" | while IFS="$(printf '\t')" read -r _ds _mount; do
+        [ "${_ds}" != "${pool}/iocell/jails" ] || continue
+        case "${_mount}" in
+            /*) __unlink_tag "${_ds}" "${_mount}" || {
+                _status=$?
+                __error "jails destroyed; alias cleanup failed for ${_ds}"
+                exit "${_status}"
+            } ;;
+        esac
+    done
 }
 
 __clean_templates () {

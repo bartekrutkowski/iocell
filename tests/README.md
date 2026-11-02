@@ -23,6 +23,7 @@ sh tests/start-failures.sh
 sh tests/rc-jails.sh
 sh tests/template-forward-safety.sh
 sh tests/clean-template-safety.sh
+sh tests/clean-jails.sh
 sh tests/clean-dispatch.sh
 sh tests/dependent-clones.sh
 sh tests/migrate-safety.sh
@@ -85,6 +86,11 @@ a diagnostic and stop before fixtures or host configuration are changed.
 
 Scratch pool names use UUIDs rather than PIDs. Native tests retain their logs,
 file vdevs and fixtures; their printed paths identify what they leave behind.
+
+`clean-jails.sh` and authorized `clean-jails-zfs.sh` preserve retained template
+aliases, data, configs and GUIDs. Internal dependent clones are removed with
+the jail tree; outside clones refuse deletion. Query/stop/destroy failures
+preserve aliases and managed snapshots, with no pre-stop snapshot pruning.
 
 ## Destroy failure boundaries
 
