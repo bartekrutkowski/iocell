@@ -57,7 +57,7 @@ cp () {
 zfs () {
     echo "$*" >> "$state/zfs.trace"
     case "$1" in
-        list) [ "$fault" != enumerate ] || return 41 ;; 
+        list) [ "$fault" != enumerate ] || return 41 ;;
         snapshot)
             [ "$fault" != snapshot ] || return 45
             command cp -Rp "$mp/root" "$state/snapshot"

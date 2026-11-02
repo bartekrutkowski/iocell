@@ -9,8 +9,6 @@ Command restrictions
 * **Defaults:** saved defaults apply to later ordinary ``create`` commands, not
   existing, cloned or imported jails. ``reset`` does not reload saved creation
   defaults. ``get all default`` does not dump them; use ``defaults``.
-* **Property reads:** per-jail ``get`` confuses the literal string ``null`` with
-  an absent value. The UCL configuration can still contain that string.
 * **Fetch:** the interactive release menu is obsolete; specify ``release=...``
   and the distribution mirror/path explicitly. Legacy ports options rely on
   obsolete tooling and can report success without installing a ports tree.
@@ -22,15 +20,14 @@ Command restrictions
 * **Image format:** ordinary exports are raw recursive ZFS streams, not an
   archive/checksum pair. Legacy thick-jail archives use a separate import path;
   not every image format supplies or verifies SHA256 sidecars.
-* **Arguments:** multi-word ``pkg`` arguments can be split. Quote property
-  values for the invoking shell; ``create`` and ``set`` preserve them literally.
+* **Arguments:** quote property values for the invoking shell; ``create`` and
+  ``set`` preserve them literally.
 * **Runtime errors:** syntax errors fail before initialization, but valid
   multi-target commands are not transactional. Property/kernel validation and
-  runtime status propagation remain incomplete. Empty ``limits`` and ``uncap``
-  can return failure despite an empty or cleared rule set.
-* **Git:** plugin fetch can leave a detached checkout, and ``pull`` failures may
-  be masked. Experimental ``push`` uses the invocation directory. These are not
-  a complete synchronization/deployment interface.
+  runtime status propagation remain incomplete.
+* **Git:** plugin fetch can leave a detached checkout. Experimental ``push`` uses
+  the invocation directory. These are not a complete synchronization/deployment
+  interface.
 * **Legacy names:** ``chroot``, ``record``, ``package`` and ``show`` are not
   dispatched. See :doc:`jail-package` for the available image workflow.
 * **Altroots:** automatic CLI selection can use the wrong configuration path
@@ -39,6 +36,16 @@ Command restrictions
 
 Storage boundaries
 ------------------
+
+Ordinary basejail upgrades require complete release sources, a stopped jail and
+no preexisting mounts below its root. In-place upgrade of a template-based
+basejail is refused; use a target-release template instead. Build/merge failures
+restore the old config/root where possible and retain ``etc.old``, the root
+upgrade snapshot and the single overwritten ``config.old`` backup. An incomplete
+backout is reported; inspect recovery objects before retrying. A failed merge's
+log is copied to ``upgrade.log`` before rollback when available. Warnings alone
+are not merge failures; unresolved conflicts are. Independent-userland upgrades
+remain a separate workflow and can require interactive installation passes.
 
 Basejails share read-only release directories. ``create -e`` supplies an empty
 filesystem, not a clone or independent OS. Changing a type label does not copy

@@ -200,17 +200,125 @@ __update () {
       esac
 }
 
+# Isolate cleanup/recovery state from helpers and preserve the primary failure.
+__upgrade_basejail () (
+    _up_uuid="$1"; _up_ds="$2"; _up_mp="$3"
+    _up_new="$4"; _up_date="$5"
+    _up_root="${_up_mp}/root"
+    _up_snap="${_up_ds}/root@ioc-upgrade_${_up_date}"
+    _up_snapshot=0; _up_ready=0
+
+    __upgrade_mounts () {
+        _up_table=$(mount -p) || return $?
+        printf '%s\n' "${_up_table}" | \
+            IOC_UPGRADE_ROOT="${_up_root}" awk '
+            BEGIN { root=ENVIRON["IOC_UPGRADE_ROOT"] }
+            {
+                target=$2
+                gsub(/\\040/, " ", target)
+                gsub(/\\011/, "\t", target)
+                gsub(/\\134/, "\\\\", target)
+                if ($3 != "zfs" &&
+                    (target == root || index(target, root "/") == 1))
+                    targets[++n]=target
+            }
+            END { for (i=n; i>0; i--) print targets[i] }'
+    }
+
+    __upgrade_unmount () {
+        _up_mounts=$(__upgrade_mounts) || return $?
+        _up_cleanup=0
+        while IFS= read -r _up_target; do
+            [ -n "${_up_target}" ] || continue
+            umount "${_up_target}" || {
+                _up_failure=$?
+                [ "${_up_cleanup}" -ne 0 ] || _up_cleanup="${_up_failure}"
+            }
+        done <<EOF
+${_up_mounts}
+EOF
+        return "${_up_cleanup}"
+    }
+
+    __upgrade_finish () {
+        _up_status="$1"
+        trap - EXIT
+        _up_cleanup=0
+        __upgrade_unmount || _up_cleanup=$?
+        [ "${_up_status}" -ne 0 ] || _up_status="${_up_cleanup}"
+        if [ "${_up_status}" -ne 0 ] && [ "${_up_snapshot}" = 1 ]; then
+            __error "upgrade failed; backing out ${_up_uuid}"
+            _up_incomplete=0
+            # Preserve the failure log before restoring the old root dataset.
+            if [ -r "${_up_root}/var/db/etcupdate/log" ]; then
+                cp -p "${_up_root}/var/db/etcupdate/log" \
+                    "${_up_mp}/upgrade.log" || _up_incomplete=1
+            fi
+            cp -p "${_up_mp}/config.old" "${_up_mp}/config" || _up_incomplete=1
+            if [ "${_up_cleanup}" = 0 ]; then
+                zfs rollback -r "${_up_snap}" || _up_incomplete=1
+            else
+                _up_incomplete=1
+            fi
+            if [ "${_up_incomplete}" != 0 ]; then
+                __error "upgrade backout incomplete; inspect ${_up_snap}"
+            fi
+            __error "recovery retained: ${_up_mp}/etc.old, config.old, ${_up_snap}"
+        elif [ "${_up_status}" = 0 ] && [ "${_up_ready}" = 1 ]; then
+            echo "* ${_up_uuid} upgraded successfully. Please reboot jail and inspect."
+            echo "* Recovery retained: ${_up_mp}/etc.old, config.old, ${_up_snap}"
+        fi
+        exit "${_up_status}"
+    }
+
+    _up_running=$(jls -j "ioc-${_up_uuid}" jid 2>/dev/null) || :
+    [ -z "${_up_running}" ] || { __error "stop the jail before upgrading"; exit 1; }
+    _up_template=$(__get_jail_prop template "${_up_uuid}" "${_up_ds}") || exit $?
+    [ "${_up_template}" = none ] || {
+        __error "upgrading a template-based basejail is not supported"
+        exit 1
+    }
+    if [ -e "${_up_mp}/etc.old" ] || [ -L "${_up_mp}/etc.old" ]; then
+        __error "existing upgrade backup retained: ${_up_mp}/etc.old"
+        exit 1
+    fi
+    _up_mounts=$(__upgrade_mounts) || exit $?
+    [ -z "${_up_mounts}" ] || {
+        __error "jail already has mounted filesystems: ${_up_root}"
+        exit 1
+    }
+    trap '__upgrade_finish $?' EXIT
+    __check_basejail "${_up_uuid}" "${_up_ds}" || exit $?
+    __upgrade_unmount || exit $?
+    cp -Rp "${_up_root}/etc" "${_up_mp}/etc.old" || exit $?
+    cp -p "${_up_mp}/config" "${_up_mp}/config.old" || exit $?
+    zfs snapshot "${_up_snap}" || exit $?
+    _up_snapshot=1
+    __set_jail_prop "release=${_up_new}" "${_up_uuid}" "${_up_ds}" || exit $?
+    __mount_basejail "${_up_uuid}" "${_up_new}" 1 || exit $?
+    mount -t devfs devfs "${_up_root}/dev" || exit $?
+    chroot "${_up_root}" etcupdate -F || exit $?
+    chroot "${_up_root}" etcupdate resolve || exit $?
+    _up_pending=$(chroot "${_up_root}" etcupdate status) || exit $?
+    # Status also includes nonfatal warnings already printed during the merge.
+    if printf '%s\n' "${_up_pending}" | grep -q '^[[:space:]]*C[[:space:]]'; then
+        __error "unresolved configuration conflicts: ${_up_pending}"
+        exit 1
+    fi
+    _up_ready=1
+)
+
 __upgrade () {
-    local _name _release _fulluuid _jails _jail_type _mountpoint _date \
-          _oldrelease _resolv _origin _date _etcsuccess
+    local _name _release _fulluuid _jail_type _mountpoint _date \
+          _oldrelease _resolv _dataset _snapshots _snap
 
     _name="$1"
     _release="$(uname -r|cut -f 1,2 -d'-'|sed -E 's/CURRENT.*|STABLE.*/RELEASE/')"
-    _dataset="$(__find_jail ${_name})" || exit $?
-    _fulluuid="$(__check_name ${_name} ${_dataset})"
-    _jail_type="$(__get_jail_prop type ${_fulluuid} ${_dataset})"
-    _mountpoint="$(__get_jail_prop mountpoint ${_fulluuid} ${_dataset})"
-    _oldrelease="$(__get_jail_prop release ${_fulluuid} ${_dataset})"
+    _dataset=$(__find_jail "${_name}") || return $?
+    _fulluuid=$(__check_name "${_name}" "${_dataset}") || return $?
+    _jail_type=$(__get_jail_prop type "${_fulluuid}" "${_dataset}") || return $?
+    _mountpoint=$(__get_jail_prop mountpoint "${_fulluuid}" "${_dataset}") || return $?
+    _oldrelease=$(__get_jail_prop release "${_fulluuid}" "${_dataset}") || return $?
     _date=$(date "+%F")
     _resolv="0"
 
@@ -235,61 +343,17 @@ __upgrade () {
     # If jail is a basejail then set the new release and check the datasets
     # back up /etc just in case the merge fails
     if [ "${_jail_type}" = "basejail" ] ; then
-        _jails=$(__find_jail ALL) || return $?
-        _jails=$(printf '%s\n' "${_jails}" | \
-            awk 'BEGIN { FS = "/" } ; { if (length($NF)==36) { print }}')
-        # Check to see if the jail has a stale upgrade snapshot.
-        for _fs in ${_jails} ; do
-            _snapcheck="$(zfs list -rHt snap ${pool}/iocell/jails | \
-                     egrep "${_fulluuid}.*ioc-upgrade" | \
-                     awk '{print $1}')"
-            if [ ! -z "${_snapcheck}" ] ; then
-                __error "${_name} has an existing upgrade snapshot" >&2
-                printf "%1s ${_snapcheck} \n" >&2
-                printf "%1s please remove this before trying to upgrade. \n" >&2
-                exit 1
-            fi
-        done
-
-        __set_jail_prop release="${_release}" "${_fulluuid}" "${_dataset}"
-        __check_basejail "${_fulluuid}" "${_dataset}" > /dev/null || return $?
-        cp -Rp ${_mountpoint}/root/etc \
-               ${_mountpoint}/etc.old
-        zfs snapshot ${_dataset}/root@ioc-upgrade_${_date}
-        chroot ${_mountpoint}/root etcupdate -F
-        chroot ${_mountpoint}/root etcupdate resolve
-        _etcsuccess="$?"
-
-        if [ -d "${_mountpoint}/root/var/spool/mqueue" ] ; then
-            chroot ${_mountpoint}/root newaliases > /dev/null 2>&1
-        else
-            mkdir -p ${_mountpoint}/root/var/spool/mqueue
-            chroot ${_mountpoint}/root newaliases > /dev/null 2>&1
-        fi
-
-        # Check for zero exit code(success) otherwise bail and revert everything
-        if [ "${_etcsuccess}" -eq 0 ] ; then
-            echo "* ${_name} upgraded successfully. Please reboot jail and inspect."
-            echo "* Remove:"
-            echo "    /etc backup: ${_mountpoint}/etc.old"
-            echo "    snapshot: ${_dataset}/root@ioc-upgrade_${_date}"
-            echo "* if everything is OK."
-            __umount_basejail "${_fulluuid}" "${_dataset}"
-            exit 0
-        else
-            echo "" >&2
-            echo "* Upgrade failed! Backing out." >&2
-            __set_jail_prop release="${_oldrelease}" "${_fulluuid}" \
-                "${_dataset}"
-            zfs rollback -rRf ${_dataset}/root@ioc-upgrade_${_date}
-            zfs destroy ${_dataset}/root@ioc-upgrade_${_date}
-            rm -rf ${_mountpoint}/root/etc
-            mv ${_mountpoint}/etc.old \
-               ${_mountpoint}/root/etc
-            __check_basejail "${_fulluuid}" "${_dataset}" || return $?
-            __umount_basejail "${_fulluuid}" "${_dataset}"
-            exit 1
-        fi
+        _snapshots=$(zfs list -rHt snapshot -o name "${_dataset}") || return $?
+        while IFS= read -r _snap; do
+            case "${_snap}" in "${_dataset}/root@ioc-upgrade_"*)
+                __error "existing upgrade snapshot retained: ${_snap}"
+                return 1 ;;
+            esac
+        done <<EOF
+${_snapshots}
+EOF
+        __upgrade_basejail "${_fulluuid}" "${_dataset}" "${_mountpoint}" \
+            "${_release}" "${_date}"
     elif [ "${_jail_type}" = "thickjail" ] ; then
         # __spinner needs to be recreated here as we redirect with __update
         _spinner='/-\|'

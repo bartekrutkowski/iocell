@@ -17,7 +17,9 @@ __hack88_mount () { :; }
 __get_jail_prop () {
     case "$1" in
         type) echo basejail ;; istemplate) echo no ;;
-        template) [ "$mode" = helper-modern ] && echo fixture-template || echo yes ;;
+        template)
+            case "$mode" in helper-modern) echo fixture-template ;;
+                upgrade-*) echo none ;; *) echo yes ;; esac ;;
         tag) echo 'invalid@template' ;; hostid) echo "$hostid" ;;
         host_hostuuid) echo "$uuid" ;; mountpoint) echo "$mp" ;;
         release) echo fixture-RELEASE ;; interfaces) echo vnet0:bridge0 ;;
@@ -55,15 +57,13 @@ zfs () {
                 *' origin '*) echo 'fixture origin - -' ;;
                 *) return 99 ;;
             esac ;;
-        snapshot|rollback|destroy)
-            [ "$mode" = upgrade-backout ] || forbidden "zfs $*"
-            ;;
+        snapshot|rollback|destroy) forbidden "zfs $*" ;;
         *) forbidden "zfs $*" ;;
     esac
 }
 failed=0
 for mode in helper-invalid helper-modern start-return start-exit \
-    update-return update-exit upgrade-return upgrade-exit upgrade-backout; do
+    update-return update-exit upgrade-return upgrade-exit; do
     state="$workdir/$mode"; iocroot="$state/tree"; mp="$iocroot/jails/$uuid"
     mkdir -p "$mp/root/etc" "$mp/root/usr/home" "$mp/root/usr/local" \
         "$iocroot/log" "$iocroot/releases/fixture-RELEASE/root/etc"
@@ -76,10 +76,7 @@ for mode in helper-invalid helper-modern start-return start-exit \
     status=0
     (
         if [ "$mode" != helper-invalid ] && [ "$mode" != helper-modern ]; then
-            calls=0
             __check_basejail () {
-                calls=$((calls + 1))
-                if [ "$mode" = upgrade-backout ] && [ "$calls" = 1 ]; then return 0; fi
                 echo 'injected migration failure' >&2
                 case "$mode" in *-exit) exit 42 ;; *) return 42 ;; esac
             }

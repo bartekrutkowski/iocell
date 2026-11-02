@@ -7,7 +7,6 @@ cd "$(dirname "$0")/.."
 . ./lib/ioc-help
 . ./lib/ioc-rctl
 . ./lib/ioc-network
-. ./lib/ioc-upgrade
 . ./lib/ioc-configure
 workdir=$(mktemp -d "${TMPDIR:-/tmp}/iocell-discovery-callers.XXXXXX")
 trap 'if [ "$failed" = 0 ]; then rm -rf "$workdir"; else echo "Retained: $workdir"; fi' EXIT
@@ -37,7 +36,6 @@ __get_jail_prop () {
 }
 __is_running () { :; }
 __set_jail_prop () { echo set >> "$trace"; }
-__check_basejail () { echo mount >> "$trace"; return 73; }
 __reset_jail_props () {
     echo reset >> "$trace"
     [ "$#" = 1 ] && [ "$1" = "$uuid" ] || return 76
@@ -49,12 +47,11 @@ rctl () { echo rctl >> "$trace"; }
 zfs () { echo "zfs $*" >> "$trace"; echo 0; }
 column () { cat; }
 failed=0
-for label in list templates warden warden-dispatch rctl rctl-dispatch autoip reset show disk upgrade; do
+for label in list templates warden warden-dispatch rctl rctl-dispatch autoip reset show disk; do
     for fault in yes no; do
         state="$workdir/$label-$fault"; mkdir "$state"
         trace="$state/trace"; : > "$trace"; status=0; want=0
         [ "$fault" != yes ] || want=42
-        [ "$label-$fault" != upgrade-no ] || want=73
         (
             set +e
             case "$label" in
@@ -64,7 +61,7 @@ for label in list templates warden warden-dispatch rctl rctl-dispatch autoip res
                 rctl-dispatch) __rctl_inuse '' ;;
                 autoip) __get_autoip4 ;;
                 reset) __reset_jail_props_all ;; show) __show notes ;;
-                disk) __print_disk ;; upgrade) __upgrade fixture ;;
+                disk) __print_disk ;;
             esac
         ) > "$state/out" 2> "$state/err" || status=$?
         if [ "$status" != "$want" ]; then
@@ -80,7 +77,6 @@ for label in list templates warden warden-dispatch rctl rctl-dispatch autoip res
                 show|disk|list) grep -q "$uuid" "$state/out" || { failed=1; continue; } ;;
                 templates|warden|warden-dispatch) grep -q fixture "$state/out" || { failed=1; continue; } ;;
                 reset) grep -qx reset "$trace" || { failed=1; continue; } ;;
-                upgrade) grep -qx mount "$trace" || { failed=1; continue; } ;;
             esac
         fi
         echo "PASS: discovery consumer $label/$fault"

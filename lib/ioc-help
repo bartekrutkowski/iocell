@@ -513,8 +513,15 @@ SUBCOMMANDS
     For this the RELEASE must be locally available. The basejail
     will re-clone its filesystems from the new release at next jail start.
 
-    Fetch the target release and stop the jail first. Inspect etcupdate merges
-    and test the result; no zero-downtime application guarantee is made. Full
+    Fetch the target release and stop the jail first. Ordinary basejail upgrades
+    require complete release sources and no preexisting mounts below the jail
+    root. Template-based basejails must use a target-release template instead;
+    their in-place upgrade is refused. Build, merge and unresolved-conflict
+    failures return nonzero and restore the old config/root where possible.
+    The /etc backup, root snapshot and single config.old backup are retained;
+    inspect them before removing stale upgrade recovery points and retrying.
+    An incomplete backout is reported without deleting those recovery points.
+    Inspect warnings and test the result; no zero-downtime guarantee is made. Full
     independent-userland upgrades may need interactive confirmations and
     multiple install passes. Old create -c/-t recipes are not supported.
 
