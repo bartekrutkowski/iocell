@@ -214,6 +214,10 @@ SUBCOMMANDS
     Export a stopped jail as a recursive raw ZFS stream under /iocell/images.
     Ordinary exports do not necessarily produce a tar.xz archive or SHA256
     sidecar. Basejail shared release files are not part of the jail image.
+    Images are private files. Existing image or .partial names are refused,
+    never truncated. Failed sends retain the .partial image and export snapshot.
+    Only a completed stream is published under the final name. Snapshot-cleanup
+    failure returns nonzero even when a complete image has been published.
     Check the image format and required release before restoring it.
 
   fetch [release=RELEASE | ftphost=ftp.hostname.org |

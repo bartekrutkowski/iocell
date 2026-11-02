@@ -141,67 +141,60 @@ __import () {
     fi
 }
 
-__export () {
-    local _name _dataset _date _fulluuid _jail_release _spinner _state \
-          _jail_path _jail_type _clone_check
-
-    _name="$1"
-    _dataset=$(__find_jail ${_name}) || exit $?
-    _clone_check="$(zfs get -H origin ${_dataset} | awk '{print $3}')"
-    _fulluuid="$(__check_name ${_name} ${_dataset})"
-    _jail_type="$(__get_jail_prop type ${_fulluuid} ${_dataset})"
-    _tag="$(__get_jail_prop tag ${_fulluuid} ${_dataset})"
-    _date=$(date "+%F")
-    _jail_release="$(__get_jail_prop release ${_fulluuid} ${_dataset})"
-    _export_name="${iocroot}/images/${_fulluuid}-${_jail_type}-${_date}_${_jail_release}"
-    _jail_path="$(__get_jail_prop mountpoint ${_fulluuid} ${_dataset})"
-    _state=$(jls | grep ${_jail_path} | wc -l)
-
-    if [ -z "${_name}" ] ; then
-        __die "missing UUID or TAG!"
+__export () (
+    umask 077
+    _ex_name="$1"
+    [ -n "${_ex_name}" ] || { __error "missing UUID or TAG!"; exit 1; }
+    _ex_ds=$(__find_jail "${_ex_name}") || exit $?
+    _ex_uuid=$(__check_name "${_ex_name}" "${_ex_ds}") || exit $?
+    _ex_state=$(jls -j "ioc-${_ex_uuid}" jid 2>/dev/null) || {
+        _ex_status=$?
+        [ "${_ex_status}" -eq 1 ] || exit "${_ex_status}"
+        _ex_state=
+    }
+    [ -z "${_ex_state}" ] || { __error "stop the jail before exporting"; exit 1; }
+    _ex_type=$(__get_jail_prop type "${_ex_uuid}" "${_ex_ds}") || exit $?
+    _ex_release=$(__get_jail_prop release "${_ex_uuid}" "${_ex_ds}") || exit $?
+    _ex_migrate=0
+    if [ "${_ex_type}" = jail ]; then
+        _ex_origin=$(zfs get -H -o value origin "${_ex_ds}") || exit $?
+        if [ "${_ex_origin}" = - ]; then _ex_type=thickjail
+        else _ex_type=clonejail; fi
+        _ex_migrate=1
     fi
-
-    if [ -z "${_dataset}" ] ; then
-        __die "${_name} not found."
-    fi
-
-    if [ ! -d "${iocroot}/images" ] ; then
-        mkdir ${iocroot}/images
-    fi
-
-    if [ "${_jail_type}" = "jail" ] ; then
-        # Check for thick or clone jails and migrate their type
-        if [ "${_clone_check}" = "-" ] ; then
-            __set_jail_prop "type=thickjail" "${_fulluuid}" "${_dataset}"
-        else
-            __set_jail_prop "type=clonejail" "${_fulluuid}" "${_dataset}"
-        fi
-
-        _jail_type="$(__get_jail_prop type ${_fulluuid} ${_dataset})"
-        _export_name="${iocroot}/images/${_fulluuid}-${_jail_type}-${_date}_${_jail_release}"
-    fi
-
-    if [ "${_state}" -gt "0" ] ; then
-        echo "  ERROR: ${_fulluuid} is running!" >&2
-        echo "  Stop jail before exporting!" >&2
+    for _ex_part in "${_ex_uuid}" "${_ex_type}" "${_ex_release}"; do
+        case "${_ex_part}" in ''|*[![:alnum:]_.:-]*)
+            __error "unsafe image name component: ${_ex_part}"; exit 1 ;;
+        esac
+    done
+    _ex_date=$(date +%F)
+    _ex_image="${iocroot}/images/${_ex_uuid}-${_ex_type}-${_ex_date}_${_ex_release}"
+    _ex_partial="${_ex_image}.partial"
+    if [ -e "${_ex_image}" ] || [ -L "${_ex_image}" ] ||
+        [ -e "${_ex_partial}" ] || [ -L "${_ex_partial}" ]; then
+        __error "existing image/partial image retained: ${_ex_image}"
         exit 1
     fi
-
-    # __spinner needs to be recreated here as we redirect with zfs send
-    _spinner='/-\|'
-
-    printf "  INFO: exporting ${_fulluuid} (${_tag}):  "
-
-    while true; do
-        printf '\b%.1s' "${_spinner}"
-        _spinner=${_spinner#?}${_spinner%???}
-        sleep .1
-    done &
-
-    trap "kill $!" 2 3
-    zfs snapshot -r "${pool}/iocell/jails/${_fulluuid}@ioc-export-${_date}"
-    zfs send -R "${pool}/iocell/jails/${_fulluuid}@ioc-export-${_date}" > \
-                "${_export_name}"
-    zfs destroy -r "${pool}/iocell/jails/${_fulluuid}@ioc-export-${_date}"
-    printf "\b%1s\n" "done!" ; kill $! && trap " " 2 3
-}
+    if [ "${_ex_migrate}" = 1 ]; then
+        __set_jail_prop "type=${_ex_type}" "${_ex_uuid}" "${_ex_ds}" || exit $?
+    fi
+    mkdir -p "${iocroot}/images" || exit $?
+    _ex_snap="${_ex_ds}@ioc-export-${_ex_date}"
+    zfs snapshot -r "${_ex_snap}" || exit $?
+    printf '  INFO: exporting %s: ' "${_ex_uuid}"
+    if ( set -C; zfs send -R "${_ex_snap}" > "${_ex_partial}" ); then :
+    else
+        _ex_status=$?
+        __error "export failed; partial image and snapshot retained: ${_ex_partial} ${_ex_snap}"
+        exit "${_ex_status}"
+    fi
+    # Hard-link publication refuses an existing final name without overwriting.
+    ln "${_ex_partial}" "${_ex_image}" || exit $?
+    rm "${_ex_partial}" || exit $?
+    zfs destroy -r "${_ex_snap}" || {
+        _ex_status=$?
+        __error "image complete; export snapshot cleanup failed: ${_ex_snap}"
+        exit "${_ex_status}"
+    }
+    echo 'done!'
+)

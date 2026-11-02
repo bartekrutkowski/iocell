@@ -25,6 +25,7 @@ sh tests/template-forward-safety.sh
 sh tests/clean-template-safety.sh
 sh tests/clean-jails.sh
 sh tests/fetch-failures.sh
+sh tests/export-failures.sh
 sh tests/clean-dispatch.sh
 sh tests/dependent-clones.sh
 sh tests/migrate-safety.sh
@@ -100,6 +101,11 @@ requires `IOC_TEST_RELEASE` and `IOC_TEST_DIST` pointing at trusted complete
 inside the marked scratch pool (no active-pool change), verifies real prepared
 userland/baseline files, and exercises plugin caller failures. Its native tests
 must not put complete OS fixtures on a nearly full original pool.
+
+`export-failures.sh` covers live-jail refusal, image/snapshot collisions and
+stage-specific failures. Authorized `export-zfs.sh` uses an actual persistent
+jail at a literal metacharacter mountpoint, checks private completed streams,
+and verifies that failed sends retain partial files and recursive snapshots.
 
 ## Destroy failure boundaries
 
