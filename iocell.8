@@ -112,7 +112,35 @@ No-argument usage, \fIhelp\fP and \fIversion\fP return success. This is syntax c
 not complete property/kernel validation or a transaction across targets;
 a later \fIruntime\fP error can follow earlier successful operations. Some legacy
 execution paths still have misleading statuses; inspect resulting state.
-Historical chroot, record, package and show commands remain undispatched.
+Compatibility with 2.2.0:
+.RS
+.TP
+.B
+o
+Experimental push is now disabled. Its old implementation was marked
+not working and could stage unrelated files or push the wrong repository
+from the caller's working directory. Use Git directly in an explicitly
+selected worktree; there is no replacement \fBiocell\fP push \fIcommand\fP.
+.TP
+.B
+o
+\fIfetch\fP \fB-p\fP/\fB-P\fP and \fIupdate\fP \fB-p\fP/\fB-P\fP are now rejected. They depended on obsolete
+portsnap shared ports management. Manage a ports checkout separately
+with Git, or use packages; no new \fBiocell\fP ports backend replaces them.
+.TP
+.B
+o
+\fIupdate\fP \fB-n\fP remains Git-jail-only. Ordinary-image properties that were
+silently ignored are now rejected; use \fIset\fP after \fIimport\fP. Legacy tar
+archives still accept creation properties.
+.TP
+.B
+o
+\fIcreate\fP \fB-b\fP/\fB-c\fP/\fB-t\fP and base= were already unsupported in 2.2.0 despite old
+recipes. Historical chroot, record, package and show commands were
+already undispatched. These are documentation corrections, not newly
+removed working features.
+.RE
 .PP
 Start, \fIstop\fP, reboot/restart (including \fB-s\fP), \fIrcboot\fP and \fIrcshutdown\fP attempt all
 selected jails and return the first failure reported by synchronous
@@ -201,7 +229,8 @@ operations. Successful operations are not undone if another jail fails.
     host release is selected. Shared base directories are mounted read-only;
     this is not an independent copy of the complete OS. The -e switch creates
     an empty filesystem, not a clone or populated guest userland. Old -b, -c,
-    -t and base= recipes are not supported. Use clone for an existing source.
+    -t and base= were already unsupported in 2.2.0 despite older recipes.
+    Use clone for an existing source; no working creation mode was removed.
 
     Example: iocell create tag=www01 pkglist=$HOME/my-pkgs.txt
              iocell create release=15.1-RELEASE tag=mybasejail vnet=off
@@ -369,8 +398,8 @@ Example: \fBiocell\fP \fIfetch\fP release=15.1-RELEASE ftplocaldir=/path/to/dist
     iocell get all UUID|TAG
 
     Use defaults rather than get all default. Unknown get options and missing
-    operands are rejected before property lookup. The separate per-jail getter
-    limitation for a literal string null remains; inspect UCL for that value.
+    operands are rejected before property lookup. A stored literal string null
+    is distinguished from a missing configuration key.
 
 .fam T
 .fi

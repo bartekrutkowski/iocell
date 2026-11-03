@@ -3,9 +3,11 @@ Jail images and historical differential packages
 
 The old differential-package workflow used ``record``/unionfs and ``package``
 to layer application changes over a matching vanilla release. Those command
-names are not dispatched by the current CLI. Old recipes using
-``create -c``, ``record start/stop`` and ``package`` are not working deployment
-instructions for this checkout.
+names were already undispatched in 2.2.0, and ``create -c`` was already
+unsupported. Removing old recipes using ``create -c``, ``record start/stop`` and
+``package`` corrects misleading documentation; 2.3.0 is not removing a working
+2.2.0 deployment interface. See :doc:`release-notes` for actual compatibility
+changes.
 
 For reusable application configuration, use a stopped basejail template and
 clone it; see :doc:`templates`. For a stopped jail image:

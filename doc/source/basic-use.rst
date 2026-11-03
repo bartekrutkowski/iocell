@@ -79,7 +79,9 @@ and network configuration differ from this shared-IP example.
 a lightweight clone and cannot boot a FreeBSD userland until that filesystem
 has been populated appropriately. Use ``iocell clone SOURCE tag=copy`` for a
 clone of an existing jail or template. Legacy ``create -b``, ``-c``, ``-t`` and
-``base=...`` recipes are rejected. See :doc:`jailtypes`.
+``base=...`` recipes were already unsupported in 2.2.0 despite older docs; these
+are not newly removed creation modes. See :doc:`jailtypes` and
+:doc:`release-notes` for supported workflows and compatibility changes.
 
 Installing packages during creation
 +++++++++++++++++++++++++++++++++++

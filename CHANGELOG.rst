@@ -20,11 +20,26 @@ Commands and compatibility
   codes may need changes. This is **not** complete status normalization: some
   legacy execution paths still report misleading statuses. Inspect resulting
   state; valid multi-target commands are not transactions.
-* Invalid command syntax fails before filesystem initialization. Historical
-  ``chroot``, ``record``, ``package`` and ``show`` remain undispatched.
-* Experimental ``push`` is disabled at both public and backend boundaries; use
-  Git directly in an explicitly selected repository. Obsolete portsnap
-  ``fetch/update -p|-P`` paths are rejected. ``update -n`` supports Git jails only.
+* Invalid command syntax fails before filesystem initialization.
+* **Disabled in 2.3.0:** experimental ``push``. The old code was marked
+  "NOT WORKING YET" and operated in the caller's working directory rather than
+  reliably selecting the jail's repository. It could stage unrelated files and
+  push the wrong repository. Use Git directly in an explicitly selected
+  worktree; iocell does not provide a replacement deployment/push command.
+* **Rejected in 2.3.0:** ``fetch -p``, ``fetch -P``, ``update -p`` and
+  ``update -P``. These used obsolete portsnap-based shared ports management.
+  Manage a ports checkout separately with Git, or use packages; no new
+  iocell ports-management backend replaces these options.
+* **Validation corrections, not removed working support:** ``update -n`` remains
+  a Git-jail remote-status check, now using the correct worktree and rejecting
+  other jail types. Ordinary-image property operands, previously silently
+  ignored, now fail explicitly; apply properties with ``set`` after import.
+  Legacy tar-archive import still accepts creation properties.
+* **Previously unavailable, not new 2.3.0 removals:** ``create -b/-c/-t`` and
+  ``base=`` recipes were already unsupported in 2.2.0 despite older docs.
+  ``chroot``, ``record``, ``package`` and ``show`` were already undispatched.
+  Corrected examples use ``release=``, ``clone`` and template/image workflows;
+  this release does not restore those historical interfaces.
 * ``exec ALL`` attempts all discovered jails and returns the first failure.
   Quoted exec/pkg arguments, including multiword package query formats, retain
   their argument boundaries. Package children cannot consume the package list.

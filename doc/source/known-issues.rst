@@ -4,6 +4,9 @@ Known limitations
 Command restrictions
 --------------------
 
+These describe the current interface, not a list of new removals. See
+:doc:`release-notes` for changes from 2.2.0 and replacement workflows.
+
 * **Identity:** use full UUIDs or tags; short UUID prefixes are unreliable for
   jail lookup. Image import separately supports unique image prefixes.
 * **Defaults:** saved defaults apply to later ordinary ``create`` commands, not
@@ -33,10 +36,14 @@ Command restrictions
   runtime status propagation remain incomplete.
 * **Git:** automatic plugin release branches retain tracking upstreams. Explicit
   tag/commit checkouts may intentionally detach HEAD. Experimental ``push`` is
-  disabled before initialization and in its backend; use Git directly in an
-  explicitly selected repository. This is not a deployment interface.
-* **Legacy names:** ``chroot``, ``record``, ``package`` and ``show`` are not
-  dispatched. See :doc:`jail-package` for the available image workflow.
+  disabled before initialization and in its backend. The old implementation
+  operated in the caller's working directory and could stage unrelated files or
+  push the wrong repository. Use Git directly in an explicitly selected
+  worktree; iocell does not supply a replacement deployment/push command.
+* **Legacy names:** ``chroot``, ``record``, ``package`` and ``show`` were
+  already undispatched in 2.2.0. Old ``create -b/-c/-t`` and ``base=`` recipes
+  were also unsupported; correcting the examples removes no working modes.
+  See :doc:`jail-package` for the available image workflow.
 * **Altroots:** selection follows the selected dataset's actual mounted path,
   not the presence of another ``/iocell`` directory. Changing the persisted
   library root selector requires root and writable libraries; unchanged

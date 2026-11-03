@@ -86,7 +86,8 @@ do not rely on short UUID prefixes except for image selection during import.
 Useful distinctions:
 
 - `create` creates a basejail; `create -e` creates an empty filesystem, not a
-  clone. Legacy `create -b`, `-c`, `-t` and `base=` recipes are not supported.
+  clone. Legacy `create -b`, `-c`, `-t` and `base=` recipes were already
+  unsupported in 2.2.0 despite older docs; these are not newly removed modes.
 - `clone TAG@snapshot tag=newtag` uses the requested snapshot. Existing delegated
   data requires its matching snapshot too; use recursive snapshots for that tree.
 - `restart TAG` is a hard stop/start. `restart -s TAG` runs the configured stop/start
@@ -99,8 +100,11 @@ Useful distinctions:
 - `clean -t` removes the templates tree, including its internal clones. Outside
   clones block cleanup unless `-f` explicitly permits their destruction.
   All cleanup operations are destructive.
-- Historical `chroot`, `record`, `package` and `show` subcommands are not
-  dispatched. Use the documented current workflows instead.
+- Historical `chroot`, `record`, `package` and `show` subcommands were already
+  undispatched in 2.2.0. Use the documented current workflows instead.
+- Experimental `push` and the portsnap `fetch/update -p|-P` forms are disabled
+  or rejected in 2.3.0. See the [release notes](CHANGELOG.rst) for the reasons,
+  replacement workflows and stricter argument/error handling.
 
 ## Reporting issues and contributing
 
