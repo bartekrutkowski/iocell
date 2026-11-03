@@ -44,7 +44,7 @@ if [ "${1}" = "--version" ] || [ "${1}" = "version" ] ; then
         echo "  ERROR: version takes no operands" >&2
         exit 1
     fi
-    echo "iocell 2.2.0"
+    echo "iocell 2.3.0"
     exit 0
 fi
 

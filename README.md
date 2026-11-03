@@ -13,7 +13,8 @@ properties still control storage settings.
 
 Use a FreeBSD release receiving security updates and a compatible jail
 userland. See [known limitations](doc/source/known-issues.rst) for command
-restrictions and storage behavior.
+restrictions and storage behavior. See the [2.3.0 release notes](CHANGELOG.rst)
+for compatibility and recovery changes since 2.2.0.
 
 ## Requirements and installation
 
@@ -49,10 +50,10 @@ iocell start myjail
 iocell console myjail
 ```
 
-Choose an available release compatible with your host. Specify it explicitly:
-the interactive fetch menu is obsolete and can reject its own current-host
-default. Use an appropriate distribution mirror if its default location is no
-longer available; see [basic usage](doc/source/basic-use.rst).
+Choose an available release compatible with your host. Specify it explicitly or
+use the interactive release prompt. Use an appropriate distribution mirror if
+its default location is no longer available; see
+[basic usage](doc/source/basic-use.rst), including recovery from a partial fetch.
 
 Replace `em0` with the host interface shown by `ifconfig(8)` and select an unused
 address on your own network. `vnet=off` is explicit because VNET-capable hosts

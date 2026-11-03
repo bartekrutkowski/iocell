@@ -16,6 +16,7 @@ Documentation
 .. toctree::
    :maxdepth: 2
 
+   release-notes
    basic-use
    networking
    jailtypes

@@ -44,7 +44,7 @@ Releases and upgrades
   fetch of a new release has no such guard.
 * Failed fetches retain partial data/cache and restore the original resolver
   where possible. An incomplete retained release blocks retries rather than
-  being overwritten. Inspect/back up it, then follow the per-release manual ZFS
+  being overwritten. Inspect it and back it up, then use the manual ZFS
   cleanup instructions in basic usage or ``iocell help``; ``clean -r`` deletes all
   releases and is not a per-release retry command.
 * Ordinary basejail upgrades require a stopped jail, complete target sources and
@@ -57,14 +57,15 @@ Releases and upgrades
   their failures now enter the same checked backout path.
 * Successful upgrades retain ``etc.old``, the upgrade snapshot and ``config.old``
   for inspection. Failed backout is reported without deleting recovery objects;
-  an available failed-merge log is retained as ``upgrade.log``. Independent-
-  userland upgrades remain a separate, potentially interactive workflow.
+  an available failed-merge log is retained as ``upgrade.log``. Upgrades of
+  independent userlands remain a separate, potentially interactive workflow.
 
 Storage, configuration and startup
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-* ``clean -r`` stops every managed jail before removing shared releases. Cleanup
-  failures propagate; failed ZFS operations do not authorize recursive host
+* ``clean -r`` stops all jails discovered in the selected iocell tree before
+  removing its shared releases. Cleanup failures propagate; failed ZFS operations
+  do not authorize recursive host
   directory deletion. ``clean -j`` preserves retained-template aliases, removes
   internal jail clones with their tree and refuses outside dependent clones.
 * Export refuses running jails and existing final/partial image paths. Failed

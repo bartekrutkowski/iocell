@@ -313,11 +313,31 @@ release already present in \fBiocell\fP (\fBiocell\fP \fIlist\fP \fB-r\fP) run:
 .fam T
 .fi
 This patches an existing prepared release without re-extracting archives.
-Stop \fBiocell\fP jails before updating a shared release. Local distribution
-fetches skip network patching. New basejails use the resulting shared files.
+Processing an existing release requires every \fBiocell\fP jail on the host to
+be stopped, including thick jails and jails using other releases or pools.
+Local distribution fetches skip network patching. New basejails use the
+resulting shared files.
 Fetch, extraction, patching and etcupdate failures return nonzero. Partial
 datasets/downloads are retained, never recursively erased on failure.
-Inspect an incomplete release and its cached archives before retrying.
+An incomplete retained release is refused on retry. Inspect and back up its
+data/cache first. To discard only an unneeded incomplete release, \fIstop\fP all
+\fBiocell\fP jails and verify the exact pool, release, mounts and dependencies:
+.PP
+.nf
+.fam C
+        zfs list -r jailpool/iocell/releases/15.1-RELEASE
+        zfs list -r jailpool/iocell/download/15.1-RELEASE
+        zfs destroy -r jailpool/iocell/releases/15.1-RELEASE
+        zfs destroy -r jailpool/iocell/download/15.1-RELEASE
+        iocell fetch release=15.1-RELEASE
+
+.fam T
+.fi
+Substitute your pool/release; omit commands for absent datasets. These
+commands discard partial data/cache; never use them on a needed release.
+Do not add \fB-R\fP or \fB-f\fP to bypass \fIclone\fP or busy-mount refusals, and never erase
+host directories recursively.
+\fIclean\fP \fB-r\fP removes all releases, not just this one.
 The original resolver is restored and newly mounted filesystems are cleaned
 up; an incomplete cleanup is reported without discarding recovery data.
 .PP
@@ -712,8 +732,10 @@ snapshot|snap [\fB-f\fP] [\fB-r\fP] UUID|TAG[@snapshotname]
     The /etc backup, root snapshot and single config.old backup are retained;
     inspect them before removing stale upgrade recovery points and retrying.
     An incomplete backout is reported without deleting those recovery points.
-    Inspect warnings and test the result; no zero-downtime guarantee is made. Full
-    independent-userland upgrades may need interactive confirmations and
+    Mail queue creation and newaliases run after a successful merge; failures
+    follow the same backout path. Inspect warnings and test the result; no
+    zero-downtime guarantee is made. Full independent-userland upgrades may need
+    interactive confirmations and
     multiple install passes. Old create -c/-t recipes are not supported.
 
 .fam T

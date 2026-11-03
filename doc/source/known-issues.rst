@@ -12,8 +12,11 @@ Command restrictions
 * **Fetch:** release availability depends on the selected mirror/path. Failed
   preparation retains datasets/downloads; inspect incomplete releases and cached
   archives before retrying. Existing prepared releases are patched, not
-  re-extracted. Stop iocell jails before shared-release patching. Obsolete ports
-  options are rejected; manage a modern ports tree separately with Git.
+  re-extracted. Processing an existing release requires **all** iocell jails on
+  the host to be stopped, including thick jails and those on other releases or
+  pools. An incomplete release is refused on retry; see :doc:`basic-use` for
+  per-release manual recovery. Obsolete ports options are rejected; manage a
+  modern ports tree separately with Git.
 * **Deactivation:** ``deactivate`` prints manual removal guidance; it does not
   clear the native pool discovery comment or disable existing jails.
 * **Imports:** ordinary streams reject property operands; set properties after

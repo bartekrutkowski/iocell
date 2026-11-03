@@ -32,6 +32,32 @@ Inspect their output and the resulting release before deploying it. Legacy
 ``-p``/``-P`` ports options rely on obsolete tooling; use current FreeBSD package
 or ports management instead.
 
+Processing an existing release (including a repeated fetch to patch it) requires
+**every iocell jail on the host to be stopped**, including thick jails and jails
+on other releases or pools. This conservative guard is host-wide, not a check of
+which jails share this release. A first fetch of a new release has no such guard.
+
+Recover an incomplete fetch
++++++++++++++++++++++++++++
+
+A failed fetch retains its datasets and cache. A retry refuses an incomplete
+release rather than re-extracting over potentially valuable data. Inspect and
+back up that data before deciding to discard it. Stop all iocell jails and check
+the exact pool, release, mounts, snapshots and clone dependencies. For an
+**unneeded incomplete** ``15.1-RELEASE`` in the example ``jailpool`` only::
+
+    zfs list -r jailpool/iocell/releases/15.1-RELEASE
+    zfs list -r jailpool/iocell/download/15.1-RELEASE
+    zfs destroy -r jailpool/iocell/releases/15.1-RELEASE
+    zfs destroy -r jailpool/iocell/download/15.1-RELEASE
+    iocell fetch release=15.1-RELEASE
+
+This deletes the partial release and its cached archives; substitute your actual
+pool/release, omit commands for absent datasets and never discard a needed release. Keep valid archives separately
+if you want to reuse them. Do not add ``-R`` or ``-f`` to overcome a dependent clone
+or busy mount, and do not recursively remove host directories after a failed ZFS
+command. ``clean -r`` removes **all** releases, not a single incomplete release.
+
 Create a jail
 -------------
 

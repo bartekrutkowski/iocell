@@ -245,11 +245,27 @@ SUBCOMMANDS
              iocell fetch release=15.1-RELEASE
 
     This patches an existing prepared release without re-extracting archives.
-    Stop iocell jails before updating a shared release. Local distribution
-    fetches skip network patching. New basejails use the resulting shared files.
+    Processing an existing release requires every iocell jail on the host to
+    be stopped, including thick jails and jails using other releases or pools.
+    Local distribution fetches skip network patching. New basejails use the
+    resulting shared files.
     Fetch, extraction, patching and etcupdate failures return nonzero. Partial
     datasets/downloads are retained, never recursively erased on failure.
-    Inspect an incomplete release and its cached archives before retrying.
+    An incomplete retained release is refused on retry. Inspect and back up its
+    data/cache first. To discard only an unneeded incomplete release, stop all
+    iocell jails and verify the exact pool, release, mounts and dependencies:
+
+        zfs list -r jailpool/iocell/releases/15.1-RELEASE
+        zfs list -r jailpool/iocell/download/15.1-RELEASE
+        zfs destroy -r jailpool/iocell/releases/15.1-RELEASE
+        zfs destroy -r jailpool/iocell/download/15.1-RELEASE
+        iocell fetch release=15.1-RELEASE
+
+    Substitute your pool/release; omit commands for absent datasets. These
+    commands discard partial data/cache; never use them on a needed release.
+    Do not add -R or -f to bypass clone or busy-mount refusals, and never erase
+    host directories recursively.
+    clean -r removes all releases, not just this one.
     The original resolver is restored and newly mounted filesystems are cleaned
     up; an incomplete cleanup is reported without discarding recovery data.
 
@@ -535,8 +551,10 @@ SUBCOMMANDS
     The /etc backup, root snapshot and single config.old backup are retained;
     inspect them before removing stale upgrade recovery points and retrying.
     An incomplete backout is reported without deleting those recovery points.
-    Inspect warnings and test the result; no zero-downtime guarantee is made. Full
-    independent-userland upgrades may need interactive confirmations and
+    Mail queue creation and newaliases run after a successful merge; failures
+    follow the same backout path. Inspect warnings and test the result; no
+    zero-downtime guarantee is made. Full independent-userland upgrades may need
+    interactive confirmations and
     multiple install passes. Old create -c/-t recipes are not supported.
 
   version | --version
