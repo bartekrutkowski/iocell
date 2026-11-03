@@ -560,7 +560,6 @@ __exec () {
 
 # Reverse mount order; never include ZFS datasets or a neighbouring tree.
 __mounts_below () (
-    local _root _table _tmp
     _root="$1"; _tmp=''
     trap '[ -z "${_tmp}" ] || rm -f "${_tmp}"' EXIT
     trap 'exit 129' HUP
