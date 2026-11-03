@@ -1,7 +1,7 @@
 Changelog
 =========
 
-2.3.0 (unreleased)
+2.3.0 (2026-11-03)
 ------------------
 
 This release changes failure handling and destructive-operation safeguards.
