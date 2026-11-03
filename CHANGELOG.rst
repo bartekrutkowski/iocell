@@ -65,9 +65,9 @@ Storage, configuration and startup
 
 * ``clean -r`` stops all jails discovered in the selected iocell tree before
   removing its shared releases. Cleanup failures propagate; failed ZFS operations
-  do not authorize recursive host
-  directory deletion. ``clean -j`` preserves retained-template aliases, removes
-  internal jail clones with their tree and refuses outside dependent clones.
+  do not authorize recursive host directory deletion. ``clean -j`` preserves
+  retained-template aliases, removes internal jail clones with their tree and
+  refuses outside dependent clones.
 * Export refuses running jails and existing final/partial image paths. Failed
   streams and recovery snapshots are retained. Ordinary images are raw recursive
   ZFS streams, not automatically checksummed tar archives. Ordinary-stream import

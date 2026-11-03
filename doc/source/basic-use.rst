@@ -53,10 +53,11 @@ the exact pool, release, mounts, snapshots and clone dependencies. For an
     iocell fetch release=15.1-RELEASE
 
 This deletes the partial release and its cached archives; substitute your actual
-pool/release, omit commands for absent datasets and never discard a needed release. Keep valid archives separately
-if you want to reuse them. Do not add ``-R`` or ``-f`` to overcome a dependent clone
-or busy mount, and do not recursively remove host directories after a failed ZFS
-command. ``clean -r`` removes **all** releases, not a single incomplete release.
+pool/release, omit commands for absent datasets and never discard a needed
+release. Keep valid archives separately if you want to reuse them. Do not add
+``-R`` or ``-f`` to overcome a dependent clone or busy mount, and do not
+recursively remove host directories after a failed ZFS command. ``clean -r``
+removes **all** releases, not a single incomplete release.
 
 Create a jail
 -------------
