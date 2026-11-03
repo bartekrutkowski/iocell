@@ -50,6 +50,12 @@ umount () {
     case "$1" in */usr/bin) rm -f "$state/base-mounted" ;;
         *) rm -f "$state/dev-mounted" ;; esac
 }
+mkdir () {
+    case "$*" in */var/spool/mqueue)
+        [ "$fault" != queue ] || return 51 ;;
+    esac
+    command mkdir "$@"
+}
 cp () {
     if [ "$fault" = backup ] && [ "$1" = -Rp ]; then return 48; fi
     command cp "$@"
@@ -82,22 +88,26 @@ chroot () {
         *'etcupdate status')
             case "$fault" in unresolved) echo '  C /etc/example' ;;
                 warnings) printf 'Warnings:\nRemoved file changed: /COPYRIGHT\n' ;; esac ;;
+        *' newaliases')
+            echo rebuilt > "$mp/root/etc/aliases.db"
+            [ "$fault" != aliases ] || return 52 ;;
     esac
     return 0
 }
 failed=0
-for fault in build resolve mount snapshot setter layout backup backout cleanup old-cleanup running existing template enumerate unresolved metadata warnings success; do
+for fault in build resolve mount snapshot setter layout backup backout cleanup old-cleanup running existing template enumerate unresolved metadata queue aliases warnings success; do
     state="$workdir/$fault"; iocroot="$state/iocell"; mp="$iocroot/jails/$id"
     mkdir -p "$mp/root/etc" "$mp/root/dev" "$iocroot/releases/15.1-RELEASE"
     echo release=14.5-RELEASE > "$mp/config"
     echo original > "$mp/root/etc/canary"
+    echo original-aliases > "$mp/root/etc/aliases.db"
     command cp "$mp/config" "$state/config.before"
     : > "$state/zfs.trace"; : > "$state/chroot.trace"
     want=0; case_failed=0
     case "$fault" in build|backout) want=42 ;; resolve) want=43 ;; mount) want=44 ;;
         snapshot) want=45 ;; setter) want=46 ;; layout) want=47 ;; backup) want=48 ;;
         cleanup|old-cleanup) want=50 ;; running|existing|template|unresolved) want=1 ;;
-        enumerate) want=41 ;; metadata) want=40 ;;
+        enumerate) want=41 ;; metadata) want=40 ;; queue) want=51 ;; aliases) want=52 ;;
     esac
     [ "$fault" != existing ] || { mkdir "$mp/etc.old"; echo saved > "$mp/etc.old/saved"; }
     status=0
@@ -107,7 +117,9 @@ for fault in build resolve mount snapshot setter layout backup backout cleanup o
     fi
     if [ "$want" = 0 ]; then
         [ "$(cat "$mp/root/etc/canary")" = merged ] &&
-            [ "$(cat "$mp/config")" = release=15.1-RELEASE ] || case_failed=1
+            [ "$(cat "$mp/config")" = release=15.1-RELEASE ] &&
+            [ -d "$mp/root/var/spool/mqueue" ] &&
+            [ "$(cat "$mp/root/etc/aliases.db")" = rebuilt ] || case_failed=1
     else
         if grep -q 'upgraded successfully' "$state/result.log" ||
             ! cmp -s "$mp/config" "$state/config.before"; then
@@ -117,7 +129,8 @@ for fault in build resolve mount snapshot setter layout backup backout cleanup o
             backout|cleanup)
                 [ -d "$state/snapshot" ] && [ -d "$mp/etc.old" ] || case_failed=1
                 grep -qi 'incomplete' "$state/result.log" || case_failed=1 ;;
-            *) [ "$(cat "$mp/root/etc/canary")" = original ] || case_failed=1 ;;
+            *) [ "$(cat "$mp/root/etc/canary")" = original ] &&
+                [ "$(cat "$mp/root/etc/aliases.db")" = original-aliases ] || case_failed=1 ;;
         esac
         if [ "$fault" = build ] && grep -q 'etcupdate resolve' "$state/chroot.trace"; then
             echo 'FAIL: failed build continued to conflict resolution'; failed=1; continue

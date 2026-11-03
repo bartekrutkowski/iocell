@@ -253,6 +253,8 @@ EOF
         __error "unresolved configuration conflicts: ${_up_pending}"
         exit 1
     fi
+    mkdir -p "${_up_root}/var/spool/mqueue" || exit $?
+    chroot "${_up_root}" newaliases > /dev/null || exit $?
     _up_ready=1
 )
 
