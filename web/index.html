@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description"
+        content="FreeBSD jail management with ZFS, VNET and snapshots.">
+    <meta name="theme-color" content="#142e35">
+    <title>iocell — FreeBSD jail management</title>
+    <link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="header wrap">
+        <a class="brand" href="./" aria-label="iocell home">
+            <span class="mark" aria-hidden="true">io</span> iocell
+        </a>
+        <nav aria-label="Main navigation">
+            <a href="#install">Get started</a>
+            <a href="docs/index.html">Documentation</a>
+            <a href="https://github.com/bartekrutkowski/iocell">GitHub</a>
+        </nav>
+    </header>
+
+    <main id="main" tabindex="-1">
+        <section class="hero wrap" aria-labelledby="intro">
+            <div>
+                <p class="eyebrow">FreeBSD · ZFS · jails</p>
+                <h1 id="intro">FreeBSD jails.<br>ZFS underneath.</h1>
+                <p class="lead">Create and manage jails with a familiar shell-based
+                    interface. Use shared base releases, templates, clones and
+                    snapshots without hiding the underlying ZFS storage.</p>
+                <div class="actions">
+                    <a class="button primary" href="docs/basic-use.html">
+                        Read the quick start <span aria-hidden="true">↗</span>
+                    </a>
+                    <a class="button"
+                        href="https://github.com/bartekrutkowski/iocell/archive/refs/tags/v$version.tar.gz">
+                        Download v$version
+                    </a>
+                </div>
+                <p class="small"><a href="docs/release-notes.html">Release notes</a>
+                    <span aria-hidden="true"> · </span>
+                    <a href="https://github.com/bartekrutkowski/iocell/tags">All releases</a></p>
+            </div>
+            <div class="terminal" role="region"
+                aria-label="Example iocell workflow">
+                <div class="terminal-heading">A small, direct interface</div>
+                <pre tabindex="0"><code><span class="prompt">#</span> iocell create release=15.1-RELEASE tag=www01 vnet=off
+<span class="prompt">#</span> iocell start www01
+<span class="prompt">#</span> iocell exec www01 /bin/sh
+<span class="prompt">#</span> iocell snapshot www01@before-update
+<span class="prompt">#</span> iocell clone www01@before-update tag=staging</code></pre>
+                <p>After pool activation and release preparation.</p>
+            </div>
+        </section>
+
+        <section class="features wrap" aria-label="Features">
+            <article>
+                <span class="feature-number" aria-hidden="true">01 / STORAGE</span>
+                <h2>ZFS-native workflows</h2>
+                <p>Snapshots, clones, quotas and image transfers work with native
+                    ZFS datasets. Keep recovery points and inspect the storage
+                    directly when you need to.</p>
+            </article>
+            <article>
+                <span class="feature-number" aria-hidden="true">02 / REUSE</span>
+                <h2>Basejails and templates</h2>
+                <p>Share read-only release files between basejails. Prepare a
+                    template for an application, then clone it for another
+                    instance.</p>
+            </article>
+            <article>
+                <span class="feature-number" aria-hidden="true">03 / CONTROL</span>
+                <h2>Networking and limits</h2>
+                <p>Choose shared-IP networking or VNET isolation. Apply optional
+                    RCTL resource limits when supported by the host kernel.</p>
+            </article>
+        </section>
+
+        <section class="getting-started wrap" id="install" aria-labelledby="start">
+            <div>
+                <p class="eyebrow">Start with an existing jail pool</p>
+                <h2 id="start">Install. Prepare. Create.</h2>
+                <p>Install the FreeBSD package or port, or download the tagged
+                    source. Packages can lag the current source release.</p>
+                <p>This example assumes an existing dedicated pool named
+                    <code>jailpool</code>, not the host's boot pool. Choose a jail
+                    release compatible with your host.</p>
+                <a class="text-link" href="docs/basic-use.html">Installation and first jail →</a>
+            </div>
+            <pre class="commands" tabindex="0"><code>pkg install iocell
+
+iocell activate jailpool
+iocell fetch release=15.1-RELEASE
+iocell create release=15.1-RELEASE tag=www01 vnet=off
+iocell start www01</code></pre>
+        </section>
+
+        <section class="resources wrap" aria-labelledby="resources">
+            <h2 id="resources">Keep the useful references close.</h2>
+            <div class="resource-links">
+                <a href="docs/index.html">
+                    <strong>Documentation</strong>
+                    <span>Usage, networking and storage workflows →</span>
+                </a>
+                <a href="docs/known-issues.html">
+                    <strong>Known limitations</strong>
+                    <span>Command restrictions and recovery boundaries →</span>
+                </a>
+                <a href="https://github.com/bartekrutkowski/iocell/blob/v$version/iocell.8.txt">
+                    <strong>Command reference</strong>
+                    <span>The released help text →</span>
+                </a>
+                <a href="https://github.com/bartekrutkowski/iocell/issues">
+                    <strong>Issues and contributions</strong>
+                    <span>Report a problem or help improve iocell →</span>
+                </a>
+            </div>
+            <p class="small">Documentation follows master. Source downloads use
+                the latest stable release tag.</p>
+        </section>
+    </main>
+
+    <footer class="footer wrap">
+        <span>iocell · FreeBSD jail management</span>
+        <a href="https://github.com/bartekrutkowski/iocell/blob/master/LICENSE">
+            License
+        </a>
+    </footer>
+</body>
+</html>

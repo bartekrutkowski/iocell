@@ -1,0 +1,81 @@
+name: Project site
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.13'
+      - name: Install documentation dependencies
+        run: python -m pip install -r doc/requirements-pages.txt
+      - name: Test the site builder
+        run: python -m unittest discover -s tests -p test_site.py
+      - name: Build homepage and strict Sphinx documentation
+        run: python tools/build_site.py --output _site
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: iocell-site
+          path: _site/
+          include-hidden-files: true
+          if-no-files-found: error
+
+  publish:
+    if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
+    steps:
+      - name: Check the existing Pages publishing source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/pages" --jq '
+            if .build_type == "legacy" and .source.branch == "gh-pages"
+              and .source.path == "/" then .html_url
+            else error("expected existing gh-pages root publishing source") end'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: iocell-site
+          path: _site
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: gh-pages
+          path: publication
+      - name: Publish generated files without rewriting branch history
+        run: |
+          test -f _site/index.html
+          test -f _site/.nojekyll
+          git -C publication config user.name 'github-actions[bot]'
+          git -C publication config user.email \
+            '41898282+github-actions[bot]@users.noreply.github.com'
+          git -C publication rm -r --ignore-unmatch -- .
+          cp -R _site/. publication/
+          git -C publication add --all
+          if ! git -C publication diff --cached --quiet; then
+            git -C publication commit -m "publish project site from $GITHUB_SHA"
+            git -C publication push origin HEAD:gh-pages
+          fi
+      - name: Request Pages build for the published branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api --method POST "repos/$GITHUB_REPOSITORY/pages/builds"

@@ -1,3 +1,5 @@
 /*.gz
 /doc/build/
 /tests/evidence/
+/_site/
+__pycache__/

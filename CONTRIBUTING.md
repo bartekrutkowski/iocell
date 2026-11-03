@@ -47,4 +47,35 @@ Validate Sphinx pages and internal references in a separate Python environment:
 sphinx-build -E -a -n -W --keep-going -b html doc/source /tmp/iocell-doc-html
 ```
 
-Do not commit generated HTML, private lab reports, host details, or test logs.
+Do not commit generated HTML to source branches, private lab reports, host
+details, or test logs.
+
+## Project website
+
+The homepage is maintained in `web/`; documentation remains in `doc/source/`.
+The site builder needs Python 3.13 or newer and a Git checkout with release tags.
+It selects the newest stable tag reachable from the checkout for source
+downloads, while documentation follows the checked-out source.
+
+```sh
+git fetch --tags
+python3 -m venv /tmp/iocell-pages-venv
+/tmp/iocell-pages-venv/bin/pip install -r doc/requirements-pages.txt
+/tmp/iocell-pages-venv/bin/python -m unittest discover -s tests -p test_site.py
+site="$(mktemp -d /tmp/iocell-site.XXXXXX)"
+/tmp/iocell-pages-venv/bin/python tools/build_site.py --output "${site}/html"
+/tmp/iocell-pages-venv/bin/python -m http.server 8000 --bind 127.0.0.1 \
+    --directory "${site}/html"
+```
+
+Choose a fresh output directory: the builder refuses to overwrite an existing
+path. It builds Sphinx with warnings treated as errors, keeps build caches
+outside the published tree, and preserves underscore-prefixed static assets.
+
+`.github/workflows/pages.yml` checks pull requests and builds pushes to
+`master`. Only `master` publishes generated files to `gh-pages`, retaining that
+branch's history. The workflow explicitly requests a Pages build because a
+push made with `GITHUB_TOKEN` alone does not trigger one. Keep Pages configured
+to publish the root of `gh-pages`; no custom domain or extra token is needed.
+After creating a release tag, use **Actions → Project site → Run workflow** on
+`master` to refresh the release download link if no new commit is being pushed.

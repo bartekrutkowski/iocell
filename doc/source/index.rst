@@ -10,6 +10,9 @@ Start with :doc:`basic-use`. A default jail is a basejail using shared read-only
 release files, not an independent OS copy. See :doc:`known-issues` for current
 command restrictions and storage limitations.
 
+`Project website <https://bartekrutkowski.github.io/iocell/>`_ ·
+`Source code <https://github.com/bartekrutkowski/iocell>`_
+
 Documentation
 =============
 
