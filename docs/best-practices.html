@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Best practices &#8212; iocell 2.3.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="_static/classic.css?v=2bf1fcf8" />
+    
+    <script src="_static/documentation_options.js?v=c3c8ae58"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Advanced usage" href="advanced-use.html" />
+    <link rel="prev" title="Jail types" href="jailtypes.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="advanced-use.html" title="Advanced usage"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="jailtypes.html" title="Jail types"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">iocell 2.3.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Best practices</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="best-practices">
+<h1>Best practices<a class="headerlink" href="#best-practices" title="Link to this heading">¶</a></h1>
+<p>Try operational changes in a disposable environment and keep recoverable
+backups. See <a class="reference internal" href="known-issues.html"><span class="doc">Known limitations</span></a> for current command and storage limitations.</p>
+<section id="identify-and-back-up-jails">
+<h2>Identify and back up jails<a class="headerlink" href="#identify-and-back-up-jails" title="Link to this heading">¶</a></h2>
+<p>Use meaningful tags and record full UUIDs. Template tags must be safe ZFS
+components, not generated timestamp names containing <code class="docutils literal notranslate"><span class="pre">&#64;</span></code>. Quote notes for the
+invoking shell; property values preserve spaces, apostrophes and equals signs.</p>
+<p>Take application-consistent backups before updates or destructive operations.
+A normal snapshot covers the jail’s root only. Use <code class="docutils literal notranslate"><span class="pre">snapshot</span> <span class="pre">-r</span></code> when you need
+configuration and descendants, and back up shared release datasets separately.
+Stop the jail before rollback. Multi-dataset rollback is not atomic.</p>
+</section>
+<section id="restart-deliberately">
+<h2>Restart deliberately<a class="headerlink" href="#restart-deliberately" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">restart</span> <span class="pre">TAG</span></code> is a hard stop/start. Use <code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">restart</span> <span class="pre">-s</span> <span class="pre">TAG</span></code> when
+you want to retain the kernel jail and network stack while running its configured
+stop/start commands and signaling remaining processes. Neither method guarantees
+application consistency; follow the application’s shutdown/recovery requirements.</p>
+</section>
+<section id="isolate-networking-and-firewall-changes">
+<h2>Isolate networking and firewall changes<a class="headerlink" href="#isolate-networking-and-firewall-changes" title="Link to this heading">¶</a></h2>
+<p>Set <code class="docutils literal notranslate"><span class="pre">vnet=off</span></code> explicitly for shared-IP examples. For VNET, prepare the bridge,
+addresses, routes and firewall policy before starting the jail. An isolated
+private bridge with host routing/NAT is appropriate when extra MAC addresses
+must not reach a provider uplink. iocell does not configure that NAT policy for
+you. Do not blindly bridge a public NIC or disable bridge filtering globally.</p>
+<p>Per-jail firewall availability depends on the host kernel, permissions and
+device exposure. Keep a working host firewall and management access while
+testing changes.</p>
+</section>
+<section id="resource-limits-and-templates">
+<h2>Resource limits and templates<a class="headerlink" href="#resource-limits-and-templates" title="Link to this heading">¶</a></h2>
+<p>Enable RACCT at boot before using RCTL limits. Begin with observation/logging
+and enforce limits only after measuring the workload. Empty limit queries and
+<code class="docutils literal notranslate"><span class="pre">uncap</span></code> have known exit-status quirks; inspect actual kernel rules.</p>
+<p>Templates are useful for repeatable deployment. Stop a template and convert it
+back with <code class="docutils literal notranslate"><span class="pre">istemplate=no</span></code> for normal start/console maintenance; see
+<a class="reference internal" href="templates.html"><span class="doc">How to create and use templates</span></a>.</p>
+</section>
+<section id="clean-up-explicitly">
+<h2>Clean up explicitly<a class="headerlink" href="#clean-up-explicitly" title="Link to this heading">¶</a></h2>
+<p>Remove snapshots only after checking their clone dependencies. <code class="docutils literal notranslate"><span class="pre">clean</span> <span class="pre">-t</span></code>
+includes internal template clones but protects outside clones, including racing
+ones. Explicit <code class="docutils literal notranslate"><span class="pre">clean</span> <span class="pre">-f</span> <span class="pre">-t</span></code> permits outside-clone destruction. Other cleanup modes remove complete
+namespaces and must never be used as generic housekeeping without reviewing
+what is stored there.</p>
+<p>For replication, use incremental streams for existing replicas. Full sends
+create fresh unique snapshots and fail rather than silently reusing stale data.
+Keep the source until receive and activation have succeeded; even after a
+successful move, verify your applications and backups before retiring storage.</p>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+  <div>
+    <h3><a href="index.html">Table of Contents</a></h3>
+    <ul>
+<li><a class="reference internal" href="#">Best practices</a><ul>
+<li><a class="reference internal" href="#identify-and-back-up-jails">Identify and back up jails</a></li>
+<li><a class="reference internal" href="#restart-deliberately">Restart deliberately</a></li>
+<li><a class="reference internal" href="#isolate-networking-and-firewall-changes">Isolate networking and firewall changes</a></li>
+<li><a class="reference internal" href="#resource-limits-and-templates">Resource limits and templates</a></li>
+<li><a class="reference internal" href="#clean-up-explicitly">Clean up explicitly</a></li>
+</ul>
+</li>
+</ul>
+
+  </div>
+  <div>
+    <h4>Previous topic</h4>
+    <p class="topless"><a href="jailtypes.html"
+                          title="previous chapter">Jail types</a></p>
+  </div>
+  <div>
+    <h4>Next topic</h4>
+    <p class="topless"><a href="advanced-use.html"
+                          title="next chapter">Advanced usage</a></p>
+  </div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/best-practices.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="advanced-use.html" title="Advanced usage"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="jailtypes.html" title="Jail types"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">iocell 2.3.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Best practices</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright 2014-2015, iocell.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 9.2.0.
+    </div>
+  </body>
+</html>

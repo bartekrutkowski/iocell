@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Networking &#8212; iocell 2.3.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="_static/classic.css?v=2bf1fcf8" />
+    
+    <script src="_static/documentation_options.js?v=c3c8ae58"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Jail types" href="jailtypes.html" />
+    <link rel="prev" title="Basic usage" href="basic-use.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="jailtypes.html" title="Jail types"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="basic-use.html" title="Basic usage"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">iocell 2.3.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Networking</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="networking">
+<h1>Networking<a class="headerlink" href="#networking" title="Link to this heading">¶</a></h1>
+<p>Jails can share selected host IP addresses or have a separate VNET stack.
+IOC functions configure jail interfaces, not an entire upstream routing,
+firewall or NAT policy. Use addresses and interface names appropriate to your
+host; examples below are private test networks.</p>
+<p>VNET-capable hosts enable VNET automatically for newly created jails unless
+<code class="docutils literal notranslate"><span class="pre">vnet=off</span></code> is specified. Set the mode explicitly to avoid confusing host
+interfaces such as <code class="docutils literal notranslate"><span class="pre">em0</span></code> with jail interfaces such as <code class="docutils literal notranslate"><span class="pre">vnet0</span></code>.</p>
+<section id="shared-ip">
+<h2>Shared IP<a class="headerlink" href="#shared-ip" title="Link to this heading">¶</a></h2>
+<p>For an existing stopped jail:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">set</span> <span class="pre">vnet=off</span> <span class="pre">ip4_addr=&quot;em0|192.168.1.10/24&quot;</span> <span class="pre">myjail</span></code></p>
+<p>Replace <code class="docutils literal notranslate"><span class="pre">em0</span></code> with the actual host interface. Choose an unused address, not
+an address already assigned to another machine or reserved by DHCP. Multiple
+addresses can be comma-separated:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">set</span> <span class="pre">ip4_addr=&quot;em0|192.168.1.10/24,em0|192.168.1.11/24&quot;</span> <span class="pre">myjail</span></code></p>
+<p>IPv6 uses the analogous property, for example an appropriate private ULA on
+an interface that supports it:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">set</span> <span class="pre">ip6=new</span> <span class="pre">ip6_addr=&quot;em0|fd77::10/64&quot;</span> <span class="pre">myjail</span></code></p>
+<p>Start and inspect the jail:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">start</span> <span class="pre">myjail</span></code></p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">exec</span> <span class="pre">myjail</span> <span class="pre">ifconfig</span></code></p>
+<p>Shared-IP addresses are assigned through the host interface; this does not
+create a separately routed VNET stack. A jail does not need its own default
+router in this mode. Stop removes managed aliases, so do not reuse the host’s
+management address as a jail alias.</p>
+<p><code class="docutils literal notranslate"><span class="pre">allow_raw_sockets=1</span></code> permits operations such as ping when appropriate to
+your security policy. It is not a substitute for routes or firewall rules.
+Use <code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">set</span> <span class="pre">vnet=off</span> <span class="pre">default</span></code> to make shared-IP mode the default for
+subsequent <code class="docutils literal notranslate"><span class="pre">create</span></code> commands. Explicit creation properties override saved
+defaults. Existing jails need an explicit per-jail setting and any required
+restart; changing a creation default does not reconfigure their networking.</p>
+</section>
+<section id="vnet">
+<h2>VNET<a class="headerlink" href="#vnet" title="Link to this heading">¶</a></h2>
+<p>Use a kernel with VNET support; check the capabilities of your host kernel.
+RACCT/RCTL are resource-limit features, not prerequisites for VNET itself.</p>
+<p>An isolated private bridge example on the host is:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>ifconfig<span class="w"> </span>bridge0<span class="w"> </span>create
+ifconfig<span class="w"> </span>bridge0<span class="w"> </span>inet<span class="w"> </span><span class="m">10</span>.77.0.1/24<span class="w"> </span>up
+</pre></div>
+</div>
+<p>Then configure a stopped jail:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">set</span> <span class="pre">vnet=on</span> <span class="pre">interfaces=vnet0:bridge0</span> <span class="pre">createbridge=off</span> <span class="pre">keepbridge=on</span> <span class="pre">ip4_addr=&quot;vnet0|10.77.0.2/24&quot;</span> <span class="pre">defaultrouter=10.77.0.1</span> <span class="pre">myjail</span></code></p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">start</span> <span class="pre">myjail</span></code></p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">exec</span> <span class="pre">myjail</span> <span class="pre">ifconfig</span> <span class="pre">vnet0</span></code></p>
+<p>This bridge has no physical member. It provides a private host/jail link, not
+automatic Internet connectivity. For outside access, configure host forwarding,
+routes and, if required, NAT and firewall rules for this subnet. The upstream
+must have a return route unless NAT supplies it. Persist the host bridge and
+address in <code class="docutils literal notranslate"><span class="pre">rc.conf</span></code> using your existing networking conventions.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Do not add a provider-facing physical NIC to this bridge if extra MAC
+addresses are prohibited. A physical-member bridge is an L2 network and
+can expose jail MACs upstream. Use a private bridge with routing/NAT instead.
+Retain private management access while testing firewall/routing changes.</p>
+</div>
+<p>A physical-member bridge is an alternative only where the upstream network
+explicitly permits that topology. Its configuration is site-specific; blindly
+copying <code class="docutils literal notranslate"><span class="pre">addm</span> <span class="pre">em0</span></code> or VLAN-parent instructions can disrupt host connectivity.</p>
+<p>IPv6 VNET configuration uses the jail interface, not the host NIC:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">set</span> <span class="pre">ip6_addr=&quot;vnet0|fd77::2/64&quot;</span> <span class="pre">defaultrouter6=&quot;fd77::1&quot;</span> <span class="pre">myjail</span></code></p>
+<p>The gateway must exist on the attached network, and IPv6 forwarding and firewall
+policy must be configured on the router. No public/global IPv6 address is
+required for an isolated test network.</p>
+</section>
+<section id="inspecting-and-maintaining-networks">
+<h2>Inspecting and maintaining networks<a class="headerlink" href="#inspecting-and-maintaining-networks" title="Link to this heading">¶</a></h2>
+<p>Use <code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">get</span> <span class="pre">vnet</span> <span class="pre">myjail</span></code>, <code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">exec</span> <span class="pre">myjail</span> <span class="pre">ifconfig</span></code> and host
+<code class="docutils literal notranslate"><span class="pre">ifconfig(8)</span></code>, <code class="docutils literal notranslate"><span class="pre">netstat(1)</span></code> and firewall tools to verify actual state.
+Only running jails accept <code class="docutils literal notranslate"><span class="pre">exec</span></code> or normal <code class="docutils literal notranslate"><span class="pre">console</span></code> operations.</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">restart</span> <span class="pre">myjail</span></code> destroys and recreates the jail/networking;
+<code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">restart</span> <span class="pre">-s</span> <span class="pre">myjail</span></code> runs the configured stop/start commands and signals
+remaining processes while retaining the kernel jail and network stack.</p>
+<p>Bridge filtering sysctls and packet-filter rules depend on the intended
+security boundary. Do not universally disable <code class="docutils literal notranslate"><span class="pre">pfil</span></code> to obtain connectivity.
+Likewise, disabling IPv6 duplicate-address detection globally is not a default
+workaround: it affects the host as well as jail addresses.</p>
+<p>To request no addresses or gateways:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">set</span> <span class="pre">ip4_addr=none</span> <span class="pre">ip6_addr=none</span> <span class="pre">defaultrouter=none</span> <span class="pre">defaultrouter6=none</span> <span class="pre">myjail</span></code></p>
+<p>This alone does not configure an otherwise missing bridge or give a shared-IP
+jail a VNET stack. <code class="docutils literal notranslate"><span class="pre">createbridge=off</span></code> leaves bridge creation to the operator;
+<code class="docutils literal notranslate"><span class="pre">keepbridge=on</span></code> requests retaining a bridge during jail shutdown. Review other
+jails using a bridge before changing or deleting it.</p>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+  <div>
+    <h3><a href="index.html">Table of Contents</a></h3>
+    <ul>
+<li><a class="reference internal" href="#">Networking</a><ul>
+<li><a class="reference internal" href="#shared-ip">Shared IP</a></li>
+<li><a class="reference internal" href="#vnet">VNET</a></li>
+<li><a class="reference internal" href="#inspecting-and-maintaining-networks">Inspecting and maintaining networks</a></li>
+</ul>
+</li>
+</ul>
+
+  </div>
+  <div>
+    <h4>Previous topic</h4>
+    <p class="topless"><a href="basic-use.html"
+                          title="previous chapter">Basic usage</a></p>
+  </div>
+  <div>
+    <h4>Next topic</h4>
+    <p class="topless"><a href="jailtypes.html"
+                          title="next chapter">Jail types</a></p>
+  </div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/networking.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="jailtypes.html" title="Jail types"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="basic-use.html" title="Basic usage"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">iocell 2.3.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Networking</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright 2014-2015, iocell.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 9.2.0.
+    </div>
+  </body>
+</html>

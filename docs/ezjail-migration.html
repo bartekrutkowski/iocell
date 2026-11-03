@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Migration from ezjail &#8212; iocell 2.3.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="_static/classic.css?v=2bf1fcf8" />
+    
+    <script src="_static/documentation_options.js?v=c3c8ae58"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Known limitations" href="known-issues.html" />
+    <link rel="prev" title="Jail images and historical differential packages" href="jail-package.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="known-issues.html" title="Known limitations"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="jail-package.html" title="Jail images and historical differential packages"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">iocell 2.3.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Migration from ezjail</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="migration-from-ezjail">
+<h1>Migration from ezjail<a class="headerlink" href="#migration-from-ezjail" title="Link to this heading">¶</a></h1>
+<p>There is no automatic ezjail conversion command in the current CLI. Earlier
+archive-copy examples were written for FreeBSD 10.1 and a particular 2015
+layout. Inspect the actual archive structure instead of assuming that layout.</p>
+<p>Treat migration as a backup/restore and compatibility exercise:</p>
+<ol class="arabic simple">
+<li><p>Record the old jail’s complete configuration, release, installed packages,
+addresses, storage mounts and application-specific recovery requirements.</p></li>
+<li><p>Take verified backups and test extraction into a disposable directory.
+Check archive member paths before extraction; do not assume an <code class="docutils literal notranslate"><span class="pre">ezjail/</span></code>
+prefix or copy untrusted absolute/traversal paths into a live jail root.</p></li>
+<li><p>Fetch an appropriate release and create a stopped, explicitly named target
+with the desired network mode. Current <code class="docutils literal notranslate"><span class="pre">create</span></code> makes a basejail; the old
+<code class="docutils literal notranslate"><span class="pre">-b</span></code>/<code class="docutils literal notranslate"><span class="pre">-c</span></code> flags are not the interface.</p></li>
+<li><p>Stop the source before the final data copy. Selectively restore application
+data and configuration into the target’s writable directories. Do not
+overwrite iocell’s parent config, identity or shared read-only base mounts.</p></li>
+<li><p>Reconcile packages, users, permissions, services, mounts and release-specific
+configuration. An old ezjail archive is not an <code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">import</span></code> stream.</p></li>
+<li><p>Test startup, data integrity and networking in isolation. Keep production
+addresses and automatic boot disabled until validation is complete.</p></li>
+<li><p>Retain the original data and a rollback plan until the migration is accepted.</p></li>
+</ol>
+<p>Inspect the target’s actual configuration and data after each migration step.
+See <a class="reference internal" href="basic-use.html"><span class="doc">Basic usage</span></a>, <a class="reference internal" href="jailtypes.html"><span class="doc">Jail types</span></a> and <a class="reference internal" href="known-issues.html"><span class="doc">Known limitations</span></a>.</p>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+  <div>
+    <h4>Previous topic</h4>
+    <p class="topless"><a href="jail-package.html"
+                          title="previous chapter">Jail images and historical differential packages</a></p>
+  </div>
+  <div>
+    <h4>Next topic</h4>
+    <p class="topless"><a href="known-issues.html"
+                          title="next chapter">Known limitations</a></p>
+  </div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/ezjail-migration.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="known-issues.html" title="Known limitations"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="jail-package.html" title="Jail images and historical differential packages"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">iocell 2.3.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Migration from ezjail</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright 2014-2015, iocell.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 9.2.0.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Changelog &#8212; iocell 2.3.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="_static/classic.css?v=2bf1fcf8" />
+    
+    <script src="_static/documentation_options.js?v=c3c8ae58"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Basic usage" href="basic-use.html" />
+    <link rel="prev" title="iocell - A FreeBSD jail manager" href="index.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="basic-use.html" title="Basic usage"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="iocell - A FreeBSD jail manager"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">iocell 2.3.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Changelog</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="changelog">
+<h1>Changelog<a class="headerlink" href="#changelog" title="Link to this heading">¶</a></h1>
+<section id="id1">
+<h2>2.3.0 (2026-11-03)<a class="headerlink" href="#id1" title="Link to this heading">¶</a></h2>
+<p>This release changes failure handling and destructive-operation safeguards.
+Review automation and recovery procedures before upgrading from 2.2.0. Existing
+jails are not automatically migrated to newly saved creation defaults.</p>
+<section id="commands-and-compatibility">
+<h3>Commands and compatibility<a class="headerlink" href="#commands-and-compatibility" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Multi-jail start, stop, reboot/restart and synchronous rc operations attempt
+every selected jail and return the first reported failure. Earlier successes
+are not undone. Priority-99 background boot remains asynchronous; its failures
+are reported in logs, not in the synchronous boot status.</p></li>
+<li><p>Many previously hidden discovery, execution, package, configuration, kernel,
+storage and transfer failures now return nonzero. Scripts relying on old exit
+codes may need changes. This is <strong>not</strong> complete status normalization: some
+legacy execution paths still report misleading statuses. Inspect resulting
+state; valid multi-target commands are not transactions.</p></li>
+<li><p>Invalid command syntax fails before filesystem initialization.</p></li>
+<li><p><strong>Disabled in 2.3.0:</strong> experimental <code class="docutils literal notranslate"><span class="pre">push</span></code>. The old code was marked
+“NOT WORKING YET” and operated in the caller’s working directory rather than
+reliably selecting the jail’s repository. It could stage unrelated files and
+push the wrong repository. Use Git directly in an explicitly selected
+worktree; iocell does not provide a replacement deployment/push command.</p></li>
+<li><p><strong>Rejected in 2.3.0:</strong> <code class="docutils literal notranslate"><span class="pre">fetch</span> <span class="pre">-p</span></code>, <code class="docutils literal notranslate"><span class="pre">fetch</span> <span class="pre">-P</span></code>, <code class="docutils literal notranslate"><span class="pre">update</span> <span class="pre">-p</span></code> and
+<code class="docutils literal notranslate"><span class="pre">update</span> <span class="pre">-P</span></code>. These used obsolete portsnap-based shared ports management.
+Manage a ports checkout separately with Git, or use packages; no new
+iocell ports-management backend replaces these options.</p></li>
+<li><p><strong>Validation corrections, not removed working support:</strong> <code class="docutils literal notranslate"><span class="pre">update</span> <span class="pre">-n</span></code> remains
+a Git-jail remote-status check, now using the correct worktree and rejecting
+other jail types. Ordinary-image property operands, previously silently
+ignored, now fail explicitly; apply properties with <code class="docutils literal notranslate"><span class="pre">set</span></code> after import.
+Legacy tar-archive import still accepts creation properties.</p></li>
+<li><p><strong>Previously unavailable, not new 2.3.0 removals:</strong> <code class="docutils literal notranslate"><span class="pre">create</span> <span class="pre">-b/-c/-t</span></code> and
+<code class="docutils literal notranslate"><span class="pre">base=</span></code> recipes were already unsupported in 2.2.0 despite older docs.
+<code class="docutils literal notranslate"><span class="pre">chroot</span></code>, <code class="docutils literal notranslate"><span class="pre">record</span></code>, <code class="docutils literal notranslate"><span class="pre">package</span></code> and <code class="docutils literal notranslate"><span class="pre">show</span></code> were already undispatched.
+Corrected examples use <code class="docutils literal notranslate"><span class="pre">release=</span></code>, <code class="docutils literal notranslate"><span class="pre">clone</span></code> and template/image workflows;
+this release does not restore those historical interfaces.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">exec</span> <span class="pre">ALL</span></code> attempts all discovered jails and returns the first failure.
+Quoted exec/pkg arguments, including multiword package query formats, retain
+their argument boundaries. Package children cannot consume the package list.</p></li>
+<li><p>Git fetch/merge failures stop later update work. Automatically selected plugin
+release branches retain tracking upstreams; explicit tag/commit refs may
+intentionally produce detached checkouts.</p></li>
+</ul>
+</section>
+<section id="releases-and-upgrades">
+<h3>Releases and upgrades<a class="headerlink" href="#releases-and-upgrades" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Fetch requires complete sources (normally <code class="docutils literal notranslate"><span class="pre">src.txz</span></code>) to prepare etcupdate.
+The interactive release selection accepts safe current/mirror release names.
+Existing prepared releases are patched, never re-extracted. Local distribution
+fetches skip network patching.</p></li>
+<li><p>Processing an existing release requires <strong>every iocell jail on the host to be
+stopped</strong>, including thick jails and jails on other releases or pools. A first
+fetch of a new release has no such guard.</p></li>
+<li><p>Failed fetches retain partial data/cache and restore the original resolver
+where possible. An incomplete retained release blocks retries rather than
+being overwritten. Inspect it and back it up, then use the manual ZFS
+cleanup instructions in basic usage or <code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">help</span></code>; <code class="docutils literal notranslate"><span class="pre">clean</span> <span class="pre">-r</span></code> deletes all
+releases and is not a per-release retry command.</p></li>
+<li><p>Ordinary basejail upgrades require a stopped jail, complete target sources and
+no preexisting child mounts. In-place upgrades of template-based basejails are
+refused; use a target-release template. Existing <code class="docutils literal notranslate"><span class="pre">etc.old</span></code> or upgrade
+snapshots block another upgrade until inspected and deliberately retired.</p></li>
+<li><p>Build/merge errors and unresolved conflicts stop upgrades and trigger backout
+of the old configuration/root where possible. Warnings alone are not conflicts.
+Mail queue creation and <code class="docutils literal notranslate"><span class="pre">newaliases</span></code> remain part of successful upgrades;
+their failures now enter the same checked backout path.</p></li>
+<li><p>Successful upgrades retain <code class="docutils literal notranslate"><span class="pre">etc.old</span></code>, the upgrade snapshot and <code class="docutils literal notranslate"><span class="pre">config.old</span></code>
+for inspection. Failed backout is reported without deleting recovery objects;
+an available failed-merge log is retained as <code class="docutils literal notranslate"><span class="pre">upgrade.log</span></code>. Upgrades of
+independent userlands remain a separate, potentially interactive workflow.</p></li>
+</ul>
+</section>
+<section id="storage-configuration-and-startup">
+<h3>Storage, configuration and startup<a class="headerlink" href="#storage-configuration-and-startup" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">clean</span> <span class="pre">-r</span></code> stops all jails discovered in the selected iocell tree before
+removing its shared releases. Cleanup failures propagate; failed ZFS operations
+do not authorize recursive host directory deletion. <code class="docutils literal notranslate"><span class="pre">clean</span> <span class="pre">-j</span></code> preserves
+retained-template aliases, removes internal jail clones with their tree and
+refuses outside dependent clones.</p></li>
+<li><p>Export refuses running jails and existing final/partial image paths. Failed
+streams and recovery snapshots are retained. Ordinary images are raw recursive
+ZFS streams, not automatically checksummed tar archives. Ordinary-stream import
+rejects property operands; set properties after restoring. Legacy tar archives
+keep property-aware creation and report late extraction failures.</p></li>
+<li><p>Snapshot clone/rollback selection uses the requested historical snapshot and
+preserves delegated-data boundaries. Missing required snapshots, receive
+failures and unsafe dependent-clone destruction are no longer hidden.</p></li>
+<li><p>Configuration writes retain one overwritten <code class="docutils literal notranslate"><span class="pre">config.old</span></code> last-write backup,
+not an accumulating history or a multi-property transaction. Literal property
+values, including the string <code class="docutils literal notranslate"><span class="pre">null</span></code>, are distinct from missing keys.</p></li>
+<li><p>Retagging checks mounted dataset ownership. Returned alias-retirement errors
+restore both configs and aliases where possible. Failure deleting a final
+alias backup explicitly reports that the retag has already committed.</p></li>
+<li><p>Saved defaults affect later ordinary creation, not clones/imports/existing
+jails. Reset-to-builtins and guidance-only <code class="docutils literal notranslate"><span class="pre">deactivate</span></code> behavior are unchanged.</p></li>
+<li><p>Startup refuses to run a jail with <code class="docutils literal notranslate"><span class="pre">rlimits=on</span></code> if its limits cannot be
+applied. Empty successful RCTL queries and completed removals return zero.</p></li>
+<li><p>Background rc boot logs moved from predictable <code class="docutils literal notranslate"><span class="pre">/var/tmp</span></code> paths to protected
+<code class="docutils literal notranslate"><span class="pre">${iocroot}/log/UUID-rcboot.log</span></code>. Log-directory preparation failure prevents
+startup. Root selection follows the selected dataset’s actual mounted path,
+including literal altroot paths, without a global <code class="docutils literal notranslate"><span class="pre">zfs</span> <span class="pre">mount</span> <span class="pre">-a</span></code>.</p></li>
+</ul>
+</section>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+  <div>
+    <h3><a href="index.html">Table of Contents</a></h3>
+    <ul>
+<li><a class="reference internal" href="#">Changelog</a><ul>
+<li><a class="reference internal" href="#id1">2.3.0 (2026-11-03)</a><ul>
+<li><a class="reference internal" href="#commands-and-compatibility">Commands and compatibility</a></li>
+<li><a class="reference internal" href="#releases-and-upgrades">Releases and upgrades</a></li>
+<li><a class="reference internal" href="#storage-configuration-and-startup">Storage, configuration and startup</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+  </div>
+  <div>
+    <h4>Previous topic</h4>
+    <p class="topless"><a href="index.html"
+                          title="previous chapter">iocell - A FreeBSD jail manager</a></p>
+  </div>
+  <div>
+    <h4>Next topic</h4>
+    <p class="topless"><a href="basic-use.html"
+                          title="next chapter">Basic usage</a></p>
+  </div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/release-notes.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="basic-use.html" title="Basic usage"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="iocell - A FreeBSD jail manager"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">iocell 2.3.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Changelog</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright 2014-2015, iocell.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 9.2.0.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>iocell - A FreeBSD jail manager &#8212; iocell 2.3.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="_static/classic.css?v=2bf1fcf8" />
+    
+    <script src="_static/documentation_options.js?v=c3c8ae58"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Changelog" href="release-notes.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="release-notes.html" title="Changelog"
+             accesskey="N">next</a> |</li>
+        <li class="nav-item nav-item-0"><a href="#">iocell 2.3.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">iocell - A FreeBSD jail manager</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="iocell-a-freebsd-jail-manager">
+<h1>iocell - A FreeBSD jail manager<a class="headerlink" href="#iocell-a-freebsd-jail-manager" title="Link to this heading">¶</a></h1>
+<p>iocell manages FreeBSD jails using ZFS, shared-IP or VNET networking, templates,
+clones, snapshots and optional kernel resource limits. It requires <code class="docutils literal notranslate"><span class="pre">uclcmd</span></code>
+and stores UCL configuration alongside native ZFS properties.</p>
+<p>Start with <a class="reference internal" href="basic-use.html"><span class="doc">Basic usage</span></a>. A default jail is a basejail using shared read-only
+release files, not an independent OS copy. See <a class="reference internal" href="known-issues.html"><span class="doc">Known limitations</span></a> for current
+command restrictions and storage limitations.</p>
+<p><a class="reference external" href="https://bartekrutkowski.github.io/iocell/">Project website</a> ·
+<a class="reference external" href="https://github.com/bartekrutkowski/iocell">Source code</a></p>
+<section id="documentation">
+<h2>Documentation<a class="headerlink" href="#documentation" title="Link to this heading">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="release-notes.html">Changelog</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="release-notes.html#id1">2.3.0 (2026-11-03)</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="basic-use.html">Basic usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="basic-use.html#activate-a-pool-and-fetch-a-release">Activate a pool and fetch a release</a></li>
+<li class="toctree-l2"><a class="reference internal" href="basic-use.html#create-a-jail">Create a jail</a></li>
+<li class="toctree-l2"><a class="reference internal" href="basic-use.html#listing-and-lifecycle">Listing and lifecycle</a></li>
+<li class="toctree-l2"><a class="reference internal" href="basic-use.html#console-and-commands">Console and commands</a></li>
+<li class="toctree-l2"><a class="reference internal" href="basic-use.html#properties-and-defaults">Properties and defaults</a></li>
+<li class="toctree-l2"><a class="reference internal" href="basic-use.html#destroy-a-jail">Destroy a jail</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="networking.html">Networking</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="networking.html#shared-ip">Shared IP</a></li>
+<li class="toctree-l2"><a class="reference internal" href="networking.html#vnet">VNET</a></li>
+<li class="toctree-l2"><a class="reference internal" href="networking.html#inspecting-and-maintaining-networks">Inspecting and maintaining networks</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="jailtypes.html">Jail types</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="jailtypes.html#basejail-default">Basejail (default)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="jailtypes.html#clone">Clone</a></li>
+<li class="toctree-l2"><a class="reference internal" href="jailtypes.html#template">Template</a></li>
+<li class="toctree-l2"><a class="reference internal" href="jailtypes.html#empty">Empty</a></li>
+<li class="toctree-l2"><a class="reference internal" href="jailtypes.html#independent-full-legacy-thick-jail">Independent/full (legacy thick jail)</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="best-practices.html">Best practices</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="best-practices.html#identify-and-back-up-jails">Identify and back up jails</a></li>
+<li class="toctree-l2"><a class="reference internal" href="best-practices.html#restart-deliberately">Restart deliberately</a></li>
+<li class="toctree-l2"><a class="reference internal" href="best-practices.html#isolate-networking-and-firewall-changes">Isolate networking and firewall changes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="best-practices.html#resource-limits-and-templates">Resource limits and templates</a></li>
+<li class="toctree-l2"><a class="reference internal" href="best-practices.html#clean-up-explicitly">Clean up explicitly</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="advanced-use.html">Advanced usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="advanced-use.html#clones">Clones</a></li>
+<li class="toctree-l2"><a class="reference internal" href="advanced-use.html#updating-jails">Updating jails</a></li>
+<li class="toctree-l2"><a class="reference internal" href="advanced-use.html#upgrading-jails">Upgrading jails</a></li>
+<li class="toctree-l2"><a class="reference internal" href="advanced-use.html#auto-boot">Auto boot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="advanced-use.html#snapshot-management">Snapshot management</a></li>
+<li class="toctree-l2"><a class="reference internal" href="advanced-use.html#resource-limits">Resource limits</a></li>
+<li class="toctree-l2"><a class="reference internal" href="advanced-use.html#replication-and-moves">Replication and moves</a></li>
+<li class="toctree-l2"><a class="reference internal" href="advanced-use.html#automatic-package-installation">Automatic package installation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="templates.html">How to create and use templates</a></li>
+<li class="toctree-l1"><a class="reference internal" href="jail-package.html">Jail images and historical differential packages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ezjail-migration.html">Migration from ezjail</a></li>
+<li class="toctree-l1"><a class="reference internal" href="known-issues.html">Known limitations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="known-issues.html#command-restrictions">Command restrictions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="known-issues.html#storage-boundaries">Storage boundaries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="known-issues.html#kernel-and-networking-notes">Kernel and networking notes</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="faq.html">FAQ</a></li>
+</ul>
+</div>
+</section>
+<section id="reference">
+<h2>Reference<a class="headerlink" href="#reference" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">help</span></code> and the generated <code class="docutils literal notranslate"><span class="pre">iocell(8)</span></code> manual describe the command
+interface. Their source is <code class="docutils literal notranslate"><span class="pre">lib/ioc-help</span></code>.</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></p></li>
+<li><p><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></p></li>
+</ul>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+  <div>
+    <h3><a href="#">Table of Contents</a></h3>
+    <ul>
+<li><a class="reference internal" href="#">iocell - A FreeBSD jail manager</a><ul>
+<li><a class="reference internal" href="#documentation">Documentation</a></li>
+<li><a class="reference internal" href="#reference">Reference</a></li>
+</ul>
+</li>
+</ul>
+
+  </div>
+  <div>
+    <h4>Next topic</h4>
+    <p class="topless"><a href="release-notes.html"
+                          title="next chapter">Changelog</a></p>
+  </div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/index.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="release-notes.html" title="Changelog"
+             >next</a> |</li>
+        <li class="nav-item nav-item-0"><a href="#">iocell 2.3.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">iocell - A FreeBSD jail manager</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright 2014-2015, iocell.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 9.2.0.
+    </div>
+  </body>
+</html>

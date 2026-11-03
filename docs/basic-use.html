@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Basic usage &#8212; iocell 2.3.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="_static/classic.css?v=2bf1fcf8" />
+    
+    <script src="_static/documentation_options.js?v=c3c8ae58"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Networking" href="networking.html" />
+    <link rel="prev" title="Changelog" href="release-notes.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="networking.html" title="Networking"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="release-notes.html" title="Changelog"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">iocell 2.3.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Basic usage</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="basic-usage">
+<h1>Basic usage<a class="headerlink" href="#basic-usage" title="Link to this heading">¶</a></h1>
+<p>Use an existing dedicated jail pool. These examples call it <code class="docutils literal notranslate"><span class="pre">jailpool</span></code> and
+use <code class="docutils literal notranslate"><span class="pre">www01</span></code> as a tag; replace pool/release names, interfaces and addresses.
+See <a class="reference internal" href="known-issues.html"><span class="doc">Known limitations</span></a> for command restrictions and storage boundaries.</p>
+<section id="activate-a-pool-and-fetch-a-release">
+<h2>Activate a pool and fetch a release<a class="headerlink" href="#activate-a-pool-and-fetch-a-release" title="Link to this heading">¶</a></h2>
+<p>Activate the dedicated pool first, not the host’s boot pool:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">activate</span> <span class="pre">jailpool</span></code></p>
+<p>Then request an available release explicitly:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">fetch</span> <span class="pre">release=15.1-RELEASE</span></code></p>
+<p>If the default mirror/path is unavailable, specify both, for example:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">fetch</span> <span class="pre">release=15.1-RELEASE</span> <span class="pre">ftphost=download.freebsd.org</span> <span class="pre">ftpdir=/releases/amd64/amd64/15.1-RELEASE</span></code></p>
+<p>The architecture and directory must match the host and distribution server.
+The downloader also supports <code class="docutils literal notranslate"><span class="pre">ftplocaldir=/path/to/distributions</span></code> for local
+release archives. Use trusted distribution files and verify their provenance;
+do not assume every download/import path verifies a checksum.</p>
+<p>Fetched releases include the base files and etcupdate data needed to create
+basejails. The fetch/update paths can apply patches with <code class="docutils literal notranslate"><span class="pre">freebsd-update(8)</span></code>.
+Inspect their output and the resulting release before deploying it. Legacy
+<code class="docutils literal notranslate"><span class="pre">-p</span></code>/<code class="docutils literal notranslate"><span class="pre">-P</span></code> ports options rely on obsolete tooling; use current FreeBSD package
+or ports management instead.</p>
+<p>Processing an existing release (including a repeated fetch to patch it) requires
+<strong>every iocell jail on the host to be stopped</strong>, including thick jails and jails
+on other releases or pools. This conservative guard is host-wide, not a check of
+which jails share this release. A first fetch of a new release has no such guard.</p>
+<section id="recover-an-incomplete-fetch">
+<h3>Recover an incomplete fetch<a class="headerlink" href="#recover-an-incomplete-fetch" title="Link to this heading">¶</a></h3>
+<p>A failed fetch retains its datasets and cache. A retry refuses an incomplete
+release rather than re-extracting over potentially valuable data. Inspect and
+back up that data before deciding to discard it. Stop all iocell jails and check
+the exact pool, release, mounts, snapshots and clone dependencies. For an
+<strong>unneeded incomplete</strong> <code class="docutils literal notranslate"><span class="pre">15.1-RELEASE</span></code> in the example <code class="docutils literal notranslate"><span class="pre">jailpool</span></code> only:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">zfs</span> <span class="nb">list</span> <span class="o">-</span><span class="n">r</span> <span class="n">jailpool</span><span class="o">/</span><span class="n">iocell</span><span class="o">/</span><span class="n">releases</span><span class="o">/</span><span class="mf">15.1</span><span class="o">-</span><span class="n">RELEASE</span>
+<span class="n">zfs</span> <span class="nb">list</span> <span class="o">-</span><span class="n">r</span> <span class="n">jailpool</span><span class="o">/</span><span class="n">iocell</span><span class="o">/</span><span class="n">download</span><span class="o">/</span><span class="mf">15.1</span><span class="o">-</span><span class="n">RELEASE</span>
+<span class="n">zfs</span> <span class="n">destroy</span> <span class="o">-</span><span class="n">r</span> <span class="n">jailpool</span><span class="o">/</span><span class="n">iocell</span><span class="o">/</span><span class="n">releases</span><span class="o">/</span><span class="mf">15.1</span><span class="o">-</span><span class="n">RELEASE</span>
+<span class="n">zfs</span> <span class="n">destroy</span> <span class="o">-</span><span class="n">r</span> <span class="n">jailpool</span><span class="o">/</span><span class="n">iocell</span><span class="o">/</span><span class="n">download</span><span class="o">/</span><span class="mf">15.1</span><span class="o">-</span><span class="n">RELEASE</span>
+<span class="n">iocell</span> <span class="n">fetch</span> <span class="n">release</span><span class="o">=</span><span class="mf">15.1</span><span class="o">-</span><span class="n">RELEASE</span>
+</pre></div>
+</div>
+<p>This deletes the partial release and its cached archives; substitute your actual
+pool/release, omit commands for absent datasets and never discard a needed
+release. Keep valid archives separately if you want to reuse them. Do not add
+<code class="docutils literal notranslate"><span class="pre">-R</span></code> or <code class="docutils literal notranslate"><span class="pre">-f</span></code> to overcome a dependent clone or busy mount, and do not
+recursively remove host directories after a failed ZFS command. <code class="docutils literal notranslate"><span class="pre">clean</span> <span class="pre">-r</span></code>
+removes <strong>all</strong> releases, not a single incomplete release.</p>
+</section>
+</section>
+<section id="create-a-jail">
+<h2>Create a jail<a class="headerlink" href="#create-a-jail" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">create</span></code> creates a <strong>basejail</strong> using the host’s release and a generated
+timestamp tag. Fetch that release first. Its base directories are mounted
+read-only from the shared release when the jail starts; they are not an
+independent copy of the complete OS.</p>
+<p>Prefer a meaningful tag and explicit networking mode:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">create</span> <span class="pre">release=15.1-RELEASE</span> <span class="pre">tag=www01</span> <span class="pre">vnet=off</span> <span class="pre">ip4_addr=&quot;em0|192.168.1.10/24&quot;</span></code></p>
+<p>Replace <code class="docutils literal notranslate"><span class="pre">em0</span></code> with your actual host interface and choose an unused address.
+VNET is enabled automatically on capable hosts unless overridden; its bridge
+and network configuration differ from this shared-IP example.</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">create</span> <span class="pre">-e</span> <span class="pre">tag=empty-test</span></code> creates an empty jail filesystem. It is not
+a lightweight clone and cannot boot a FreeBSD userland until that filesystem
+has been populated appropriately. Use <code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">clone</span> <span class="pre">SOURCE</span> <span class="pre">tag=copy</span></code> for a
+clone of an existing jail or template. Legacy <code class="docutils literal notranslate"><span class="pre">create</span> <span class="pre">-b</span></code>, <code class="docutils literal notranslate"><span class="pre">-c</span></code>, <code class="docutils literal notranslate"><span class="pre">-t</span></code> and
+<code class="docutils literal notranslate"><span class="pre">base=...</span></code> recipes were already unsupported in 2.2.0 despite older docs; these
+are not newly removed creation modes. See <a class="reference internal" href="jailtypes.html"><span class="doc">Jail types</span></a> and
+<a class="reference internal" href="release-notes.html"><span class="doc">Changelog</span></a> for supported workflows and compatibility changes.</p>
+<section id="installing-packages-during-creation">
+<h3>Installing packages during creation<a class="headerlink" href="#installing-packages-during-creation" title="Link to this heading">¶</a></h3>
+<p>Create a readable text file containing one package name per line, for example
+<code class="docutils literal notranslate"><span class="pre">pkgconf</span></code>. Blank lines and lines beginning with <code class="docutils literal notranslate"><span class="pre">#</span></code> are ignored:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">create</span> <span class="pre">tag=www01</span> <span class="pre">vnet=off</span> <span class="pre">pkglist=/path/to/packages.txt</span></code></p>
+<p>Relative list paths are resolved from the invocation directory. The selected
+release or template is mounted for installation and unmounted afterwards. An
+empty list is allowed; a missing or unreadable list is rejected before creating
+a jail.</p>
+<p>Creation stops on the first package or mount error. The failed jail is retained
+for inspection, but is not started or reported as successfully created. With
+<code class="docutils literal notranslate"><span class="pre">count</span></code>, remaining jails are not created. Packages installed before an error
+are not rolled back. Failed unmounts are also errors: inspect reported mounts
+before retrying or deleting the failed jail.</p>
+</section>
+</section>
+<section id="listing-and-lifecycle">
+<h2>Listing and lifecycle<a class="headerlink" href="#listing-and-lifecycle" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">list</span></code> lists jails, <code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">list</span> <span class="pre">-r</span></code> lists fetched releases and
+<code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">list</span> <span class="pre">-t</span></code> lists templates. The <code class="docutils literal notranslate"><span class="pre">-s</span></code> option selects a sort field; see
+<code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">help</span></code> for the supported fields.</p>
+<p>Start and stop by tag or full UUID:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">start</span> <span class="pre">www01</span></code></p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">stop</span> <span class="pre">www01</span></code></p>
+<p>A normal restart stops and recreates the jail:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">restart</span> <span class="pre">www01</span></code></p>
+<p>For a soft restart, retaining the kernel jail and networking, specify <code class="docutils literal notranslate"><span class="pre">-s</span></code>:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">restart</span> <span class="pre">-s</span> <span class="pre">www01</span></code></p>
+<p>This runs the configured stop/start commands and signals remaining processes;
+it does not guarantee graceful shutdown or recovery of every application.</p>
+</section>
+<section id="console-and-commands">
+<h2>Console and commands<a class="headerlink" href="#console-and-commands" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">console</span> <span class="pre">www01</span></code> opens a shell in an already running jail.
+<code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">console</span> <span class="pre">-f</span> <span class="pre">www01</span></code> starts it first if stopped, then opens the console.
+A failed startup returns an error without attempting login. To run a command
+without an interactive console:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">exec</span> <span class="pre">www01</span> <span class="pre">/bin/sh</span> <span class="pre">-c</span> <span class="pre">'echo</span> <span class="pre">ready'</span></code></p>
+<p>For a stopped template, convert it back to a jail before normal start/console
+operations; see <a class="reference internal" href="templates.html"><span class="doc">How to create and use templates</span></a>.</p>
+</section>
+<section id="properties-and-defaults">
+<h2>Properties and defaults<a class="headerlink" href="#properties-and-defaults" title="Link to this heading">¶</a></h2>
+<p>Set and inspect a per-jail property:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">set</span> <span class="pre">tag=www02</span> <span class="pre">www01</span></code></p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">get</span> <span class="pre">tag</span> <span class="pre">www02</span></code></p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">get</span> <span class="pre">all</span> <span class="pre">www02</span></code></p>
+<p>Per-jail configuration writes retain one <code class="docutils literal notranslate"><span class="pre">config.old</span></code> last-write backup
+beside <code class="docutils literal notranslate"><span class="pre">config</span></code>. Later writes overwrite it; tag recovery may consume it.
+It is not a jail backup or a backup of an entire multi-property command.</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">defaults</span></code> displays configured defaults. Set defaults for subsequent
+<code class="docutils literal notranslate"><span class="pre">create</span></code> commands with <code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">set</span> <span class="pre">vnet=off</span> <span class="pre">default</span></code>, and inspect one with
+<code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">get</span> <span class="pre">vnet</span> <span class="pre">default</span></code>. Explicit creation properties override saved
+defaults; existing jails and cloned/imported configurations are unchanged.
+<code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">get</span> <span class="pre">all</span> <span class="pre">default</span></code> still does not dump all defaults.</p>
+<p>Defaults are stored in the selected pool’s <code class="docutils literal notranslate"><span class="pre">.default</span></code> UCL file. Generated
+identity/runtime fields, active-pool selection, template selection/conversion
+and read-only ZFS properties cannot be set as creation defaults; see
+<code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">help</span></code> for the exact list. Writable native defaults such as
+<code class="docutils literal notranslate"><span class="pre">compression</span></code> affect new jail datasets, not existing datasets or their
+parent. Invalid names, empty values, invalid on/off switches and failed UCL
+writes leave the setting unchanged. Other value validation is incomplete;
+a stored string is not proof that every kernel combination will work.
+Multiple settings are independent updates, not a batch transaction.</p>
+<p>Malformed syntax fails before pool/filesystem setup. Valid multi-target commands
+are not transactional: a runtime failure can follow earlier successful changes.
+Some property values are only partially validated. Quote values for the invoking
+shell; spaces, apostrophes and equals signs are preserved literally.</p>
+</section>
+<section id="destroy-a-jail">
+<h2>Destroy a jail<a class="headerlink" href="#destroy-a-jail" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">destroy</span> <span class="pre">www02</span></code> asks for confirmation and refuses a running jail.
+Stop the jail first for a deliberate teardown. <code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">destroy</span> <span class="pre">-f</span> <span class="pre">www02</span></code>
+bypasses confirmation and may stop a running jail before destroying it.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Destruction is irreversible. Verify identity, dependent clones and backups.
+Explicit template force-cleanup can also destroy clones outside its tree.</p>
+</div>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+  <div>
+    <h3><a href="index.html">Table of Contents</a></h3>
+    <ul>
+<li><a class="reference internal" href="#">Basic usage</a><ul>
+<li><a class="reference internal" href="#activate-a-pool-and-fetch-a-release">Activate a pool and fetch a release</a><ul>
+<li><a class="reference internal" href="#recover-an-incomplete-fetch">Recover an incomplete fetch</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#create-a-jail">Create a jail</a><ul>
+<li><a class="reference internal" href="#installing-packages-during-creation">Installing packages during creation</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#listing-and-lifecycle">Listing and lifecycle</a></li>
+<li><a class="reference internal" href="#console-and-commands">Console and commands</a></li>
+<li><a class="reference internal" href="#properties-and-defaults">Properties and defaults</a></li>
+<li><a class="reference internal" href="#destroy-a-jail">Destroy a jail</a></li>
+</ul>
+</li>
+</ul>
+
+  </div>
+  <div>
+    <h4>Previous topic</h4>
+    <p class="topless"><a href="release-notes.html"
+                          title="previous chapter">Changelog</a></p>
+  </div>
+  <div>
+    <h4>Next topic</h4>
+    <p class="topless"><a href="networking.html"
+                          title="next chapter">Networking</a></p>
+  </div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/basic-use.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="networking.html" title="Networking"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="release-notes.html" title="Changelog"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">iocell 2.3.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Basic usage</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright 2014-2015, iocell.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 9.2.0.
+    </div>
+  </body>
+</html>

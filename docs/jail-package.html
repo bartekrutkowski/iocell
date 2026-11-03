@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Jail images and historical differential packages &#8212; iocell 2.3.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="_static/classic.css?v=2bf1fcf8" />
+    
+    <script src="_static/documentation_options.js?v=c3c8ae58"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Migration from ezjail" href="ezjail-migration.html" />
+    <link rel="prev" title="How to create and use templates" href="templates.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="ezjail-migration.html" title="Migration from ezjail"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="templates.html" title="How to create and use templates"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">iocell 2.3.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Jail images and historical differential packages</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="jail-images-and-historical-differential-packages">
+<h1>Jail images and historical differential packages<a class="headerlink" href="#jail-images-and-historical-differential-packages" title="Link to this heading">¶</a></h1>
+<p>The old differential-package workflow used <code class="docutils literal notranslate"><span class="pre">record</span></code>/unionfs and <code class="docutils literal notranslate"><span class="pre">package</span></code>
+to layer application changes over a matching vanilla release. Those command
+names were already undispatched in 2.2.0, and <code class="docutils literal notranslate"><span class="pre">create</span> <span class="pre">-c</span></code> was already
+unsupported. Removing old recipes using <code class="docutils literal notranslate"><span class="pre">create</span> <span class="pre">-c</span></code>, <code class="docutils literal notranslate"><span class="pre">record</span> <span class="pre">start/stop</span></code> and
+<code class="docutils literal notranslate"><span class="pre">package</span></code> corrects misleading documentation; 2.3.0 is not removing a working
+2.2.0 deployment interface. See <a class="reference internal" href="release-notes.html"><span class="doc">Changelog</span></a> for actual compatibility
+changes.</p>
+<p>For reusable application configuration, use a stopped basejail template and
+clone it; see <a class="reference internal" href="templates.html"><span class="doc">How to create and use templates</span></a>. For a stopped jail image:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">export</span> <span class="pre">myjail</span></code></p>
+<p>Ordinary exports are recursive raw ZFS streams stored under <code class="docutils literal notranslate"><span class="pre">/iocell/images</span></code>
+with identity/type/date/release in their name. They are not necessarily
+<code class="docutils literal notranslate"><span class="pre">UUID.tar.xz</span></code> archives and do not automatically get a SHA256 sidecar. A
+basejail image still needs its shared release on the receiving host.</p>
+<p>Place a trusted compatible image in the receiver’s image directory and fetch
+its required release, then select it by full UUID or a unique image prefix:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">import</span> <span class="pre">FULL_IMAGE_UUID</span></code></p>
+<p>Verify native datasets, properties and content before setting per-jail
+properties or starting it. Extra properties are not applied to ordinary stream
+imports; use a separate verified <code class="docutils literal notranslate"><span class="pre">set</span></code> afterward. A raw ZFS receive error
+returns nonzero, keeps diagnostics and does not print success. The input image
+is retained, and the importer does not automatically destroy received datasets.
+ZFS itself may roll back an incomplete receive; inspect any remaining partial
+namespace before retrying rather than blindly removing an existing jail.</p>
+<p>Legacy thick-jail archives use a separate import/checksum path. Match the image
+to its importer rather than assuming every archive is a raw ZFS stream; see
+<a class="reference internal" href="known-issues.html"><span class="doc">Known limitations</span></a>.</p>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+  <div>
+    <h4>Previous topic</h4>
+    <p class="topless"><a href="templates.html"
+                          title="previous chapter">How to create and use templates</a></p>
+  </div>
+  <div>
+    <h4>Next topic</h4>
+    <p class="topless"><a href="ezjail-migration.html"
+                          title="next chapter">Migration from ezjail</a></p>
+  </div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/jail-package.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="ezjail-migration.html" title="Migration from ezjail"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="templates.html" title="How to create and use templates"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">iocell 2.3.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Jail images and historical differential packages</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright 2014-2015, iocell.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 9.2.0.
+    </div>
+  </body>
+</html>

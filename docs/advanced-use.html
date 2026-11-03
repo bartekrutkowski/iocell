@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Advanced usage &#8212; iocell 2.3.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="_static/classic.css?v=2bf1fcf8" />
+    
+    <script src="_static/documentation_options.js?v=c3c8ae58"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="How to create and use templates" href="templates.html" />
+    <link rel="prev" title="Best practices" href="best-practices.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="templates.html" title="How to create and use templates"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="best-practices.html" title="Best practices"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">iocell 2.3.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Advanced usage</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="advanced-usage">
+<h1>Advanced usage<a class="headerlink" href="#advanced-usage" title="Link to this heading">¶</a></h1>
+<section id="clones">
+<h2>Clones<a class="headerlink" href="#clones" title="Link to this heading">¶</a></h2>
+<p>When a jail is cloned, iocell creates a ZFS clone filesystem.
+In a nutshell clones are cheap lightweight writable snapshots.</p>
+<p>A clone depends on its source snapshot and filesystem.
+If you’d like to destroy the source jail and preserve its clones
+you need to promote the clone first, otherwise the source jail cannot be destroyed.</p>
+<section id="create-a-clone">
+<h3>Create a clone<a class="headerlink" href="#create-a-clone" title="Link to this heading">¶</a></h3>
+<p>To clone www01 to www02 run:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">clone</span> <span class="pre">www01</span> <span class="pre">tag=www02</span></code></p>
+<p>To clone a jail from an existing snapshot:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">clone</span> <span class="pre">www01&#64;snapshotname</span> <span class="pre">tag=www03</span></code></p>
+</section>
+<section id="promoting-a-clone">
+<h3>Promoting a clone<a class="headerlink" href="#promoting-a-clone" title="Link to this heading">¶</a></h3>
+<p><strong>To promote a cloned jail, simply run:</strong></p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">promote</span> <span class="pre">UUID</span> <span class="pre">|</span> <span class="pre">TAG</span></code></p>
+<p>The above step will reverse the clone and source jail relationship.
+Basically the clone will become the source and the source jail will be demoted to a clone.</p>
+<p><strong>Now you can remove the demoted jail with:</strong></p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">destroy</span> <span class="pre">UUID</span> <span class="pre">|</span> <span class="pre">TAG</span></code></p>
+</section>
+</section>
+<section id="updating-jails">
+<h2>Updating jails<a class="headerlink" href="#updating-jails" title="Link to this heading">¶</a></h2>
+<p>Updates use <code class="docutils literal notranslate"><span class="pre">freebsd-update(8)</span></code> where supported by the selected userland.
+Use a maintenance window and stop affected services/jails for predictable
+results. A basejail update changes its shared release and can affect every
+jail using that release; it is not isolated to the named jail.</p>
+<p>To update a jail to latest patch level run:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">update</span> <span class="pre">UUID</span> <span class="pre">|</span> <span class="pre">TAG</span></code></p>
+<p>Non-basejail updates create a jail-root back-out snapshot. That snapshot
+does not back up a shared basejail release. Back up the shared release and
+application data separately before updating basejails.</p>
+<p>When finished with updating and the jail is working OK, simply remove the snapshot:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">snapremove</span> <span class="pre">UUID|TAG&#64;snapshotname</span></code></p>
+<p>If a suitable jail snapshot exists, stop the jail before restoring it:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">rollback</span> <span class="pre">UUID|TAG&#64;snapshotname</span></code></p>
+<p>A clone is useful for testing writable jail data, but it can still use the
+same shared release as its source. Do not assume updating a basejail clone
+isolates shared base updates; use a separate test release/host when necessary.</p>
+<p>To clone run:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">clone</span> <span class="pre">UUID|TAG</span> <span class="pre">tag=testupdate</span></code></p>
+</section>
+<section id="upgrading-jails">
+<h2>Upgrading jails<a class="headerlink" href="#upgrading-jails" title="Link to this heading">¶</a></h2>
+<p>Upgrades are handled with the freebsd-update(8) utility.
+By default the upgrade command will try to upgrade the jail
+to the hosts RELEASE version (uname -r).</p>
+<p>Based on the jail “type” property, upgrades are handled differently
+for basejails and non basejails.</p>
+<section id="upgrade-non-basejail">
+<h3>Upgrade non-basejail<a class="headerlink" href="#upgrade-non-basejail" title="Link to this heading">¶</a></h3>
+<p>To upgrade a normal jail (non basejail) to the hosts RELEASE run:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">upgrade</span> <span class="pre">UUID</span> <span class="pre">|</span> <span class="pre">TAG</span></code></p>
+<p>This will upgrade the jail to the same RELEASE as the host.</p>
+<p>To upgrade to a specific release run:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">upgrade</span> <span class="pre">UUID|TAG</span> <span class="pre">release=15.1-RELEASE</span></code></p>
+</section>
+<section id="upgrade-basejail">
+<h3>Upgrade basejail<a class="headerlink" href="#upgrade-basejail" title="Link to this heading">¶</a></h3>
+<p>To upgrade a basejail:</p>
+<p>Verify whether the jail is a basejail:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">get</span> <span class="pre">type</span> <span class="pre">UUID|TAG</span></code></p>
+<p>Should return type “basejail”.</p>
+<p>Fetch the target release, stop the jail, and run:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">upgrade</span> <span class="pre">UUID|TAG</span> <span class="pre">release=15.1-RELEASE</span></code></p>
+<p>This selects the new shared base and merges <code class="docutils literal notranslate"><span class="pre">/etc</span></code> using etcupdate. Inspect
+merge output and test the jail before returning it to service. There is no
+application-level zero-downtime guarantee. Independent full-userland upgrades
+may require interactive confirmations and several installation passes.</p>
+<p>Setting <code class="docutils literal notranslate"><span class="pre">release=15.1-RELEASE</span></code> alone changes the selected base on the next
+start, but does not merge <code class="docutils literal notranslate"><span class="pre">/etc</span></code>. It is not equivalent to completing an
+upgrade.</p>
+</section>
+</section>
+<section id="auto-boot">
+<h2>Auto boot<a class="headerlink" href="#auto-boot" title="Link to this heading">¶</a></h2>
+<p>Make sure <code class="docutils literal notranslate"><span class="pre">iocell_enable=&quot;YES&quot;</span></code> is set in <code class="docutils literal notranslate"><span class="pre">/etc/rc.conf</span></code>.</p>
+<p>To enable a jail to auto-boot during a boot, simply run:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">set</span> <span class="pre">boot=on</span> <span class="pre">UUID|TAG</span></code></p>
+<section id="boot-priority">
+<h3>Boot priority<a class="headerlink" href="#boot-priority" title="Link to this heading">¶</a></h3>
+<p>Boot order can be specified by setting the priority value:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">set</span> <span class="pre">priority=20</span> <span class="pre">UUID|TAG</span></code></p>
+<p>Lower value means higher boot priority.</p>
+</section>
+</section>
+<section id="snapshot-management">
+<h2>Snapshot management<a class="headerlink" href="#snapshot-management" title="Link to this heading">¶</a></h2>
+<p>iocell supports transparent ZFS snapshot management out of the box.
+Snapshots are point-in-time copies of data, a safety point to which a jail can be reverted at any time.
+Initially snapshots take up almost no space as only changing data is recorded.</p>
+<p>List snapshots for a jail with:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">snaplist</span> <span class="pre">UUID|TAG</span></code></p>
+<p>To create a new snapshot run:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">snapshot</span> <span class="pre">UUID|TAG</span></code></p>
+<p>This will create a snapshot based on current time.</p>
+<p>If you’d like to create a snapshot with custom naming run:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">snapshot</span> <span class="pre">UUID|TAG&#64;mysnapshotname</span></code></p>
+<p>A normal snapshot covers only the jail’s root dataset. To include the jail’s
+configuration and all descendant datasets, take a recursive snapshot:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">snapshot</span> <span class="pre">-r</span> <span class="pre">UUID|TAG&#64;mysnapshotname</span></code></p>
+<p>Stop the jail before restoring a snapshot:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">stop</span> <span class="pre">UUID|TAG</span></code></p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">rollback</span> <span class="pre">UUID|TAG&#64;mysnapshotname</span></code></p>
+<p>Rollback restores only the root dataset for a normal snapshot, or the jail
+configuration and descendant datasets for a recursive snapshot. All targets
+must have the requested snapshot before rollback starts. A descendant created
+after a recursive snapshot therefore prevents rollback; iocell will not delete
+it automatically. Native ZFS properties and tag symlinks are not restored;
+a saved tag property can differ from the current alias namespace. Review that
+namespace before explicitly retagging a jail. Shared basejail release datasets
+are not restored.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Rollback discards changes and newer snapshots on the affected datasets.
+Multi-dataset rollback is not atomic. If ZFS reports an error, iocell stops
+immediately, but earlier datasets may already have been restored.</p>
+</div>
+</section>
+<section id="resource-limits">
+<h2>Resource limits<a class="headerlink" href="#resource-limits" title="Link to this heading">¶</a></h2>
+<p>Resource limits require kernel RACCT/RCTL support and RACCT enabled at boot
+(<code class="docutils literal notranslate"><span class="pre">kern.racct.enable=1</span></code> in the loader configuration). Check
+<code class="docutils literal notranslate"><span class="pre">sysctl</span> <span class="pre">kern.racct.enable</span></code> before using these examples. Verify actual kernel
+rules, not just stored property values.</p>
+<section id="limit-core-or-thread">
+<h3>Limit core or thread<a class="headerlink" href="#limit-core-or-thread" title="Link to this heading">¶</a></h3>
+<p>Limit a jail to a single thread or core number 1:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">set</span> <span class="pre">cpuset=1</span> <span class="pre">UUID|TAG</span></code>
+<code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">start</span> <span class="pre">UUID|TAG</span></code></p>
+</section>
+<section id="list-applied-rules">
+<h3>List applied rules<a class="headerlink" href="#list-applied-rules" title="Link to this heading">¶</a></h3>
+<p>List applied limits:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">limits</span> <span class="pre">UUID|TAG</span></code></p>
+</section>
+<section id="limit-dram-use">
+<h3>Limit DRAM use<a class="headerlink" href="#limit-dram-use" title="Link to this heading">¶</a></h3>
+<p>Limit a jail to 4G DRAM memory use (limit RSS memory use can be done on-the-fly):</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">set</span> <span class="pre">memoryuse=4G:deny</span> <span class="pre">UUID|TAG</span></code></p>
+</section>
+<section id="turn-on-resource-limits">
+<h3>Turn on resource limits<a class="headerlink" href="#turn-on-resource-limits" title="Link to this heading">¶</a></h3>
+<p>Turn on resource limiting for jail:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">set</span> <span class="pre">rlimits=on</span> <span class="pre">UUID|TAG</span></code></p>
+</section>
+<section id="apply-limits">
+<h3>Apply limits<a class="headerlink" href="#apply-limits" title="Link to this heading">¶</a></h3>
+<p>Apply limit on-the-fly:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">cap</span> <span class="pre">UUID</span> <span class="pre">|</span> <span class="pre">TAG</span></code></p>
+</section>
+<section id="check-limits">
+<h3>Check limits<a class="headerlink" href="#check-limits" title="Link to this heading">¶</a></h3>
+<p>Check active limits:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">limits</span> <span class="pre">UUID</span> <span class="pre">|</span> <span class="pre">TAG</span></code></p>
+</section>
+<section id="limit-cpu-use-by">
+<h3>Limit CPU use by %<a class="headerlink" href="#limit-cpu-use-by" title="Link to this heading">¶</a></h3>
+<p>Limit CPU execution to 20%:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">set</span> <span class="pre">pcpu=20:deny</span> <span class="pre">UUID|TAG</span></code>
+<code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">cap</span> <span class="pre">UUID|TAG</span></code></p>
+<p>Check limits:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">limits</span> <span class="pre">UUID</span> <span class="pre">|</span> <span class="pre">TAG</span></code></p>
+</section>
+<section id="resetting-a-jail-s-properties">
+<h3>Resetting a jail’s properties<a class="headerlink" href="#resetting-a-jail-s-properties" title="Link to this heading">¶</a></h3>
+<p>Record custom properties before requesting a reset:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">reset</span> <span class="pre">UUID</span> <span class="pre">|</span> <span class="pre">TAG</span></code></p>
+<p>You can also reset every jail to the default properties:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">reset</span> <span class="pre">ALL</span></code></p>
+<p>Reset carries forward the jail’s UUID, tag, generated VNET MAC addresses and
+selected networking/type fields. It uses built-in values for other properties;
+it does not reload defaults saved by <code class="docutils literal notranslate"><span class="pre">set</span> <span class="pre">PROPERTY=value</span> <span class="pre">default</span></code>. Those saved
+values apply to later <code class="docutils literal notranslate"><span class="pre">create</span></code> commands. Use explicit <code class="docutils literal notranslate"><span class="pre">set</span></code> commands when
+changing an existing jail to your chosen settings.</p>
+</section>
+</section>
+<section id="replication-and-moves">
+<h2>Replication and moves<a class="headerlink" href="#replication-and-moves" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">send</span> <span class="pre">backup-pool</span></code> creates a fresh unique recursive snapshot of the
+active pool’s <code class="docutils literal notranslate"><span class="pre">iocell</span></code> tree and sends it to the destination. Existing
+snapshot-bearing replicas may need incremental streams rather than another
+full receive:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">send</span> <span class="pre">-i</span> <span class="pre">source-pool/iocell&#64;before</span> <span class="pre">-i</span> <span class="pre">source-pool/iocell&#64;after</span> <span class="pre">backup-pool</span></code></p>
+<p>Use <code class="docutils literal notranslate"><span class="pre">-I</span></code> on both endpoints to include intermediate snapshots. Remote mode
+requires <code class="docutils literal notranslate"><span class="pre">-r</span> <span class="pre">-u</span> <span class="pre">USER</span> <span class="pre">-h</span> <span class="pre">HOST</span></code> and public-key SSH. The destination pool is
+validated on the receiver; no same-named local pool is needed.</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">send</span> <span class="pre">-m</span> <span class="pre">new-pool</span></code> is local only and requires stopped jails. The
+original source is removed only after successful transfer, destination
+activation and mounting. Snapshot, sender, receiver and optional buffer
+failures are errors. A failed activation retains data but may have relocated
+the source mountpoint; inspect state and explicitly reactivate the source
+before resuming operations.</p>
+<p>After a successful transfer, <code class="docutils literal notranslate"><span class="pre">-c</span></code> removes older reserved <code class="docutils literal notranslate"><span class="pre">ioc-send-*</span></code>
+snapshots under the iocell tree, keeping the new common replication point.
+Failed transfers retain earlier bases. Cleanup does not delete dependent clones. Local transfers clean both ends; remote
+transfers clean only the sender, leaving receiver retention to the operator.
+A failed full transfer reports and retains its source snapshot for recovery.</p>
+</section>
+<section id="automatic-package-installation">
+<h2>Automatic package installation<a class="headerlink" href="#automatic-package-installation" title="Link to this heading">¶</a></h2>
+<p>Packages can be installed automatically at creation time!</p>
+<p>Specify the <code class="docutils literal notranslate"><span class="pre">pkglist</span></code> property at creation time, which should point to a text file
+containing one package name per line. Please note you need to have Internet
+connection for this to work as <code class="docutils literal notranslate"><span class="pre">pkg</span> <span class="pre">install</span></code> will try to get the packages from
+online repositories.</p>
+<p><strong>Example:</strong></p>
+<p>Create a pkgs.txt file and add package names to it.</p>
+<p><code class="docutils literal notranslate"><span class="pre">pkgs.txt</span></code>:</p>
+<blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">nginx</span>
+<span class="n">tmux</span>
+</pre></div>
+</div>
+</div></blockquote>
+<p>Now simply create a jail and supply the pkgs.txt file:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">create</span> <span class="pre">pkglist=/path-to/pkgs.txt</span> <span class="pre">tag=myjail</span></code></p>
+<p>This will install <code class="docutils literal notranslate"><span class="pre">nginx</span></code> and <code class="docutils literal notranslate"><span class="pre">tmux</span></code> in the newly created jail.</p>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+  <div>
+    <h3><a href="index.html">Table of Contents</a></h3>
+    <ul>
+<li><a class="reference internal" href="#">Advanced usage</a><ul>
+<li><a class="reference internal" href="#clones">Clones</a><ul>
+<li><a class="reference internal" href="#create-a-clone">Create a clone</a></li>
+<li><a class="reference internal" href="#promoting-a-clone">Promoting a clone</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#updating-jails">Updating jails</a></li>
+<li><a class="reference internal" href="#upgrading-jails">Upgrading jails</a><ul>
+<li><a class="reference internal" href="#upgrade-non-basejail">Upgrade non-basejail</a></li>
+<li><a class="reference internal" href="#upgrade-basejail">Upgrade basejail</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#auto-boot">Auto boot</a><ul>
+<li><a class="reference internal" href="#boot-priority">Boot priority</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#snapshot-management">Snapshot management</a></li>
+<li><a class="reference internal" href="#resource-limits">Resource limits</a><ul>
+<li><a class="reference internal" href="#limit-core-or-thread">Limit core or thread</a></li>
+<li><a class="reference internal" href="#list-applied-rules">List applied rules</a></li>
+<li><a class="reference internal" href="#limit-dram-use">Limit DRAM use</a></li>
+<li><a class="reference internal" href="#turn-on-resource-limits">Turn on resource limits</a></li>
+<li><a class="reference internal" href="#apply-limits">Apply limits</a></li>
+<li><a class="reference internal" href="#check-limits">Check limits</a></li>
+<li><a class="reference internal" href="#limit-cpu-use-by">Limit CPU use by %</a></li>
+<li><a class="reference internal" href="#resetting-a-jail-s-properties">Resetting a jail’s properties</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#replication-and-moves">Replication and moves</a></li>
+<li><a class="reference internal" href="#automatic-package-installation">Automatic package installation</a></li>
+</ul>
+</li>
+</ul>
+
+  </div>
+  <div>
+    <h4>Previous topic</h4>
+    <p class="topless"><a href="best-practices.html"
+                          title="previous chapter">Best practices</a></p>
+  </div>
+  <div>
+    <h4>Next topic</h4>
+    <p class="topless"><a href="templates.html"
+                          title="next chapter">How to create and use templates</a></p>
+  </div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/advanced-use.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="templates.html" title="How to create and use templates"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="best-practices.html" title="Best practices"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">iocell 2.3.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Advanced usage</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright 2014-2015, iocell.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 9.2.0.
+    </div>
+  </body>
+</html>

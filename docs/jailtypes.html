@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Jail types &#8212; iocell 2.3.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="_static/classic.css?v=2bf1fcf8" />
+    
+    <script src="_static/documentation_options.js?v=c3c8ae58"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Best practices" href="best-practices.html" />
+    <link rel="prev" title="Networking" href="networking.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="best-practices.html" title="Best practices"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="networking.html" title="Networking"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">iocell 2.3.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Jail types</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="jail-types">
+<h1>Jail types<a class="headerlink" href="#jail-types" title="Link to this heading">¶</a></h1>
+<p>Use <code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">get</span> <span class="pre">type</span> <span class="pre">TAG</span></code> to inspect the stored type. The current creation
+interface differs from older full/thin/base flag examples.</p>
+<section id="basejail-default">
+<h2>Basejail (default)<a class="headerlink" href="#basejail-default" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">create</span> <span class="pre">tag=myjail</span></code> creates a basejail. Writable configuration/data live
+in its jail datasets; base directories are mounted read-only from a shared
+fetched release using <code class="docutils literal notranslate"><span class="pre">nullfs(5)</span></code>. This is not a fully independent OS image.
+Keep the corresponding release available for startup and package operations.</p>
+<p>Updating shared base files affects every jail using that release. A jail-root
+snapshot or rollback does not include that shared release dataset. Plan backups
+and maintenance accordingly.</p>
+</section>
+<section id="clone">
+<h2>Clone<a class="headerlink" href="#clone" title="Link to this heading">¶</a></h2>
+<p>Create a clone from an existing jail or template:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">clone</span> <span class="pre">source-tag</span> <span class="pre">tag=mycopy</span></code></p>
+<p>Or select an existing root snapshot:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">clone</span> <span class="pre">source-tag&#64;snapshot-name</span> <span class="pre">tag=mycopy</span></code></p>
+<p>Its root dataset is a writable ZFS clone and depends on its source snapshot.
+<code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">promote</span> <span class="pre">mycopy</span></code> reverses the ZFS clone dependency; it does not make
+shared basejail release directories into private OS copies. Check native ZFS
+origins before removing source datasets. <code class="docutils literal notranslate"><span class="pre">create</span> <span class="pre">-c</span></code> is not supported.</p>
+</section>
+<section id="template">
+<h2>Template<a class="headerlink" href="#template" title="Link to this heading">¶</a></h2>
+<p>A stopped basejail can become a template using:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">set</span> <span class="pre">istemplate=yes</span> <span class="pre">source-tag</span></code></p>
+<p>Use a safe dataset-component tag first. Templates are listed with
+<code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">list</span> <span class="pre">-t</span></code> and are not started automatically. Deploy a new jail with:</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">clone</span> <span class="pre">template-tag</span> <span class="pre">tag=mynewjail</span></code></p>
+<p>Convert back with <code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">set</span> <span class="pre">istemplate=no</span> <span class="pre">template-tag</span></code>. The stored UUID,
+tag, snapshots and child datasets are preserved. The old <code class="docutils literal notranslate"><span class="pre">template=yes</span></code>
+property is not the conversion interface. See <a class="reference internal" href="templates.html"><span class="doc">How to create and use templates</span></a> for guards and
+failure behavior.</p>
+</section>
+<section id="empty">
+<h2>Empty<a class="headerlink" href="#empty" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">create</span> <span class="pre">-e</span> <span class="pre">tag=empty-test</span></code> creates an empty filesystem/metadata
+structure, not a populated FreeBSD installation or a clone. Supply a compatible
+userland and appropriate startup commands before trying to run it. This is a
+foundation for custom setups, not a promise of support for an arbitrary guest OS.</p>
+</section>
+<section id="independent-full-legacy-thick-jail">
+<h2>Independent/full (legacy thick jail)<a class="headerlink" href="#independent-full-legacy-thick-jail" title="Link to this heading">¶</a></h2>
+<p>The code can operate on complete independent userlands, including legacy
+<code class="docutils literal notranslate"><span class="pre">thickjail</span></code> images and Git-backed full OS trees. A type label alone does not
+populate such a userland. Current <code class="docutils literal notranslate"><span class="pre">create</span></code> does not provide the old <code class="docutils literal notranslate"><span class="pre">-t</span></code>
+full-jail mode; <code class="docutils literal notranslate"><span class="pre">-b</span></code>, <code class="docutils literal notranslate"><span class="pre">-c</span></code> and <code class="docutils literal notranslate"><span class="pre">base=...</span></code> recipes are also obsolete.</p>
+<p>Independent 14.5 to 15.1 userland upgrade was tested, but not every legacy image
+format or custom guest OS. Do not assume an exported basejail includes its
+shared release files; see <a class="reference internal" href="jail-package.html"><span class="doc">Jail images and historical differential packages</span></a> and <a class="reference internal" href="known-issues.html"><span class="doc">Known limitations</span></a>.</p>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+  <div>
+    <h3><a href="index.html">Table of Contents</a></h3>
+    <ul>
+<li><a class="reference internal" href="#">Jail types</a><ul>
+<li><a class="reference internal" href="#basejail-default">Basejail (default)</a></li>
+<li><a class="reference internal" href="#clone">Clone</a></li>
+<li><a class="reference internal" href="#template">Template</a></li>
+<li><a class="reference internal" href="#empty">Empty</a></li>
+<li><a class="reference internal" href="#independent-full-legacy-thick-jail">Independent/full (legacy thick jail)</a></li>
+</ul>
+</li>
+</ul>
+
+  </div>
+  <div>
+    <h4>Previous topic</h4>
+    <p class="topless"><a href="networking.html"
+                          title="previous chapter">Networking</a></p>
+  </div>
+  <div>
+    <h4>Next topic</h4>
+    <p class="topless"><a href="best-practices.html"
+                          title="next chapter">Best practices</a></p>
+  </div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/jailtypes.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="best-practices.html" title="Best practices"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="networking.html" title="Networking"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">iocell 2.3.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Jail types</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright 2014-2015, iocell.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 9.2.0.
+    </div>
+  </body>
+</html>

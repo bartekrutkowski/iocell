@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Known limitations &#8212; iocell 2.3.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="_static/classic.css?v=2bf1fcf8" />
+    
+    <script src="_static/documentation_options.js?v=c3c8ae58"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="FAQ" href="faq.html" />
+    <link rel="prev" title="Migration from ezjail" href="ezjail-migration.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="faq.html" title="FAQ"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="ezjail-migration.html" title="Migration from ezjail"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">iocell 2.3.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Known limitations</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="known-limitations">
+<h1>Known limitations<a class="headerlink" href="#known-limitations" title="Link to this heading">¶</a></h1>
+<section id="command-restrictions">
+<h2>Command restrictions<a class="headerlink" href="#command-restrictions" title="Link to this heading">¶</a></h2>
+<p>These describe the current interface, not a list of new removals. See
+<a class="reference internal" href="release-notes.html"><span class="doc">Changelog</span></a> for changes from 2.2.0 and replacement workflows.</p>
+<ul class="simple">
+<li><p><strong>Identity:</strong> use full UUIDs or tags; short UUID prefixes are unreliable for
+jail lookup. Image import separately supports unique image prefixes.</p></li>
+<li><p><strong>Defaults:</strong> saved defaults apply to later ordinary <code class="docutils literal notranslate"><span class="pre">create</span></code> commands, not
+existing, cloned or imported jails. <code class="docutils literal notranslate"><span class="pre">reset</span></code> does not reload saved creation
+defaults. <code class="docutils literal notranslate"><span class="pre">get</span> <span class="pre">all</span> <span class="pre">default</span></code> does not dump them; use <code class="docutils literal notranslate"><span class="pre">defaults</span></code>.</p></li>
+<li><p><strong>Fetch:</strong> release availability depends on the selected mirror/path. Failed
+preparation retains datasets/downloads; inspect incomplete releases and cached
+archives before retrying. Existing prepared releases are patched, not
+re-extracted. Processing an existing release requires <strong>all</strong> iocell jails on
+the host to be stopped, including thick jails and those on other releases or
+pools. An incomplete release is refused on retry; see <a class="reference internal" href="basic-use.html"><span class="doc">Basic usage</span></a> for
+per-release manual recovery. Obsolete ports options are rejected; manage a
+modern ports tree separately with Git.</p></li>
+<li><p><strong>Deactivation:</strong> <code class="docutils literal notranslate"><span class="pre">deactivate</span></code> prints manual removal guidance; it does not
+clear the native pool discovery comment or disable existing jails.</p></li>
+<li><p><strong>Imports:</strong> ordinary streams reject property operands; set properties after
+restoring. Legacy archives retain their property-aware creation path.
+Incomplete <code class="docutils literal notranslate"><span class="pre">.partial</span></code> images are not candidates. Failed receives/extractions
+retain the image and any partial datasets; inspect them before retrying.</p></li>
+<li><p><strong>Image format:</strong> ordinary exports are raw recursive ZFS streams, not an
+archive/checksum pair. Legacy thick-jail archives use a separate import path;
+not every image format supplies or verifies SHA256 sidecars.</p></li>
+<li><p><strong>Arguments:</strong> quote property values for the invoking shell; <code class="docutils literal notranslate"><span class="pre">create</span></code> and
+<code class="docutils literal notranslate"><span class="pre">set</span></code> preserve them literally.</p></li>
+<li><p><strong>Runtime errors:</strong> syntax errors fail before initialization, but valid
+multi-target commands are not transactional. Property/kernel validation and
+runtime status propagation remain incomplete.</p></li>
+<li><p><strong>Git:</strong> automatic plugin release branches retain tracking upstreams. Explicit
+tag/commit checkouts may intentionally detach HEAD. Experimental <code class="docutils literal notranslate"><span class="pre">push</span></code> is
+disabled before initialization and in its backend. The old implementation
+operated in the caller’s working directory and could stage unrelated files or
+push the wrong repository. Use Git directly in an explicitly selected
+worktree; iocell does not supply a replacement deployment/push command.</p></li>
+<li><p><strong>Legacy names:</strong> <code class="docutils literal notranslate"><span class="pre">chroot</span></code>, <code class="docutils literal notranslate"><span class="pre">record</span></code>, <code class="docutils literal notranslate"><span class="pre">package</span></code> and <code class="docutils literal notranslate"><span class="pre">show</span></code> were
+already undispatched in 2.2.0. Old <code class="docutils literal notranslate"><span class="pre">create</span> <span class="pre">-b/-c/-t</span></code> and <code class="docutils literal notranslate"><span class="pre">base=</span></code> recipes
+were also unsupported; correcting the examples removes no working modes.
+See <a class="reference internal" href="jail-package.html"><span class="doc">Jail images and historical differential packages</span></a> for the available image workflow.</p></li>
+<li><p><strong>Altroots:</strong> selection follows the selected dataset’s actual mounted path,
+not the presence of another <code class="docutils literal notranslate"><span class="pre">/iocell</span></code> directory. Changing the persisted
+library root selector requires root and writable libraries; unchanged
+read-only queries do not rewrite it. Newline-containing mountpoints are
+refused.</p></li>
+</ul>
+</section>
+<section id="storage-boundaries">
+<h2>Storage boundaries<a class="headerlink" href="#storage-boundaries" title="Link to this heading">¶</a></h2>
+<p>Ordinary basejail upgrades require complete release sources, a stopped jail and
+no preexisting mounts below its root. In-place upgrade of a template-based
+basejail is refused; use a target-release template instead. Build/merge failures
+restore the old config/root where possible and retain <code class="docutils literal notranslate"><span class="pre">etc.old</span></code>, the root
+upgrade snapshot and the single overwritten <code class="docutils literal notranslate"><span class="pre">config.old</span></code> backup. An incomplete
+backout is reported; inspect recovery objects before retrying. A failed merge’s
+log is copied to <code class="docutils literal notranslate"><span class="pre">upgrade.log</span></code> before rollback when available. Warnings alone
+are not merge failures; unresolved conflicts are. Independent-userland upgrades
+remain a separate workflow and can require interactive installation passes.</p>
+<p>Basejails share read-only release directories. <code class="docutils literal notranslate"><span class="pre">create</span> <span class="pre">-e</span></code> supplies an empty
+filesystem, not a clone or independent OS. Changing a type label does not copy
+an OS tree. Shared-release updates affect every basejail using that release;
+back it up separately and use a maintenance window.</p>
+<p>Template conversion requires a safe dataset tag; generated timestamp tags
+containing <code class="docutils literal notranslate"><span class="pre">&#64;</span></code> must be retagged first. A failed rename preserves metadata and
+delegated state. A later metadata or alias failure is reported, but the dataset
+may already have moved. <code class="docutils literal notranslate"><span class="pre">clean</span> <span class="pre">-t</span></code> removes the whole templates tree, including
+internal clones; only explicit force permits destruction of outside clones.</p>
+<p>A full receive can be refused by ZFS when the destination already has snapshots.
+Use incremental streams or a fresh destination, not an automatic destructive
+replacement. Remote sends validate their destination on the receiver.
+Remote <code class="docutils literal notranslate"><span class="pre">-c</span></code> cleans only sender retention; manage receiver snapshots separately.
+Cleanup removes older reserved <code class="docutils literal notranslate"><span class="pre">ioc-send-*</span></code> snapshots after success, keeping
+the new replication point and never deleting dependent clones.
+Failed full transfers retain and name their source snapshot for recovery.</p>
+<p>Normal snapshots cover root only; recursive snapshots include configuration and
+descendants. Rollback does not restore native properties, tag links or the shared
+release. The saved tag can differ from current aliases. New descendants can
+block recursive rollback; multi-dataset rollback can stop after earlier targets
+have already been restored. Take application-consistent backups separately.</p>
+</section>
+<section id="kernel-and-networking-notes">
+<h2>Kernel and networking notes<a class="headerlink" href="#kernel-and-networking-notes" title="Link to this heading">¶</a></h2>
+<p>VNET needs VIMAGE support; RACCT/RCTL are required only for resource limits.
+A stored property does not prove that the host kernel applied it. Consult
+<code class="docutils literal notranslate"><span class="pre">jail(8)</span></code>, <code class="docutils literal notranslate"><span class="pre">zfs(8)</span></code> and <code class="docutils literal notranslate"><span class="pre">rctl(8)</span></code> for the host version.</p>
+<p>The old 88-character mount-path issue and <code class="docutils literal notranslate"><span class="pre">hack88</span></code> workaround concern historic
+kernels. Do not enable it as a general prerequisite. Likewise, old FreeBSD 10
+VNET/PF/ALTQ reports are not blanket descriptions of current kernels.</p>
+<p>IPv6 services can race address readiness during startup. Diagnose address and
+service ordering rather than globally disabling duplicate-address detection:
+<code class="docutils literal notranslate"><span class="pre">net.inet6.ip6.dad_count=0</span></code> affects the host as well as its jails.</p>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+  <div>
+    <h3><a href="index.html">Table of Contents</a></h3>
+    <ul>
+<li><a class="reference internal" href="#">Known limitations</a><ul>
+<li><a class="reference internal" href="#command-restrictions">Command restrictions</a></li>
+<li><a class="reference internal" href="#storage-boundaries">Storage boundaries</a></li>
+<li><a class="reference internal" href="#kernel-and-networking-notes">Kernel and networking notes</a></li>
+</ul>
+</li>
+</ul>
+
+  </div>
+  <div>
+    <h4>Previous topic</h4>
+    <p class="topless"><a href="ezjail-migration.html"
+                          title="previous chapter">Migration from ezjail</a></p>
+  </div>
+  <div>
+    <h4>Next topic</h4>
+    <p class="topless"><a href="faq.html"
+                          title="next chapter">FAQ</a></p>
+  </div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/known-issues.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="faq.html" title="FAQ"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="ezjail-migration.html" title="Migration from ezjail"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">iocell 2.3.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Known limitations</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright 2014-2015, iocell.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 9.2.0.
+    </div>
+  </body>
+</html>

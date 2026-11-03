@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>FAQ &#8212; iocell 2.3.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="_static/classic.css?v=2bf1fcf8" />
+    
+    <script src="_static/documentation_options.js?v=c3c8ae58"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="Known limitations" href="known-issues.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="known-issues.html" title="Known limitations"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">iocell 2.3.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">FAQ</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="faq">
+<h1>FAQ<a class="headerlink" href="#faq" title="Link to this heading">¶</a></h1>
+<dl class="simple">
+<dt><strong>What is iocell?</strong></dt><dd><p>A shell-based FreeBSD jail manager using ZFS, optional VNET networking and
+optional kernel resource limits. It needs <code class="docutils literal notranslate"><span class="pre">uclcmd</span></code>; it is not a
+zero-dependency tool.</p>
+</dd>
+<dt><strong>What is a jail?</strong></dt><dd><p>FreeBSD OS-level virtualization: isolated userlands share the host kernel.
+A jail is not a VM with an independent guest kernel.</p>
+</dd>
+<dt><strong>What is VNET?</strong></dt><dd><p>A separate per-jail networking stack. Shared-IP jails instead use selected
+addresses on host interfaces. Set the mode explicitly when following an
+example because capable hosts enable VNET automatically.</p>
+</dd>
+<dt><strong>How do I configure addresses?</strong></dt><dd><p>Use <code class="docutils literal notranslate"><span class="pre">ip4_addr</span></code> or <code class="docutils literal notranslate"><span class="pre">ip6_addr</span></code> with <code class="docutils literal notranslate"><span class="pre">interface|address/prefix</span></code>. The
+interface is a host interface for shared IP and a jail interface for VNET.
+See <a class="reference internal" href="networking.html"><span class="doc">Networking</span></a>.</p>
+</dd>
+<dt><strong>Do I need a default gateway?</strong></dt><dd><p>VNET jails need appropriate routes for destinations off their attached
+network. The gateway may be the host’s private bridge address when the
+host is configured as a router/NAT gateway, or another router. Shared-IP
+jails use the host network stack rather than a separate jail gateway.</p>
+</dd>
+<dt><strong>Does iocell configure NAT?</strong></dt><dd><p>No complete host NAT policy is set up automatically. Configure FreeBSD
+routing and firewall/NAT rules for your topology. Do not expose additional
+MAC addresses on a provider link that prohibits them.</p>
+</dd>
+<dt><strong>Can I run a firewall in a jail?</strong></dt><dd><p>Availability depends on VNET, the host kernel, jail permissions and device
+exposure. Do not apply an old blanket PF/IPFW or securelevel recipe to all
+host versions. Keep host filtering and management access while testing
+rules on an isolated network.</p>
+</dd>
+<dt><strong>Can I use templates and clones?</strong></dt><dd><p>Yes. Use <code class="docutils literal notranslate"><span class="pre">istemplate=yes/no</span></code> for conversion and <code class="docutils literal notranslate"><span class="pre">clone</span></code> for deployment.
+Template tags must be safe ZFS components. See <a class="reference internal" href="templates.html"><span class="doc">How to create and use templates</span></a> and
+<a class="reference internal" href="jailtypes.html"><span class="doc">Jail types</span></a>.</p>
+</dd>
+<dt><strong>Are clones independent?</strong></dt><dd><p>A ZFS clone depends on its source snapshot. Promotion reverses that
+relationship. Shared basejail release mounts remain shared; promotion alone
+does not turn them into a private full OS installation.</p>
+</dd>
+<dt><strong>Can I limit CPU and memory?</strong></dt><dd><p>Yes, with appropriate kernel support and RACCT enabled at boot. Configure
+<code class="docutils literal notranslate"><span class="pre">rlimits=on</span></code> and desired properties, then inspect actual rules with
+<code class="docutils literal notranslate"><span class="pre">limits</span></code> and resource use with <code class="docutils literal notranslate"><span class="pre">inuse</span></code>. See <a class="reference internal" href="advanced-use.html"><span class="doc">Advanced usage</span></a>.</p>
+</dd>
+<dt><strong>Can I use short UUIDs?</strong></dt><dd><p>See the identity and import-selector restrictions in <a class="reference internal" href="known-issues.html"><span class="doc">Known limitations</span></a>.</p>
+</dd>
+<dt><strong>Where is configuration stored?</strong></dt><dd><p>In UCL files under the selected iocell dataset, plus native ZFS properties.
+<code class="docutils literal notranslate"><span class="pre">defaults</span></code> displays defaults. <code class="docutils literal notranslate"><span class="pre">set</span> <span class="pre">property=value</span> <span class="pre">default</span></code> saves
+creation defaults; explicit create properties override them. Existing
+jails are not rewritten. See <a class="reference internal" href="basic-use.html"><span class="doc">Basic usage</span></a> for managed-field exclusions.</p>
+</dd>
+<dt><strong>Can I run without a ZFS pool?</strong></dt><dd><p>No. The host OS itself need not be installed on ZFS, but iocell requires a
+usable pool for jail storage.</p>
+</dd>
+<dt><strong>How do I keep iocell from managing my bridges?</strong></dt><dd><p>Prepare the bridge yourself and use <code class="docutils literal notranslate"><span class="pre">createbridge=off</span></code> and
+<code class="docutils literal notranslate"><span class="pre">keepbridge=on</span></code> as appropriate. See <a class="reference internal" href="networking.html"><span class="doc">Networking</span></a>.</p>
+</dd>
+<dt><strong>What should I back up before updates?</strong></dt><dd><p>Back up jail configuration and data, plus the shared release used by
+basejails. Stop or quiesce applications for consistent backups. See
+<a class="reference internal" href="best-practices.html"><span class="doc">Best practices</span></a> and <a class="reference internal" href="known-issues.html"><span class="doc">Known limitations</span></a> for storage boundaries.</p>
+</dd>
+</dl>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+  <div>
+    <h4>Previous topic</h4>
+    <p class="topless"><a href="known-issues.html"
+                          title="previous chapter">Known limitations</a></p>
+  </div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/faq.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="known-issues.html" title="Known limitations"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">iocell 2.3.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">FAQ</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright 2014-2015, iocell.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 9.2.0.
+    </div>
+  </body>
+</html>

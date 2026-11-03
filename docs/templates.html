@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>How to create and use templates &#8212; iocell 2.3.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="_static/classic.css?v=2bf1fcf8" />
+    
+    <script src="_static/documentation_options.js?v=c3c8ae58"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Jail images and historical differential packages" href="jail-package.html" />
+    <link rel="prev" title="Advanced usage" href="advanced-use.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="jail-package.html" title="Jail images and historical differential packages"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="advanced-use.html" title="Advanced usage"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">iocell 2.3.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">How to create and use templates</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="how-to-create-and-use-templates">
+<h1>How to create and use templates<a class="headerlink" href="#how-to-create-and-use-templates" title="Link to this heading">¶</a></h1>
+<p>Templates preserve a configured jail for deployment through ZFS clones.</p>
+<p>A stopped basejail can be converted to a template and back again using the
+<code class="docutils literal notranslate"><span class="pre">istemplate</span></code> property. Templates are not started automatically. Converting a
+template back to a jail preserves its stored <code class="docutils literal notranslate"><span class="pre">host_hostuuid</span></code>, tag, snapshots,
+and child datasets; it does not give the jail a new identity.</p>
+<p>Template tags become ZFS dataset names. Start the tag with a letter, digit or
+underscore; use only letters, digits, underscores, periods, colons and hyphens.
+A generated timestamp tag contains <code class="docutils literal notranslate"><span class="pre">&#64;</span></code> and must first be changed explicitly,
+for example with <code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">set</span> <span class="pre">tag=mytemplate</span> <span class="pre">UUID</span></code>. An unsafe tag is rejected
+before changing datasets, metadata, aliases or delegated state. Tags are not
+silently rewritten.</p>
+<p><strong>Here is how to create a template with iocell:</strong></p>
+<ol class="arabic simple">
+<li><p>Create a new jail <code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">create</span> <span class="pre">tag=mytemplate</span></code></p></li>
+<li><p>Configure the jail’s networking</p></li>
+<li><p>Install any package you like and customize jail</p></li>
+<li><p>Once finished with customization stop the jail <code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">stop</span> <span class="pre">UUID</span> <span class="pre">|</span> <span class="pre">TAG</span></code></p></li>
+<li><p>A good idea is set some notes <code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">set</span> <span class="pre">notes=&quot;customized</span> <span class="pre">PHP,nginx</span> <span class="pre">jail&quot;</span> <span class="pre">UUID</span> <span class="pre">|</span> <span class="pre">TAG</span></code></p></li>
+<li><p>Turn the template property on <code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">set</span> <span class="pre">istemplate=yes</span> <span class="pre">UUID|TAG</span></code></p></li>
+<li><p>List your template with <code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">list</span> <span class="pre">-t</span></code></p></li>
+</ol>
+<p><strong>Here is how to use the created template:</strong></p>
+<p>To create a new jail from this template simply clone it!</p>
+<ol class="arabic simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">clone</span> <span class="pre">TAG-of-mytemplate</span> <span class="pre">tag=mynewjail</span></code></p></li>
+<li><p>List new jail <code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">list</span></code></p></li>
+<li><p>Start jail <code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">start</span> <span class="pre">UUID</span> <span class="pre">|</span> <span class="pre">TAG</span></code></p></li>
+</ol>
+<p>Done!</p>
+<p><strong>To customize or patch the template:</strong></p>
+<p>Stop it if it was started for maintenance, convert it back with
+<code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">set</span> <span class="pre">istemplate=no</span> <span class="pre">TAG-of-template</span></code>, then start the jail as usual.
+After maintenance, stop it and convert it to a template again.</p>
+<p>Conversion back is refused if the stored UUID is invalid, the template is
+running, or its root/data datasets have clones outside the template tree. A failed ZFS rename (for
+example, because the original UUID destination is occupied) is reported as an
+error without changing the template flags or tag link. The previous <code class="docutils literal notranslate"><span class="pre">jailed</span></code>
+state of the template’s <code class="docutils literal notranslate"><span class="pre">data</span></code> child dataset is restored if the rename fails;
+any failure to restore it is also reported. Forward conversion likewise
+renames before changing metadata or aliases, and preserves both <code class="docutils literal notranslate"><span class="pre">on</span></code> and
+<code class="docutils literal notranslate"><span class="pre">off</span></code> delegated states. A failed config lookup cannot edit the host’s
+<code class="docutils literal notranslate"><span class="pre">/config</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">clean</span> <span class="pre">-t</span></code> includes clones inside the templates tree, but refuses
+clones outside it. ZFS dependency protection remains enabled if an outside clone
+appears after the preflight check. <code class="docutils literal notranslate"><span class="pre">iocell</span> <span class="pre">clean</span> <span class="pre">-f</span> <span class="pre">-t</span></code> prints ZFS’s
+complete destruction preview for the templates tree and its dependent trees
+before destroying them.</p>
+<p>A failed metadata or alias update after a successful conversion rename returns
+an error; the dataset may already have moved. The final template flag is not
+written after that failure.</p>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+  <div>
+    <h4>Previous topic</h4>
+    <p class="topless"><a href="advanced-use.html"
+                          title="previous chapter">Advanced usage</a></p>
+  </div>
+  <div>
+    <h4>Next topic</h4>
+    <p class="topless"><a href="jail-package.html"
+                          title="next chapter">Jail images and historical differential packages</a></p>
+  </div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/templates.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="jail-package.html" title="Jail images and historical differential packages"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="advanced-use.html" title="Advanced usage"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">iocell 2.3.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">How to create and use templates</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright 2014-2015, iocell.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 9.2.0.
+    </div>
+  </body>
+</html>
