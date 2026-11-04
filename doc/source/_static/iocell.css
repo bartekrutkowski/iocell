@@ -1,0 +1,9 @@
+/* Keep form controls and scrollbars light, independently of system settings. */
+html {
+    color-scheme: light;
+}
+
+/* This site has one appearance; do not offer a nonfunctional mode switch. */
+.theme-toggle-container {
+    display: none;
+}

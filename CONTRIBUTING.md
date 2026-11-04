@@ -53,6 +53,8 @@ details, or test logs.
 ## Project website
 
 The homepage is maintained in `web/`; documentation remains in `doc/source/`.
+The docs use Furo with a light-only appearance; small overrides are maintained
+in `doc/source/_templates/base.html` and `doc/source/_static/iocell.css`.
 The site builder needs Python 3.13 or newer and a Git checkout with release tags.
 It selects the newest stable tag reachable from the checkout for source
 downloads, while documentation follows the checked-out source.
@@ -67,6 +69,9 @@ site="$(mktemp -d /tmp/iocell-site.XXXXXX)"
 /tmp/iocell-pages-venv/bin/python -m http.server 8000 --bind 127.0.0.1 \
     --directory "${site}/html"
 ```
+
+The browser regression uses Chrome or Chromium when installed; `CHROME_BIN`
+can select its executable. CI requires the browser test rather than skipping it.
 
 Choose a fresh output directory: the builder refuses to overwrite an existing
 path. It builds Sphinx with warnings treated as errors, keeps build caches

@@ -1,9 +1,15 @@
 """Exercise the real site builder, Sphinx output and release selection."""
+import functools
 import html.parser
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+import json
+import os
 import pathlib
+import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 import unittest
 from urllib.parse import unquote, urlsplit
 
@@ -107,6 +113,92 @@ class SiteTests(unittest.TestCase):
         result = self.build(output, source=ROOT)
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assert_local_links(output)
+
+    def test_docs_stay_light_with_dark_system_and_saved_preferences(self):
+        chrome = (os.environ.get("CHROME_BIN") or shutil.which("google-chrome")
+                  or shutil.which("chromium"))
+        if not chrome:
+            mac_chrome = pathlib.Path(
+                "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+            )
+            if mac_chrome.is_file():
+                chrome = str(mac_chrome)
+        if not chrome:
+            if os.environ.get("CI"):
+                self.fail("Chrome/Chromium is required for the browser test")
+            self.skipTest("Chrome/Chromium not installed; set CHROME_BIN")
+        output = self.base / "site"
+        result = self.build(output, source=ROOT)
+        self.assertEqual(result.returncode, 0, result.stdout)
+        (self.base / "check.html").write_text('''<!doctype html>
+<html><body><pre id="result"></pre><script>
+const saved = new URLSearchParams(location.search).get("saved");
+if (saved === "dark") localStorage.setItem("theme", "dark");
+else localStorage.removeItem("theme");
+const frame = document.createElement("iframe");
+frame.width = new URLSearchParams(location.search).get("width");
+frame.height = "900";
+frame.onload = () => {
+    const doc = frame.contentDocument;
+    const visible = node => node.getClientRects().length > 0;
+    const result = {
+        darkSystem: frame.contentWindow.matchMedia(
+            "(prefers-color-scheme: dark)"
+        ).matches,
+        width: frame.contentWindow.innerWidth,
+        background: getComputedStyle(doc.body).backgroundColor,
+        scheme: getComputedStyle(doc.documentElement).colorScheme,
+        toggles: [...doc.querySelectorAll("button[aria-label]")].filter(
+            node => /color theme/i.test(node.ariaLabel) && visible(node)
+        ).length,
+        saved: localStorage.getItem("theme")
+    };
+    document.getElementById("result").textContent = JSON.stringify(result);
+};
+frame.src = "site/docs/index.html";
+document.body.append(frame);
+</script></body></html>''')
+
+        class QuietHandler(SimpleHTTPRequestHandler):
+            def log_message(self, *args):
+                pass
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), functools.partial(
+            QuietHandler, directory=str(self.base)
+        ))
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            for width, saved in ((1280, "auto"), (1280, "dark"),
+                                 (390, "auto"), (390, "dark")):
+                with self.subTest(width=width, saved=saved):
+                    browser = subprocess.run([
+                        chrome, "--headless=new", "--disable-gpu",
+                        "--no-first-run", "--disable-background-networking",
+                        "--force-dark-mode", "--dump-dom",
+                        "--virtual-time-budget=5000",
+                        "--user-data-dir=" + str(self.base / "chrome-profile"),
+                        f"http://127.0.0.1:{server.server_port}/check.html"
+                        f"?saved={saved}&width={width}"
+                    ], capture_output=True, text=True, timeout=45)
+                    self.assertEqual(browser.returncode, 0, browser.stderr)
+                    # The probe contains only JSON, not page markup.
+                    start = browser.stdout.index('<pre id="result">')
+                    data = browser.stdout[start:].split(">", 1)[1].split("<", 1)[0]
+                    self.assertTrue(data, browser.stdout)
+                    rendered = json.loads(data)
+                    self.assertTrue(rendered["darkSystem"], rendered)
+                    self.assertEqual(rendered["width"], width, rendered)
+                    self.assertEqual(rendered["background"],
+                                     "rgb(255, 255, 255)", rendered)
+                    self.assertEqual(rendered["scheme"], "light", rendered)
+                    self.assertEqual(rendered["toggles"], 0, rendered)
+                    self.assertEqual(rendered["saved"],
+                                     "dark" if saved == "dark" else None)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join()
 
     def test_no_stable_tag_does_not_publish_a_preview_or_unmerged_release(self):
         self.git("tag", "--delete", "v2.9.0", "v2.10.0")
