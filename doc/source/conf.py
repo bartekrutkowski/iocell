@@ -45,7 +45,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'iocell'
-copyright = u'2014-2015, iocell'
+copyright = u'2014–2026, iocell contributors'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
